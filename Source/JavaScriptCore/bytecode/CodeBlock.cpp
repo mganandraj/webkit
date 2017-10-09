@@ -2322,6 +2322,7 @@ bool CodeBlock::checkIfOptimizationThresholdReached()
 
 auto CodeBlock::updateOSRExitCounterAndCheckIfNeedToReoptimize(DFG::OSRExitState& exitState) -> OptimizeAction
 {
+#if ENABLE(DFG_JIT)
     DFG::OSRExitBase& exit = exitState.exit;
     if (!exitKindMayJettison(exit.m_kind)) {
         // FIXME: We may want to notice that we're frequently exiting
@@ -2364,6 +2365,7 @@ auto CodeBlock::updateOSRExitCounterAndCheckIfNeedToReoptimize(DFG::OSRExitState
 
     // Too few fails. Adjust the execution counter such that the target is to only optimize after a while.
     baselineCodeBlock->m_jitExecuteCounter.setNewThresholdForOSRExit(exitState.activeThreshold, exitState.memoryUsageAdjustedThreshold);
+#endif
     return OptimizeAction::None;
 }
 

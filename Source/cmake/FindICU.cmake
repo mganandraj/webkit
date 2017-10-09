@@ -12,6 +12,9 @@
 find_package(PkgConfig)
 pkg_check_modules(PC_ICU icu-uc)
 
+message("ANAND:" ${WEBKIT_LIBRARIES_INCLUDE_DIR})
+message("ANAND:" ${WEBKIT_LIBRARIES_LINK_DIR})
+
 # Look for the header file.
 find_path(
     ICU_INCLUDE_DIR
@@ -22,6 +25,8 @@ find_path(
     DOC "Include directory for the ICU library")
 mark_as_advanced(ICU_INCLUDE_DIR)
 
+set(ICU_INCLUDE_DIR ${WEBKIT_LIBRARIES_INCLUDE_DIR})
+
 # Look for the library.
 find_library(
     ICU_LIBRARY
@@ -31,6 +36,11 @@ find_library(
           ${WEBKIT_LIBRARIES_LINK_DIR}
     DOC "Libraries to link against for the common parts of ICU")
 mark_as_advanced(ICU_LIBRARY)
+
+set(ICU_LIBRARY ${WEBKIT_LIBRARIES_LINK_DIR}/libicuuc.so)
+
+message("ANAND:" ${ICU_INCLUDE_DIR})
+message("ANAND:" ${ICU_LIBRARY})
 
 # Copy the results to the output variables.
 if (ICU_INCLUDE_DIR AND ICU_LIBRARY)

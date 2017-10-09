@@ -211,24 +211,24 @@ double JIT_OPERATION jsMod(double x, double y) REFERENCED_FROM_ASM WTF_INTERNAL;
 
 namespace Math {
 
-using std::sin;
-using std::sinh;
-using std::cos;
-using std::cosh;
-using std::tan;
-using std::tanh;
-using std::asin;
-using std::asinh;
-using std::acos;
-using std::acosh;
-using std::atan;
-using std::atanh;
-using std::log;
-using std::log10;
-using std::log2;
-using std::cbrt;
-using std::exp;
-using std::expm1;
+using ::sin;
+using ::sinh;
+using ::cos;
+using ::cosh;
+using ::tan;
+using ::tanh;
+using ::asin;
+using ::asinh;
+using ::acos;
+using ::acosh;
+using ::atan;
+using ::atanh;
+using ::log;
+using ::log10;
+using ::log2;
+using ::cbrt;
+using ::exp;
+using ::expm1;
 
 double JIT_OPERATION log1p(double) WTF_INTERNAL;
 

@@ -527,7 +527,7 @@ double JIT_OPERATION log1p(double value)
 {
     if (value == 0.0)
         return value;
-    return std::log1p(value);
+    return ::log1p(value);
 }
 
 } // namespace Math

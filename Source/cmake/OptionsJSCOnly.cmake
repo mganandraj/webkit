@@ -86,6 +86,7 @@ endif ()
 
 if (NOT APPLE)
     find_package(ICU REQUIRED)
+    add_definitions(-DU_DISABLE_RENAMING=1 -DU_SHOW_CPLUSPLUS_API=0 -DUCONFIG_NO_COLLATION=1 -DUCONFIG_NO_FORMATTING=1)
 else ()
     add_definitions(-DU_DISABLE_RENAMING=1 -DU_SHOW_CPLUSPLUS_API=0)
     set(ICU_LIBRARIES libicucore.dylib)
