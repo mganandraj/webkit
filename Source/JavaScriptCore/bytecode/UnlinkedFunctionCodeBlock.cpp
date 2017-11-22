@@ -37,4 +37,13 @@ void UnlinkedFunctionCodeBlock::destroy(JSCell* cell)
     static_cast<UnlinkedFunctionCodeBlock*>(cell)->~UnlinkedFunctionCodeBlock();
 }
 
+void UnlinkedFunctionCodeBlock::save(VM&vm, std::ofstream& ofs) {
+    UnlinkedCodeBlock::save(vm, ofs);
+}
+
+void UnlinkedFunctionCodeBlock::load(VM&vm, std::ifstream& ofs, const char* prefix) {
+	UnlinkedCodeBlock::load(vm, ofs, prefix);
+}
+
+
 }

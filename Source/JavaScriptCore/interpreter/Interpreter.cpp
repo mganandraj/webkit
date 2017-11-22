@@ -775,6 +775,8 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     VM& vm = *scope->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 
+    bool isProgramBytecodes = source.provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes;
+
     ProgramExecutable* program = ProgramExecutable::create(callFrame, source);
     EXCEPTION_ASSERT(throwScope.exception() || program);
     RETURN_IF_EXCEPTION(throwScope, { });
@@ -787,6 +789,8 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
 
     if (UNLIKELY(!vm.isSafeToRecurseSoft()))
         return checkedReturn(throwStackOverflowError(callFrame, throwScope));
+
+    if(!isProgramBytecodes) {
 
     // First check if the "program" is actually just a JSON object. If so,
     // we'll handle the JSON object here. Else, we'll handle real JS code
@@ -885,6 +889,8 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
         }
         return result;
     }
+}
+
 failedJSONP:
     // If we get here, then we have already proven that the script is not a JSON
     // object.
@@ -896,6 +902,13 @@ failedJSONP:
     EXCEPTION_ASSERT(!throwScope.exception() || !error);
     if (UNLIKELY(error))
         return checkedReturn(throwException(callFrame, throwScope, error));
+    
+    if(JSC::Options::saveBytecodes()) {
+        //Don't execute.. Just save the byte codes.
+        program->save(vm, "script");
+        return JSValue(JSValue::JSTrue);
+    }
+    else {
 
     ProgramCodeBlock* codeBlock;
     {
@@ -925,6 +938,7 @@ failedJSONP:
     throwScope.release();
     JSValue result = program->generatedJITCode()->execute(&vm, &protoCallFrame);
     return checkedReturn(result);
+    }
 }
 
 JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args)

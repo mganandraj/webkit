@@ -36,6 +36,8 @@ class UnlinkedInstructionStream {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit UnlinkedInstructionStream(const Vector<UnlinkedInstruction, 0, UnsafeVectorOverflow>&);
+    explicit UnlinkedInstructionStream(RefCountedArray<unsigned char> data,
+        unsigned m_instructionCount);
 
     unsigned count() const { return m_instructionCount; }
     size_t sizeInBytes() const;
@@ -60,6 +62,10 @@ public:
     const RefCountedArray<UnlinkedInstruction>& unpackForDebugging() const;
 #endif
 
+RefCountedArray<unsigned char> m_data;
+unsigned m_instructionCount;
+
+
 private:
     friend class Reader;
 
@@ -67,8 +73,6 @@ private:
     mutable RefCountedArray<UnlinkedInstruction> m_unpackedInstructionsForDebugging;
 #endif
 
-    RefCountedArray<unsigned char> m_data;
-    unsigned m_instructionCount;
 };
 
 // Unlinked instructions are packed in a simple stream format.

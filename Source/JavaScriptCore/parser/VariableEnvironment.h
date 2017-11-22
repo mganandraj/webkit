@@ -28,6 +28,8 @@
 #include "Identifier.h"
 #include <wtf/HashMap.h>
 
+#include <fstream>
+
 namespace JSC {
 
 struct VariableEnvironmentEntry {
@@ -56,6 +58,8 @@ public:
 
     ALWAYS_INLINE void clearIsVar() { m_bits &= ~IsVar; }
 
+    uint16_t m_bits { 0 };    
+
 private:
     enum Traits : uint16_t {
         IsCaptured = 1 << 0,
@@ -69,7 +73,6 @@ private:
         IsParameter = 1 << 8,
         IsSloppyModeHoistingCandidate = 1 << 9
     };
-    uint16_t m_bits { 0 };
 };
 
 struct VariableEnvironmentEntryHashTraits : HashTraits<VariableEnvironmentEntry> {
@@ -88,6 +91,11 @@ public:
     { }
     VariableEnvironment(const VariableEnvironment&) = default;
     VariableEnvironment& operator=(const VariableEnvironment&) = default;
+
+    void save(std::ofstream& stream, const Vector<Identifier>& identifiers);
+    void load(std::ifstream& stream, const Vector<Identifier>& identifiers);
+
+    ALWAYS_INLINE Map::AddResult add(const RefPtr<UniquedStringImpl>& identifier, VariableEnvironmentEntry entry) { return m_map.add(identifier, entry); }
 
     ALWAYS_INLINE Map::iterator begin() { return m_map.begin(); }
     ALWAYS_INLINE Map::iterator end() { return m_map.end(); }

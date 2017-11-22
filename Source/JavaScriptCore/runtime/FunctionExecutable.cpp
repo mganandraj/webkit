@@ -55,6 +55,114 @@ FunctionExecutable::FunctionExecutable(VM& vm, const SourceCode& source, Unlinke
     m_typeProfilingEndOffset = unlinkedExecutable->typeProfilingEndOffset();
 }
 
+void FunctionExecutable::save(VM& vm, const char* prefix, const char* suffix){
+    // Get file name to write to.
+    UnlinkedFunctionExecutable* ue = this->unlinkedExecutable();
+    const Identifier& nameid = ue->inferredName();
+    const char* fileName = nameid.ascii().data();
+    
+    std::string repoPath("c:\\tmp\\jsc\\script\\");
+    std::string newprefix(prefix);
+    newprefix.append("_");
+    newprefix.append(fileName);
+    newprefix.append("_");
+    newprefix.append(suffix);
+
+    // First generate unlinked byte codes.
+
+    ParserError error;
+        
+    // First write for call.
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall;
+    {
+
+        std::string callPath(repoPath);
+        callPath.append(newprefix);
+        callPath.append("_call");
+        callPath.append(".jsb");
+    
+        std::ofstream ofs(callPath, std::ios::binary);
+        
+        unlinkedCodeBlockForCall = 
+            this->m_unlinkedExecutable->unlinkedCodeBlockFor(
+                vm, this->m_source, CodeSpecializationKind::CodeForCall, DebuggerMode::DebuggerOff, error, 
+                    parseMode());
+
+        recordParse(
+            m_unlinkedExecutable->features(), 
+            m_unlinkedExecutable->hasCapturedVariables(),
+            lastLine(), endColumn()); 
+
+        // Write recordParse
+        ScriptExecutable::save(vm, ofs);
+
+        // Write codeblock.
+        unlinkedCodeBlockForCall->save(vm, ofs);
+    }    
+
+    // Now write for construct if needed.
+    if(constructAbility() == ConstructAbility::CanConstruct) {
+
+        std::string ctrPath(repoPath);
+        ctrPath.append(newprefix);
+        ctrPath.append("_ctr");
+        ctrPath.append(".jsb");
+    
+        std::ofstream ofs(ctrPath, std::ios::binary);
+
+        UnlinkedFunctionCodeBlock* unlinkedCodeBlock = 
+            this->m_unlinkedExecutable->unlinkedCodeBlockFor(
+                vm, this->m_source, CodeSpecializationKind::CodeForConstruct , DebuggerMode::DebuggerOff, error, 
+                    parseMode());
+
+        recordParse(
+            m_unlinkedExecutable->features(), 
+            m_unlinkedExecutable->hasCapturedVariables(),
+            lastLine(), endColumn()); 
+
+        // Write recordParse
+        ScriptExecutable::save(vm, ofs);
+
+        // Write codeblock.
+        unlinkedCodeBlock->save(vm, ofs);
+    }
+
+    // End of writing codeblocks.
+
+    // Write functions.
+    for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
+        UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
+        FunctionExecutable* func = ufunc->link(vm, this->source());
+        std::string suffix("d_");
+        
+        //suffix.append(std::to_string(i));
+        std::stringstream ss;
+        ss << i;
+        suffix.append(ss.str());
+
+        func->save(vm, newprefix.c_str(), suffix.c_str());
+    }
+
+    // Write functions.
+    for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
+        UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
+        FunctionExecutable* func = ufunc->link(vm, this->source());
+        std::string suffix("x_");
+        
+        //suffix.append(std::to_string(i));
+        std::stringstream ss;
+        ss << i;
+        suffix.append(ss.str());
+
+        func->save(vm, newprefix.c_str(), suffix.c_str());
+    }
+}
+
+UnlinkedProgramCodeBlock* FunctionExecutable::load(VM& vm, const char* prefix){
+    return nullptr; 
+}
+
+
 void FunctionExecutable::finishCreation(VM& vm)
 {
     Base::finishCreation(vm);

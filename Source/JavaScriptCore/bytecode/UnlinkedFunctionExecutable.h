@@ -37,6 +37,8 @@
 #include "SourceCode.h"
 #include "VariableEnvironment.h"
 
+#include <fstream>
+
 namespace JSC {
 
 class FunctionMetadataNode;
@@ -65,6 +67,24 @@ public:
         instance->finishCreation(*vm);
         return instance;
     }
+
+
+    static UnlinkedFunctionExecutable* create(VM* vm, std::ifstream& stream, const char* prefix, const char* suffix)
+    {
+        UnlinkedFunctionExecutable* instance = new (NotNull, allocateCell<UnlinkedFunctionExecutable>(vm->heap))
+            UnlinkedFunctionExecutable(vm, vm->unlinkedFunctionExecutableStructure.get(), stream, prefix, suffix);
+        instance->finishCreation(*vm);
+        return instance;
+    }
+
+    void saveNonCode(VM&, std::ofstream&);
+    void loadNonCode(VM&, std::ifstream&);
+
+    void saveCode(VM&, std::ofstream&);
+    //void loadCode(VM&, std::ifstream&);
+    
+    UnlinkedFunctionCodeBlock* loadCode(VM& vm, std::ifstream& stream, CodeSpecializationKind specializationKind,
+        DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode);
 
     const Identifier& name() const { return m_name; }
     const Identifier& ecmaName() const { return m_ecmaName; }
@@ -140,6 +160,7 @@ public:
 
 private:
     UnlinkedFunctionExecutable(VM*, Structure*, const SourceCode&, SourceCode&& parentSourceOverride, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, VariableEnvironment&,  JSC::DerivedContextType);
+    UnlinkedFunctionExecutable(VM*, Structure*, std::ifstream& stream, const char* prefix, const char* suffix);
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;
@@ -173,6 +194,8 @@ private:
     SourceCode m_parentSourceOverride;
     SourceCode m_classSource;
 
+    char* m_prefix;
+    
     String m_sourceURLDirective;
     String m_sourceMappingURLDirective;
 

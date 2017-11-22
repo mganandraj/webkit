@@ -65,6 +65,50 @@ ScriptExecutable::ScriptExecutable(Structure* structure, VM& vm, const SourceCod
 {
 }
 
+void ScriptExecutable::save(VM&vm, std::ofstream& ofs){
+    // Save everything that is recorded after parsting through recordParse
+
+    ofs << "1 " << static_cast<int16_t>(m_features) << " " << m_hasCapturedVariables
+        << " " << m_lastLine << " " << m_endColumn << std::endl;
+}
+
+// Caller should know how many times to call this.
+std::string nexttoken(std::string text, size_t& next, size_t& last, char delimiter) {
+    std::string token;
+    if((next = text.find(delimiter, last)) != std::string::npos) {
+        token = text.substr(last, next-last);
+        last = next + 1;
+    } else {
+        token = text.substr(last);
+    }
+
+    return token;
+}
+
+/*static */void ScriptExecutable::load(VM&vm, std::ifstream& ifs, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn){
+    //std::string line;
+    //std::getline(ifs, line);
+
+    //char delimiter= ' ';
+    //size_t next=0, last=0;
+    //std::string token;
+    
+
+	 //Ignore first index token
+    int index; ifs >> index;
+    ASSERT (index == 1);
+
+    ifs >> features;
+    ifs >> hasCapturedVariables;
+    ifs >> lastLine;
+    ifs >> endColumn;
+
+    // Read the last new line
+    ifs.get();
+
+    //token = nexttoken(line, next, last, delimiter); 
+}
+
 void ScriptExecutable::destroy(JSCell* cell)
 {
     static_cast<ScriptExecutable*>(cell)->ScriptExecutable::~ScriptExecutable();

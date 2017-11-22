@@ -37,6 +37,7 @@ namespace JSC {
 
     enum class SourceProviderSourceType {
         Program,
+        ProgramBytecodes,
         Module,
         WebAssembly,
     };

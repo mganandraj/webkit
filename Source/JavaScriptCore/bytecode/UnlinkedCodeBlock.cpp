@@ -87,6 +87,713 @@ UnlinkedCodeBlock::UnlinkedCodeBlock(VM* vm, Structure* structure, CodeType code
     ASSERT(m_constructorKind == static_cast<unsigned>(info.constructorKind()));
 }
 
+void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs, const char* prefix){
+    int index; ifs >> index;
+    ASSERT(index == 2);
+
+    ifs >> m_numParameters;
+    ifs.get(); // newline
+
+    ifs >> index;
+    ASSERT (index == 3);
+
+    unsigned instructioncount;
+    ifs >> instructioncount;
+
+    int size;
+    ifs >> size;
+
+	 // Read an empty space.
+	 char space;
+	 ifs.read(&space, 1);
+
+    RefCountedArray<unsigned char> data(size);
+	ifs.read(reinterpret_cast<char*>(data.begin()), size);
+	 //for(int i=0; i<size; i++) {
+    //    ifs >> data[i];
+    //}
+
+    m_unlinkedInstructions = std::make_unique<UnlinkedInstructionStream>(data, instructioncount);
+    
+	 int c = ifs.get(); // newline
+	 //c = ifs.get(); // newline
+	 //c = ifs.get(); // newline
+	 //c = ifs.get(); // newline
+	 //c = ifs.get(); // newline
+
+
+    ifs >> index;
+    ASSERT (index == 4);
+
+    int regoffset;
+    ifs >> regoffset;
+    m_thisRegister=VirtualRegister(regoffset);
+    ifs >> regoffset;
+    m_scopeRegister=VirtualRegister(regoffset);
+    ifs >> regoffset;
+    m_globalObjectRegister=VirtualRegister(regoffset);
+
+    ifs.get(); // newline
+
+    ifs >> index;
+    ASSERT (index == 5);
+
+    int numIdentifiers;
+    ifs >> numIdentifiers;
+    for(int i=0; i<numIdentifiers; i++) {
+        std::string id;
+        ifs >> id;
+        // TODO :: Handle ES6 symbols
+        m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(id.c_str()), static_cast<int>(id.size())));
+    }
+
+    ifs.get(); // newline
+
+    ifs >> index;
+    ASSERT (index == 6);
+
+    int numBitVectors;
+    ifs >> numBitVectors;
+    for(int i=0; i<numBitVectors; i++) {
+        uint32_t bits;
+        ifs >> bits;
+        BitVector bitVector;
+        *(bitVector.bits()) = bits;
+        m_bitVectors.append(bitVector);
+    }
+
+    ifs.get(); // newline
+    
+    ifs >> index;
+    ASSERT (index == 7);
+
+    int numConstants;
+    ifs >> numConstants;
+    for(int i=0; i<numConstants; i++) {
+        
+        uint16_t constTypeVal;
+        ifs >> constTypeVal;
+        ConstantType constantType = static_cast<ConstantType>(constTypeVal);
+
+        m_constantRegisters.append(WriteBarrier<Unknown>());
+        
+        switch (constantType) {
+
+            case ConstantType::NonCellValue:
+            {
+                uint64_t constant;
+                uint32_t constRepresentation;
+
+                ifs >> constant;
+                ifs >> constRepresentation;        
+    
+                m_constantRegisters.last().set(vm, this, JSValue::decode(static_cast<EncodedJSValue>(constant)));  
+                m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
+            }
+                break;
+            case ConstantType::Empty:
+            {
+                std::string constant;
+                uint32_t constRepresentation;
+
+                ifs >> constant;
+                ifs >> constRepresentation;
+
+                m_constantRegisters.last().set(vm, this, JSValue());  
+                m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
+
+            }
+                break;
+            case ConstantType::String:
+            {
+                // std::string constant;
+                uint32_t constRepresentation;
+
+					 int length;
+					 ifs >> length;
+
+                    // Read an empty space.
+                    char space;
+                    ifs.read(&space, 1);
+
+					 RefCountedArray<unsigned char> data(length);
+					 ifs.read(reinterpret_cast<char*>(data.begin()), length);
+
+                // ifs >> constant;
+                ifs >> constRepresentation;
+
+                JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const LChar*>(data.data()), length).string());
+                
+                JSValue jsValue(jsString);
+                
+                m_constantRegisters.last().set(vm, this, jsValue);  
+                m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
+            }
+                break;
+            default:
+                ASSERT(0);
+                //throw "Unknown constant type.";
+        }
+
+    }
+
+    ifs.get(); // newline
+
+    ifs >> index;
+    ASSERT (index == 8);
+
+    ifs.get(); // newline
+    
+    ifs >> index;
+    ASSERT (index == 9);
+
+    int numLinktimeConstants;
+    ifs >> numLinktimeConstants;
+    for(int i=0; i<numLinktimeConstants; i++) {
+        unsigned linkTimeConstant;
+        ifs >> linkTimeConstant;
+        m_linkTimeConstants[i] = linkTimeConstant;
+    }
+
+    ifs.get(); // newline
+    
+    ifs >> index;
+    ASSERT (index == 10);
+
+    ifs >> m_arrayProfileCount;
+    ifs >> m_arrayAllocationProfileCount; 
+    ifs >> m_objectAllocationProfileCount; 
+    ifs >> m_valueProfileCount;
+    ifs >> m_llintCallLinkInfoCount;
+
+    ifs.get(); // newline
+
+    // misc
+    ifs >> index;
+    ASSERT (index == 11);
+    
+    ifs >> m_numVars; 
+    ifs >> m_numCapturedVars;
+    ifs >> m_numCalleeLocals;
+    
+    // misc
+    ifs >> index;
+    ASSERT (index == 12);
+
+    int numFuncDecls;
+    ifs >> numFuncDecls;
+
+    for(int i=0; i<numFuncDecls; i++) {
+        ifs.get(); // newline
+        m_functionDecls.append(WriteBarrier<UnlinkedFunctionExecutable>());
+        std::string suffix("d_");
+        
+        // TODO
+        // suffix.append(std::to_string(i));
+        std::stringstream ss;
+        ss << i;
+        suffix.append(ss.str());
+
+        m_functionDecls.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs, prefix, suffix.c_str()));
+    }
+    
+    // misc
+    ifs >> index;
+    ASSERT (index == 13);
+
+    int numFuncExprs;
+    ifs >> numFuncExprs;
+
+    for(int i=0; i<numFuncExprs; i++) {
+        ifs.get(); // newline
+        m_functionExprs.append(WriteBarrier<UnlinkedFunctionExecutable>());
+        std::string suffix("x_");
+        
+        // TODO ..
+        //suffix.append(std::to_string(i));
+        std::stringstream ss;
+        ss << i;
+        suffix.append(ss.str());
+
+        m_functionExprs.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs, prefix, suffix.c_str()));
+    }
+
+    ifs.get(); // newline    
+
+    ifs >> index;
+    ASSERT (index == 14);
+
+    int numSwitchTables;
+    ifs >> numSwitchTables;
+
+    if(numSwitchTables > 0) {
+        createRareDataIfNecessary();
+    }
+
+    for(int i=0; i<numSwitchTables; i++) {
+        m_rareData->m_switchJumpTables.append(UnlinkedSimpleJumpTable());
+        
+        int numBranchOffsets;
+        ifs >> numBranchOffsets;
+        
+        for(int i=0; i< numBranchOffsets; i++) {
+            int32_t branchOffset;
+            ifs >> branchOffset;
+            m_rareData->m_switchJumpTables.last().branchOffsets.append(branchOffset);
+        }
+
+        ifs >> m_rareData->m_switchJumpTables.last().min;
+    }
+
+    ifs.get(); // newline    
+    
+    ifs >> index;
+    ASSERT (index == 15);
+
+    int numStringSwitchTables;
+    ifs >> numStringSwitchTables;
+
+	 if (numStringSwitchTables > 0) {
+		 createRareDataIfNecessary();
+	 }
+
+    for(int i=0; i<numStringSwitchTables; i++) {
+        m_rareData->m_stringSwitchJumpTables.append(UnlinkedStringJumpTable());
+        m_rareData->m_stringSwitchJumpTables.last().load(vm, ifs);
+    }
+
+    ifs.get(); // newline    
+
+    ifs >> index;
+    ASSERT (index == 16);
+
+    int numberOfExceptionHandlers;
+    ifs >> numberOfExceptionHandlers;
+
+	 if (numberOfExceptionHandlers > 0) {
+		 createRareDataIfNecessary();
+	 }
+
+    for(int i=0; i<numberOfExceptionHandlers; i++) {
+
+        uint32_t start;
+        uint32_t end;
+        uint32_t target;
+        uint32_t handlerTypeVal;
+
+        ifs >> start;
+        ifs >> end;
+        ifs >> target;
+        ifs >> handlerTypeVal;
+
+        m_rareData->m_exceptionHandlers.append(UnlinkedHandlerInfo(start, end, target, static_cast<HandlerType>(handlerTypeVal)));
+    }
+
+    ifs.get(); // newline    
+    
+    ifs >> index;
+    ASSERT (index == 17);
+
+    int numbRegexps;
+    ifs >> numbRegexps;
+
+        if (numbRegexps > 0) {
+            createRareDataIfNecessary();
+        }
+
+    for(int i=0; i<numbRegexps; i++) {
+
+        std::string patternString;
+        /*RegExpFlags*/ uint16_t flagsVal;
+        /*RegExpState*/ uint16_t stateVal;
+        
+        ifs >> patternString;
+        ifs >> flagsVal;
+        ifs >> stateVal;
+
+        WTF::String pattern(reinterpret_cast<const char*>(patternString.c_str()), patternString.length());
+        m_rareData->m_regexps.append(WriteBarrier<RegExp>(vm, this, 
+            RegExp::create(vm, pattern, static_cast<RegExpFlags>(flagsVal))));
+        
+        // TODO :: SHould we reset the state 
+    }
+
+    ifs.get(); // newline    
+    
+    ifs >> index;
+    ASSERT (index == 18) ;
+
+    int numConstantBuffers;
+    ifs >> numConstantBuffers;
+
+    if (numConstantBuffers > 0) {
+        createRareDataIfNecessary();
+    }
+
+    for(int i=0; i<numConstantBuffers; i++) {
+        int numConstants;
+        ifs >> numConstants;
+        m_rareData->m_constantBuffers.append(Vector<JSValue>(numConstants));
+        
+        for(int i=0; i<numConstants; i++) {
+            uint16_t constTypeVal;
+            ifs >> constTypeVal;
+            ConstantType constantType = static_cast<ConstantType>(constTypeVal);
+    
+            switch (constantType) {
+    
+                case ConstantType::NonCellValue:
+                {
+                    uint64_t constant;
+                    ifs >> constant;
+                    
+                    m_rareData->m_constantBuffers.last().append(JSValue::decode(static_cast<EncodedJSValue>(constant)));  
+                }
+                    break;
+
+                    case ConstantType::Empty:
+                {
+                    std::string constant;    
+                    ifs >> constant;
+    
+                    m_rareData->m_constantBuffers.last().append(JSValue());  
+    
+                }
+                    break;
+
+                case ConstantType::String:
+                {
+                    int constRegisterIndex;
+                    ifs >> constRegisterIndex;
+    
+                    m_rareData->m_constantBuffers.last().append(m_constantRegisters[constRegisterIndex].get());
+                }
+                    break;
+
+                default:
+                    ASSERT(0);
+                    //throw "Unknown constant type.";
+            }
+         
+
+            //int64_t jsValueEnc;
+            //ifs >> jsValueEnc;
+
+            //m_rareData->m_constantBuffers.last().append(JSValue::decode(static_cast<EncodedJSValue>(jsValueEnc)));
+        }
+    }
+}
+
+void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
+
+    
+    stream << "2 " << m_numParameters << std::endl;
+    
+    // end of metadata
+
+    // start instuctions
+
+    stream<< "3 " << m_unlinkedInstructions->m_instructionCount;
+    stream<<" ";
+    stream<<m_unlinkedInstructions->m_data.size();
+    stream<<" ";
+
+    
+    stream.write(reinterpret_cast<char*>(m_unlinkedInstructions->m_data.data()), m_unlinkedInstructions->m_data.size());
+    //for(int idx=0; idx < m_unlinkedInstructions->m_data.size(); idx++){
+    //    stream<<m_unlinkedInstructions->m_data.at(idx);
+    //}
+
+    stream<<std::endl;
+
+    /// End of instructions
+
+    // Start (virtual) registers
+
+    stream << "4 " << m_thisRegister.offset() << " " << m_scopeRegister.offset() 
+        << " " <<  m_globalObjectRegister.offset() << std::endl;
+
+    // end registers
+
+    stream << "5 ";
+
+    // TODO :: Serialize bytecode liveness
+
+    stream<<m_identifiers.size()<<" ";
+    for (auto &identifier : m_identifiers){
+        stream<<std::string(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+		stream << " ";
+    }
+
+    stream<<std::endl;
+
+    /// End of identifiers
+
+    stream << "6 ";
+
+    stream<<m_bitVectors.size()<<" ";
+    // Bit vectors
+    for (auto &bitVector : m_bitVectors){
+        stream << *bitVector.bits();
+        stream << " ";
+    }
+
+    stream<<std::endl;
+    
+    // Constants
+
+    stream << "7 ";
+
+    stream<<constantRegisters().size()<<" ";
+    if (!constantRegisters().isEmpty()) {
+        size_t i = 0;
+        for (const auto& constant : constantRegisters()) {
+            
+            JSValue value = constant.get();
+            if(value.isCell()) {
+                if(value.isEmpty()) {
+                    stream<<static_cast<int16_t>(ConstantType::Empty);
+                    stream << " ";
+
+                    stream<<"X";
+                    stream << " ";
+                    stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    stream << " ";
+                }
+                else if(value.isString()) {
+                    stream<<static_cast<int16_t>(ConstantType::String);
+                    stream << " ";
+
+                    const String& constStr = static_cast<const JSString*>(value.asCell())->tryGetValue();
+                    std::string str(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
+
+						  stream << constStr.length();
+						  stream << " ";
+						  stream.write(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
+						  stream << " ";
+
+                          stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    stream << " ";
+                }
+                else {
+                    // We don't support yet.
+                    ASSERT(0);
+                }
+            }
+            else {
+                stream<<static_cast<int16_t>(ConstantType::NonCellValue);
+                stream << " ";
+                stream<<static_cast<int64_t>(JSValue::encode(constant.get()));
+                stream << " ";
+                stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                stream << " ";
+            }
+
+            ++i;
+        }
+    }
+
+    stream<<std::endl;    
+
+    stream << "8 ";
+
+    for (auto &constIdSetEntry : m_constantIdentifierSets){
+        unsigned val = constIdSetEntry.second;
+        stream << val;
+        IdentifierSet idSet = constIdSetEntry.first;
+        stream << "{";
+        for (auto &identifier : idSet){
+            stream<<std::string(reinterpret_cast<const char* >(identifier->characters8()), identifier->length());
+            stream<<" ";
+        }
+        stream << "}";
+    }
+
+    stream<<std::endl;
+
+    // lint time constants
+
+    stream << "9 ";
+
+    stream<<m_linkTimeConstants.size()<<" ";
+    for (auto linkTimeConstant : m_linkTimeConstants) {
+        stream<<linkTimeConstant << " ";
+    }
+
+    stream<<std::endl;
+
+    // Profile counts
+
+    stream << "10 ";
+
+    stream << m_arrayProfileCount << " " << m_arrayAllocationProfileCount << " " 
+        << m_objectAllocationProfileCount << " " << m_valueProfileCount << " " 
+        << m_llintCallLinkInfoCount << std::endl;
+
+
+    // misc
+    stream << "11 ";
+
+    stream << m_numVars << " " << m_numCapturedVars << " " 
+    << m_numCalleeLocals << std::endl;
+
+    stream << "12 " << m_functionDecls.size() << std::endl;
+    for(WriteBarrier<UnlinkedFunctionExecutable> f : m_functionDecls) {
+        UnlinkedFunctionExecutable* ufexe = f.get();
+        ufexe->saveNonCode(vm, stream);
+        stream << std::endl;
+    }
+
+    stream << "13 " << m_functionExprs.size() << std::endl;
+    for(WriteBarrier<UnlinkedFunctionExecutable> f : m_functionExprs) {
+        UnlinkedFunctionExecutable* ufexe = f.get();
+        ufexe->saveNonCode(vm, stream);
+        stream << std::endl;
+    }
+
+    stream << "14 " << numberOfSwitchJumpTables() << " " ;
+    for(int i=0; i<numberOfSwitchJumpTables(); i++) {
+        stream << switchJumpTable(i).branchOffsets.size() << " ";
+        for (int branchOffset : switchJumpTable(i).branchOffsets) {
+            stream << branchOffset << " ";
+        }
+        stream << switchJumpTable(i).min << " ";
+    }
+
+    stream << std::endl;
+
+    stream << "15 " << numberOfStringSwitchJumpTables() << " " ;
+    for(int i=0; i<numberOfStringSwitchJumpTables(); i++) {
+        stringSwitchJumpTable(i).save(vm, stream);
+    }
+
+    stream << std::endl;
+
+    stream << "16 " << numberOfExceptionHandlers() << " " ;
+    for(int i=0; i<numberOfExceptionHandlers(); i++) {
+        UnlinkedHandlerInfo& unlinkedHandlerInfo(exceptionHandler(i));
+        
+        stream << unlinkedHandlerInfo.start << " " << unlinkedHandlerInfo.end << 
+            " " << unlinkedHandlerInfo.target << " " << unlinkedHandlerInfo.typeBits << " ";
+
+    }
+
+    stream << std::endl;
+
+    stream << "17 " << numberOfRegExps() << " " ;
+    for(int i=0; i<numberOfRegExps(); i++) {
+        RegExp* reg = regexp(i);
+        reg->save(vm, stream);
+    }
+
+    stream << std::endl;
+
+
+    stream << "18 " << constantBufferCount() << " " ;
+    for(int i=0; i<constantBufferCount(); i++) {
+        ConstantBuffer& buffer = constantBuffer(i);
+        stream << buffer.size() << " ";
+        
+        for(JSValue value : buffer) {
+            if(value.isCell()) {
+                
+                // Copied from constant regs.
+                if(value.isEmpty()) {
+                    stream<<static_cast<int16_t>(ConstantType::Empty);
+                    stream << " ";
+
+                    stream<<"X";
+                    stream << " ";
+                }
+                else if(value.isString()) {
+
+                    // Store index into constant regs.
+
+                    JSString* bufferVal = JSC::asString(value);
+                    const String& bufferStringVal = bufferVal->tryGetValue();
+
+                    int constantIndex = 0;
+                    for(auto constant : m_constantRegisters) {
+                        JSValue jsValue = constant.get();
+                    
+                        if(jsValue.isString()) {
+
+                            JSString* jsString = JSC::asString(jsValue);
+                            const String& stringVal = jsString->tryGetValue();
+
+                            if(WTF::equal(stringVal.impl(), bufferStringVal.impl())) {
+                                break;
+                            }
+                        }
+                        constantIndex++;
+                    }
+
+                    if(constantIndex >= m_constantRegisters.size()) {
+                        // Couldn't find the constant.. Bail out.
+                       //"Can't find the constant in the set of constant regiseter.. I can't handle this.";
+                        ASSERT(0);
+                    }
+
+                    stream<<static_cast<int16_t>(ConstantType::String);
+                    stream << " ";
+    
+                    stream<<constantIndex;
+                    stream << " ";
+
+                }
+                else {
+                    ASSERT(0);
+                    //throw "We don't support this constant type";
+                }
+
+                
+            }
+            else {
+                stream<<static_cast<int16_t>(ConstantType::NonCellValue);
+                stream << " ";
+
+                EncodedJSValue valueEnc = JSValue::encode(value);
+                stream << valueEnc << " ";
+            }
+        }
+    }
+
+    stream << std::endl;
+}
+
+void UnlinkedStringJumpTable::save(VM& vm, std::ofstream&stream) {
+    stream << offsetTable.size() << " ";
+    for( auto& entry : offsetTable) {
+        RefPtr<StringImpl> key = entry.key;
+        int32_t value = entry.value.branchOffset;
+		  std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
+
+        stream << keystr << " ";
+        stream << value << " ";
+    }
+}
+
+void UnlinkedStringJumpTable::load(VM& vm, std::ifstream&stream) {
+    int32_t offsetTableSize;
+    stream >> offsetTableSize;
+
+    for(int i=0; i < offsetTableSize; i++) {
+        std::string keystr;
+        int32_t value;
+
+        stream >> keystr;
+        stream >> value;
+
+        struct OffsetLocation location;
+        location.branchOffset = value;
+
+        //Ref<StringImpl> key = ;
+        //RefPtr<StringImpl> keyPtr (StringImpl::create(keystr.c_str(), keystr.length()));
+        offsetTable.add(StringImpl::create(keystr.c_str(), keystr.length()), location);
+    }
+}
+
+
 void UnlinkedCodeBlock::visitChildren(JSCell* cell, SlotVisitor& visitor)
 {
     UnlinkedCodeBlock* thisObject = jsCast<UnlinkedCodeBlock*>(cell);

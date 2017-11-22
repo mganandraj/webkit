@@ -46,12 +46,86 @@ const ClassInfo ProgramExecutable::s_info = { "ProgramExecutable", &ScriptExecut
 ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
     : ScriptExecutable(exec->vm().programExecutableStructure.get(), exec->vm(), source, false, DerivedContextType::None, false, EvalContextType::None, NoIntrinsic)
 {
-    ASSERT(source.provider()->sourceType() == SourceProviderSourceType::Program);
+    ASSERT(source.provider()->sourceType() == SourceProviderSourceType::Program ||
+		 source.provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes);
+
     m_typeProfilingStartOffset = 0;
     m_typeProfilingEndOffset = source.length() - 1;
     if (exec->vm().typeProfiler() || exec->vm().controlFlowProfiler())
         exec->vm().functionHasExecutedCache()->insertUnexecutedRange(sourceID(), m_typeProfilingStartOffset, m_typeProfilingEndOffset);
 }
+
+void ProgramExecutable::save(VM& vm, const char* prefix){
+    std::string repoPath("c:\\tmp\\jsc\\script\\");
+    std::string newprefix(prefix);
+    newprefix.append("__global");
+
+    repoPath.append(newprefix);
+    repoPath.append(".jsb");
+
+    std::ofstream ofs(repoPath, std::ios::binary);
+
+    // Write recordParse
+    ScriptExecutable::save(vm, ofs);
+
+    // Write codeblock.
+    m_unlinkedProgramCodeBlock.get()->save(vm, ofs);
+
+    // Write functions.
+    for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
+        UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
+        FunctionExecutable* func = ufunc->link(vm, this->source());
+        std::string suffix("d_");
+        //suffix.append(std::to_string(i));
+        std::stringstream ss;
+        ss << i;
+        suffix.append(ss.str());
+
+        func->save(vm, newprefix.c_str(), suffix.c_str());
+    }
+
+    // Write functions.
+    for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
+        UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
+        FunctionExecutable* func = ufunc->link(vm, this->source());
+        std::string suffix("x_");
+        //suffix.append(std::to_string(i));
+        std::stringstream ss;
+        ss << i;
+        suffix.append(ss.str());
+
+        func->save(vm, newprefix.c_str(), suffix.c_str());
+    }
+}
+
+UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
+    std::string repoPath("c:\\tmp\\jsc\\script\\");
+    std::string newprefix(prefix);
+	newprefix.append("__global");
+    
+    repoPath.append(newprefix);
+    repoPath.append(".jsb");
+        
+    std::ifstream ifs(repoPath, std::ios::binary);
+    
+    CodeFeatures features;
+    bool hasCapturedVariables;
+    int lastLine;
+    unsigned endColumn;
+    
+    ScriptExecutable::load(vm, ifs, features, hasCapturedVariables, lastLine, endColumn);
+    recordParse(features, hasCapturedVariables, lastLine, endColumn);
+
+    UnlinkedProgramCodeBlock* unlinkedCodeBlock = UnlinkedProgramCodeBlock::create(&vm, executableInfo(), DebuggerMode::DebuggerOff);
+    unlinkedCodeBlock->recordParse(features, hasCapturedVariables, lastLine, endColumn);
+    //unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURL());
+    //unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
+
+    unlinkedCodeBlock->load(vm, ifs, newprefix.c_str());
+
+    return unlinkedCodeBlock;
+}
+    
 
 void ProgramExecutable::destroy(JSCell* cell)
 {
@@ -95,9 +169,16 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
     JSParserStrictMode strictMode = isStrictMode() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
 
-    UnlinkedProgramCodeBlock* unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(
-        vm, this, source(), strictMode, debuggerMode, error);
-
+    UnlinkedProgramCodeBlock* unlinkedCodeBlock;
+    
+    if(source().provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes){
+        unlinkedCodeBlock = load(vm, "script");
+    }
+    else {
+        unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(
+            vm, this, source(), strictMode, debuggerMode, error);
+    }
+     
     if (globalObject->hasDebugger())
         globalObject->debugger()->sourceParsed(callFrame, source().provider(), error.line(), error.message());
 

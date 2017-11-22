@@ -29,6 +29,69 @@
 
 namespace JSC {
 
+void VariableEnvironment::save(std::ofstream& stream, const Vector<Identifier>& identifiers){
+    stream << "V ";
+    
+    stream << m_map.size();
+    stream << " ";
+
+    for_each (m_map.begin(), m_map.end(), [this, &stream, &identifiers](auto keyvaluepair){
+        
+        WTF::RefPtr<WTF::UniquedStringImpl> key = keyvaluepair.key;
+        JSC::VariableEnvironmentEntry entry = keyvaluepair.value;
+
+        // Find the index in the identifier vector
+        int keyindex=0;
+        for(const Identifier& id : identifiers){
+            if (WTF::equal(id.impl(), key.get()))
+            //if(id.impl()->equal(key))
+                break;
+            keyindex++;
+        }
+        ASSERT(keyindex < identifiers.size());
+
+        // WTF::KeyValuePair<WTF::RefPtr<WTF::UniquedStringImpl>,JSC::VariableEnvironmentEntry>
+        
+        // const std::string keystr(reinterpret_cast<const char* >(key->characters8()), key->length());
+        stream<<keyindex;
+        stream<<" ";
+        
+        stream<<entry.m_bits;
+        stream<<" ";
+    });
+}
+
+void VariableEnvironment::load(std::ifstream& stream, const Vector<Identifier>& identifiers) {
+    std::string id;
+    stream >> id;
+	ASSERT (id.at(0) == 'V');
+    
+    int count;
+    stream >> count;
+
+    for(int i=0; i<count; i++) {
+        int key;
+        uint16_t entryBits;   
+    
+        stream >> key;
+        stream >> entryBits;
+
+        RefPtr<UniquedStringImpl> keystr(identifiers[key].impl());
+
+        //RefPtr<AtomicStringImpl> key1 =
+         //   AtomicStringImpl::add(reinterpret_cast<const LChar*>(key.c_str()),
+          //      key.size());
+
+        //RefPtr<UniquedStringImpl> key2 (key1.get());
+
+        
+        VariableEnvironmentEntry entry;
+        entry.m_bits = entryBits;
+
+        Map::AddResult addResult = add(keystr, entry);
+    }
+}
+
 void VariableEnvironment::markVariableAsCapturedIfDefined(const RefPtr<UniquedStringImpl>& identifier)
 {
     auto findResult = m_map.find(identifier);

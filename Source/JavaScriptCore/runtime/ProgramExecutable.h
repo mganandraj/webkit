@@ -27,6 +27,8 @@
 
 #include "ScriptExecutable.h"
 
+#include <fstream>
+
 namespace JSC {
 
 class ProgramExecutable final : public ScriptExecutable {
@@ -67,6 +69,9 @@ public:
     DECLARE_INFO;
 
     ExecutableInfo executableInfo() const { return ExecutableInfo(usesEval(), isStrictMode(), false, false, ConstructorKind::None, JSParserScriptMode::Classic, SuperBinding::NotNeeded, SourceParseMode::ProgramMode, derivedContextType(), isArrowFunctionContext(), false, EvalContextType::None); }
+
+    void save(VM& vm, const char* prefix);
+    UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
 
 private:
     friend class ExecutableBase;

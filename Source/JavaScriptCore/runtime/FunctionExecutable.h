@@ -38,6 +38,9 @@ public:
     typedef ScriptExecutable Base;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
+    void save(VM& vm, const char* prefix, const char* suffix);
+    UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
+
     static FunctionExecutable* create(
         VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, 
         unsigned lastLine, unsigned endColumn, Intrinsic intrinsic)

@@ -75,6 +75,36 @@ static UnlinkedFunctionCodeBlock* generateUnlinkedFunctionCodeBlock(
     return result;
 }
 
+UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, std::ifstream& stream, const char* prefix, const char* suffix)
+    : Base(*vm, structure)
+{
+    this->loadNonCode(*vm, stream);
+
+    const Identifier& nameid = inferredName();
+    std::string fileName(reinterpret_cast<const char*>(nameid.string().characters8()), nameid.string().length());
+    // const char* fileName = nameid.ascii().data();
+    
+    std::string prefixstr(prefix);
+    prefixstr.append("_");
+    prefixstr.append(fileName);
+    prefixstr.append("_");
+    prefixstr.append(suffix);
+    
+    m_prefix = new char[prefixstr.size() + 1];
+	strncpy(m_prefix, prefixstr.c_str(), prefixstr.size() + 1);
+
+    // Make sure these bitfields are adequately wide.
+    //ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
+    //ASSERT(m_constructorKind == static_cast<unsigned>(node->constructorKind()));
+    //ASSERT(m_functionMode == static_cast<unsigned>(node->functionMode()));
+    //ASSERT(m_scriptMode == static_cast<unsigned>(scriptMode));
+    //ASSERT(m_superBinding == static_cast<unsigned>(node->superBinding()));
+    //ASSERT(m_derivedContextType == static_cast<unsigned>(derivedContextType));
+
+    // TODO
+    //m_parentScopeTDZVariables.swap(parentScopeTDZVariables);    
+}
+
 UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, const SourceCode& parentSource, SourceCode&& parentSourceOverride, FunctionMetadataNode* node, UnlinkedFunctionKind kind, ConstructAbility constructAbility, JSParserScriptMode scriptMode, VariableEnvironment& parentScopeTDZVariables, DerivedContextType derivedContextType)
     : Base(*vm, structure)
     , m_firstLineOffset(node->firstLine() - parentSource.firstLine().oneBasedInt())
@@ -104,6 +134,8 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     , m_inferredName(node->inferredName())
     , m_parentSourceOverride(WTFMove(parentSourceOverride))
     , m_classSource(node->classSource())
+    , m_prefix(nullptr)
+
 {
     // Make sure these bitfields are adequately wide.
     ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -115,6 +147,178 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
 
     m_parentScopeTDZVariables.swap(parentScopeTDZVariables);
 }
+
+void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
+    
+    ofstream << "UF ";
+
+    std::string name(reinterpret_cast<const char* >(m_name.string().characters8()), m_name.string().length());
+    if(name.empty())
+        name.assign("<>");
+
+    ofstream<<name;
+    ofstream << " ";
+
+    std::string ecmaName(reinterpret_cast<const char* >(m_ecmaName.string().characters8()), m_ecmaName.string().length());
+    if(ecmaName.empty())
+        ecmaName.assign("<>");
+
+    ofstream<<ecmaName;
+    ofstream << " ";
+
+    std::string inferredName(reinterpret_cast<const char* >(m_inferredName.string().characters8()), m_inferredName.string().length());
+    if(inferredName.empty())
+        inferredName.assign("<>");
+    
+    ofstream << inferredName;
+    ofstream << " ";
+
+    //ofstream<<std::string(reinterpret_cast<const char* >(m_parentSourceOverride.string().characters8()), m_parentSourceOverride.string().length());
+    //ofstream << " ";
+    //ofstream<<std::string(reinterpret_cast<const char* >(m_classSource.string().characters8()), m_classSource.string().length());
+    //ofstream << " ";
+
+    //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceURLDirective.characters8()), m_sourceURLDirective.length());
+    //ofstream << " ";
+    //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceMappingURLDirective.characters8()), m_sourceMappingURLDirective.length());
+    //ofstream << " ";
+
+    // TODO
+    // VariableEnvironment m_parentScopeTDZVariables;
+
+    ofstream << m_firstLineOffset << " ";
+    ofstream << m_lineCount << " ";
+    ofstream << m_unlinkedFunctionNameStart << " ";
+    ofstream << m_unlinkedBodyStartColumn << " ";
+    ofstream << m_unlinkedBodyEndColumn << " ";
+    ofstream << m_startOffset << " ";
+    ofstream << m_sourceLength << " ";
+    //ofstream << m_sourceOffset << " ";
+
+    ofstream << m_parametersStartOffset << " ";
+    ofstream << m_typeProfilingStartOffset << " ";
+    ofstream << m_typeProfilingEndOffset << " ";
+    ofstream << m_parameterCount << " ";
+    
+    ofstream <<  static_cast<uint16_t>(m_features) << " ";
+    
+    ofstream <<  static_cast<uint32_t>(m_sourceParseMode) << " ";
+    
+    uint16_t funcMetadata = 0;
+    funcMetadata |= m_isInStrictContext;
+    funcMetadata |= m_hasCapturedVariables << 1;
+    funcMetadata |= m_isBuiltinFunction << 2;
+    funcMetadata |= m_constructAbility << 3;
+    funcMetadata |= m_constructorKind << 4;
+    funcMetadata |= m_functionMode << 6;
+    funcMetadata |= m_scriptMode << 8;
+    funcMetadata |= m_superBinding << 9;
+    funcMetadata |= m_derivedContextType << 10;
+
+    ofstream <<  funcMetadata << " ";
+}
+
+void UnlinkedFunctionExecutable::loadNonCode(VM&vm, std::ifstream& ifstream){
+    std::string index; 
+    ifstream >> index;
+    ASSERT(index[0] == 'U');
+
+    // TODO :: Handle ES6 symbols
+    std::string token;
+    ifstream >> token;
+    m_name = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+    ifstream >> token;
+    m_ecmaName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+    ifstream >> token;
+    m_inferredName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+    //ifstream >> token;
+    //m_parentSourceOverride = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+    //ifstream >> token;
+    //m_classSource = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+
+    //ifstream >> token;
+    //m_sourceURLDirective = String(reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+    //ifstream >> token;
+    //m_sourceMappingURLDirective = String(reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+
+
+    ifstream >> m_firstLineOffset;
+    ifstream >> m_lineCount;
+    ifstream >> m_unlinkedFunctionNameStart;
+    ifstream >> m_unlinkedBodyStartColumn;
+    ifstream >> m_unlinkedBodyEndColumn;
+    ifstream >> m_startOffset;
+    ifstream >> m_sourceLength;
+  //  ifstream >> m_sourceOffset;
+
+    ifstream >> m_parametersStartOffset;
+    ifstream >> m_typeProfilingStartOffset;
+    ifstream >> m_typeProfilingEndOffset;
+    ifstream >> m_parameterCount;
+    
+    ifstream >>  m_features;
+    
+    uint32_t parseMode;
+    ifstream >>  parseMode;
+    m_sourceParseMode = static_cast<SourceParseMode>(parseMode);
+
+    uint16_t funcMetadata = 0;
+    ifstream >> funcMetadata;
+
+    m_isInStrictContext = funcMetadata & 0x0001;
+    m_hasCapturedVariables = (funcMetadata & 0x0002) >> 1;
+    m_isBuiltinFunction = (funcMetadata & 0x0004) >> 2;
+    m_constructAbility = (funcMetadata & 0x0008) >> 3;
+    m_constructorKind = (funcMetadata & 0x0030) >> 4;
+    m_functionMode = (funcMetadata & 0x00C0) >> 6;
+    m_scriptMode = (funcMetadata & 0x0100) >> 8;
+    m_superBinding = (funcMetadata & 0x0200) >> 9;
+    m_derivedContextType = (funcMetadata & 0x0400) >> 10;
+}
+
+void UnlinkedFunctionExecutable::saveCode(VM& vm, std::ofstream&){
+    // We are saving through FunctionExecutable.
+}
+
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, std::ifstream& ifs, CodeSpecializationKind specializationKind,
+    DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode)
+{
+    int index; ifs >> index;
+    ASSERT( index == 1);
+
+    CodeFeatures features;
+    bool hasCapturedVariables;
+    int lastLine;
+    unsigned endColumn;
+
+    ifs >> features;
+    ifs >> hasCapturedVariables;
+    ifs >> lastLine;
+    ifs >> endColumn;
+
+    this->recordParse(features, hasCapturedVariables);
+
+    bool usesEval = features & EvalFeature;
+    bool isStrictMode = features & StrictModeFeature;
+
+    JSParserBuiltinMode builtinMode = isBuiltinFunction() ? JSParserBuiltinMode::Builtin : JSParserBuiltinMode::NotBuiltin;
+    JSParserStrictMode strictMode = isInStrictContext() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;
+    JSParserScriptMode _scriptMode = scriptMode();
+
+    bool isClassContext = superBinding() == SuperBinding::Needed;
+
+    UnlinkedFunctionCodeBlock* unlinkedCodeblock = UnlinkedFunctionCodeBlock::create(&vm, FunctionCode, 
+        ExecutableInfo(usesEval, isStrictMode, 
+        specializationKind == CodeForConstruct, false /* !UnlinkedBuiltinFunction*/, 
+        this->constructorKind(), _scriptMode, this->superBinding(),
+        parseMode, this->derivedContextType(), false, isClassContext, 
+        EvalContextType::FunctionEvalContext), 
+        debuggerMode);
+    
+    unlinkedCodeblock->load(vm, ifs, m_prefix);
+
+    return unlinkedCodeblock;
+}   
 
 void UnlinkedFunctionExecutable::destroy(JSCell* cell)
 {
@@ -206,11 +410,36 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
         break;
     }
 
-    UnlinkedFunctionCodeBlock* result = generateUnlinkedFunctionCodeBlock(
-        vm, this, source, specializationKind, debuggerMode, 
-        isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
-        error, parseMode);
-    
+    UnlinkedFunctionCodeBlock* result = nullptr;
+
+    if(m_prefix){
+
+        std::string codePath("c:\\tmp\\jsc\\script\\");
+        codePath.append(m_prefix);
+
+        switch (specializationKind) {
+            case CodeForCall:
+                codePath.append("_call");
+                break;
+            case CodeForConstruct:
+                codePath.append("_ctr");
+                break;
+        }
+
+        codePath.append(".jsb");
+        std::ifstream stream(codePath, std::ios::binary);
+
+        result = this->loadCode(vm, stream, specializationKind, debuggerMode, 
+            isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
+            error, parseMode); 
+    }
+    else {
+        result = generateUnlinkedFunctionCodeBlock(
+            vm, this, source, specializationKind, debuggerMode, 
+            isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
+            error, parseMode);
+    }
+
     if (error.isValid())
         return nullptr;
 

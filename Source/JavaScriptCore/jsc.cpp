@@ -1387,6 +1387,8 @@ public:
 
     bool m_interactive { false };
     bool m_dump { false };
+    bool m_save { false };
+    bool m_loadb { false };
     bool m_module { false };
     bool m_exitCode { false };
     Vector<Script> m_scripts;
@@ -1437,10 +1439,13 @@ static inline String stringFromUTF(const Vector& utf8)
 }
 
 template<typename Vector>
-static inline SourceCode jscSource(const Vector& utf8, const SourceOrigin& sourceOrigin, const String& filename)
+static inline SourceCode jscSource(const Vector& utf8, const SourceOrigin& sourceOrigin, const String& filename, bool isBytecode=false)
 {
     String str = stringFromUTF(utf8);
-    return makeSource(str, sourceOrigin, filename);
+	 if(isBytecode)
+		return makeSource(str, sourceOrigin, filename, TextPosition(), SourceProviderSourceType::ProgramBytecodes);
+	 else
+		return makeSource(str, sourceOrigin, filename);
 }
 
 class GlobalObject : public JSGlobalObject {
@@ -3644,6 +3649,12 @@ static bool runWithOptions(GlobalObject* globalObject, CommandLine& options)
     if (options.m_dump)
         JSC::Options::dumpGeneratedBytecodes() = true;
 
+    if (options.m_save)
+        JSC::Options::saveBytecodes() = true;
+
+    if (options.m_loadb)
+        JSC::Options::loadBytecodes() = true;
+
     VM& vm = globalObject->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
     bool success = true;
@@ -3795,6 +3806,8 @@ static NO_RETURN void printUsageStatement(bool help = false)
 #endif
     fprintf(stderr, "  -p <file>  Outputs profiling data to a file\n");
     fprintf(stderr, "  -x         Output exit code before terminating\n");
+    fprintf(stderr, "  -a         Save parsed bundle\n");
+    fprintf(stderr, "  -b         Load parsed bundle\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  --sample                   Collects and outputs sampling profiler data\n");
     fprintf(stderr, "  --test262-async            Check that some script calls the print function with the string 'Test262:AsyncTestComplete'\n");
@@ -3854,6 +3867,14 @@ void CommandLine::parseArguments(int argc, char** argv)
         }
         if (!strcmp(arg, "-d")) {
             m_dump = true;
+            continue;
+        }
+        if (!strcmp(arg, "-a")) {
+            m_save = true;
+            continue;
+        }
+        if (!strcmp(arg, "-b")) {
+            m_loadb = true;
             continue;
         }
         if (!strcmp(arg, "-p")) {

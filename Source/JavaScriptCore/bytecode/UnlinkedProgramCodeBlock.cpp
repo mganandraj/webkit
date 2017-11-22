@@ -29,9 +29,28 @@
 #include "HeapInlines.h"
 #include "JSCellInlines.h"
 
+#include<fstream>
+
 namespace JSC {
 
 const ClassInfo UnlinkedProgramCodeBlock::s_info = { "UnlinkedProgramCodeBlock", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedProgramCodeBlock) };
+
+void UnlinkedProgramCodeBlock::save(VM&vm, std::ofstream& ofs){
+    
+	UnlinkedCodeBlock::save(vm, ofs);
+
+    m_varDeclarations.save(ofs, identifiers());
+    ofs<<std::endl;
+    m_lexicalDeclarations.save(ofs, identifiers());
+    ofs<<std::endl;
+}
+
+void UnlinkedProgramCodeBlock::load(VM&vm, std::ifstream& ifs, const char* prefix){
+    UnlinkedCodeBlock::load(vm, ifs, prefix);
+
+    m_varDeclarations.load(ifs, identifiers());
+    m_lexicalDeclarations.load(ifs, identifiers());
+}
 
 void UnlinkedProgramCodeBlock::destroy(JSCell* cell)
 {

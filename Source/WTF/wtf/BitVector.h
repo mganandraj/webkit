@@ -330,7 +330,21 @@ public:
     // Use this to iterate over set bits.
     iterator begin() const { return iterator(*this, findBit(0, true)); }
     iterator end() const { return iterator(*this, size()); }
-        
+     
+    uintptr_t* bits()
+    {
+        if (isInline())
+            return &m_bitsOrPointer;
+        return outOfLineBits()->bits();
+    }
+    
+    const uintptr_t* bits() const
+    {
+        if (isInline())
+            return &m_bitsOrPointer;
+        return outOfLineBits()->bits();
+    }
+
 private:
     static unsigned bitsInPointer()
     {
@@ -446,20 +460,6 @@ private:
     bool equalsSlowCaseFast(const BitVector& other) const;
     bool equalsSlowCaseSimple(const BitVector& other) const;
     WTF_EXPORT_PRIVATE uintptr_t hashSlowCase() const;
-    
-    uintptr_t* bits()
-    {
-        if (isInline())
-            return &m_bitsOrPointer;
-        return outOfLineBits()->bits();
-    }
-    
-    const uintptr_t* bits() const
-    {
-        if (isInline())
-            return &m_bitsOrPointer;
-        return outOfLineBits()->bits();
-    }
     
     uintptr_t m_bitsOrPointer;
 };

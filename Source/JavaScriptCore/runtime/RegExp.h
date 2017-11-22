@@ -29,6 +29,8 @@
 #include <wtf/Forward.h>
 #include <wtf/text/WTFString.h>
 
+#include <fstream>
+
 #if ENABLE(YARR_JIT)
 #include "yarr/YarrJIT.h"
 #endif
@@ -121,6 +123,8 @@ public:
     DECLARE_INFO;
 
     RegExpKey key() { return RegExpKey(m_flags, m_patternString); }
+
+    void save(VM&, std::ostream&);
 
 protected:
     void finishCreation(VM&);

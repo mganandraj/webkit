@@ -44,6 +44,8 @@
 #include <wtf/Vector.h>
 #include <wtf/text/UniquedStringImpl.h>
 
+#include<fstream>
+
 namespace JSC {
 
 class BytecodeRewriter;
@@ -66,6 +68,12 @@ typedef unsigned UnlinkedObjectAllocationProfile;
 typedef unsigned UnlinkedLLIntCallLinkInfo;
 using ConstantIndentifierSetEntry = std::pair<IdentifierSet, unsigned>;
 
+enum class ConstantType {
+    Empty = 0,
+    String,
+    NonCellValue
+};
+
 struct UnlinkedStringJumpTable {
     struct OffsetLocation {
         int32_t branchOffset;
@@ -73,6 +81,9 @@ struct UnlinkedStringJumpTable {
 
     typedef HashMap<RefPtr<StringImpl>, OffsetLocation> StringOffsetTable;
     StringOffsetTable offsetTable;
+
+    void save(VM& vm, std::ofstream&stream);
+    void load(VM& vm, std::ifstream&stream);
 
     inline int32_t offsetForValue(StringImpl* value, int32_t defaultOffset)
     {
@@ -110,6 +121,10 @@ struct UnlinkedInstruction {
 
 class UnlinkedCodeBlock : public JSCell {
 public:
+
+    void save(VM&, std::ofstream&);
+    void load(VM&, std::ifstream& ofs, const char* prefix);
+
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;
 

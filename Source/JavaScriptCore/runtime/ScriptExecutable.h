@@ -35,7 +35,10 @@ public:
     static const unsigned StructureFlags = Base::StructureFlags;
 
     static void destroy(JSCell*);
-        
+
+    void save(VM&, std::ofstream& ofs);
+    static void load(VM&, std::ifstream& ifs, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn);
+
     CodeBlockHash hashFor(CodeSpecializationKind) const;
 
     const SourceCode& source() const { return m_source; }

@@ -33,6 +33,11 @@ namespace JSC {
 #define INITIALIZE_PRIVATE_NAME(name) , name##PrivateName(m_builtinNames->name##PrivateName())
 #define INITIALIZE_SYMBOL(name) , name##Symbol(m_builtinNames->name##Symbol())
 
+#define APPEND_PROPERTY_NAME_TO_IDVECTOR(name) idVector.push_back(name);
+#define APPEND_KEYWORD_TO_IDVECTOR(name) idVector.push_back(name##Keyword);
+#define APPEND_PRIVATE_NAME_TO_IDVECTOR(name) idVector.push_back(name##PrivateName);
+#define APPEND_SYMBOL_TO_IDVECTOR(name) idVector.push_back(name##Symbol);
+
 CommonIdentifiers::CommonIdentifiers(VM* vm)
     : nullIdentifier()
     , emptyIdentifier(Identifier::EmptyIdentifier)
@@ -45,6 +50,27 @@ CommonIdentifiers::CommonIdentifiers(VM* vm)
     JSC_COMMON_IDENTIFIERS_EACH_PROPERTY_NAME(INITIALIZE_PROPERTY_NAME)
     JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_WELL_KNOWN_SYMBOL(INITIALIZE_SYMBOL)
 {
+    idVector.push_back(nullIdentifier);
+    idVector.push_back(emptyIdentifier);
+    idVector.push_back(underscoreProto);
+    idVector.push_back(thisIdentifier);
+    idVector.push_back(useStrictIdentifier);
+    idVector.push_back(timesIdentifier);
+
+    JSC_COMMON_IDENTIFIERS_EACH_KEYWORD(APPEND_KEYWORD_TO_IDVECTOR)
+    JSC_COMMON_IDENTIFIERS_EACH_PROPERTY_NAME(APPEND_PROPERTY_NAME_TO_IDVECTOR)
+    JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_WELL_KNOWN_SYMBOL(APPEND_SYMBOL_TO_IDVECTOR)
+}
+
+int CommonIdentifiers::findIdVectorIndex(Identifier id2) {
+    //int index = 0;
+    //for(auto identifier : idVector) {
+    //    if(Identifier::equal(identifier, id2))
+    //        return index;
+    //    index++;
+    //}
+
+    return -1;
 }
 
 CommonIdentifiers::~CommonIdentifiers()
