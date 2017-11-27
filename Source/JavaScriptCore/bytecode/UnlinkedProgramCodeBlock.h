@@ -52,7 +52,7 @@ public:
     const VariableEnvironment& lexicalDeclarations() const { return m_lexicalDeclarations; }
 
     void save(VM&vm, std::ofstream& ofs);
-    void load(VM&vm, std::ifstream& ofs, const char* prefix);
+    void load(VM&vm, std::ifstream& ofs);
 
 private:
     UnlinkedProgramCodeBlock(VM* vm, Structure* structure, const ExecutableInfo& info, DebuggerMode debuggerMode)

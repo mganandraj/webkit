@@ -25,7 +25,9 @@ find_path(
     DOC "Include directory for the ICU library")
 mark_as_advanced(ICU_INCLUDE_DIR)
 
-set(ICU_INCLUDE_DIR ${WEBKIT_LIBRARIES_INCLUDE_DIR})
+if (NOT WIN32)
+    set(ICU_INCLUDE_DIR ${WEBKIT_LIBRARIES_INCLUDE_DIR})
+endif ()
 
 # Look for the library.
 find_library(
@@ -37,7 +39,9 @@ find_library(
     DOC "Libraries to link against for the common parts of ICU")
 mark_as_advanced(ICU_LIBRARY)
 
-set(ICU_LIBRARY ${WEBKIT_LIBRARIES_LINK_DIR}/libicuuc.so)
+if (NOT WIN32)
+    set(ICU_LIBRARY ${WEBKIT_LIBRARIES_LINK_DIR}/libicuuc.so)
+endif ()
 
 message("ANAND:" ${ICU_INCLUDE_DIR})
 message("ANAND:" ${ICU_LIBRARY})

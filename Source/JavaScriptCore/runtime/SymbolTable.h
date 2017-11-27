@@ -316,7 +316,21 @@ public:
             return 0;
         return fatEntry()->m_watchpoints.get();
     }
+        
+    ALWAYS_INLINE intptr_t bits() const
+    {
+        if (isFat())
+            return fatEntry()->m_bits;
+        return m_bits;
+    }
     
+    ALWAYS_INLINE intptr_t& bits()
+    {
+        if (isFat())
+            return fatEntry()->m_bits;
+        return m_bits;
+    }
+
 private:
     static const intptr_t SlimFlag = 0x1;
     static const intptr_t ReadOnlyFlag = 0x2;
@@ -370,20 +384,6 @@ private:
     }
     
     FatEntry* inflateSlow();
-    
-    ALWAYS_INLINE intptr_t bits() const
-    {
-        if (isFat())
-            return fatEntry()->m_bits;
-        return m_bits;
-    }
-    
-    ALWAYS_INLINE intptr_t& bits()
-    {
-        if (isFat())
-            return fatEntry()->m_bits;
-        return m_bits;
-    }
     
     void freeFatEntry()
     {
@@ -460,6 +460,9 @@ public:
     {
         return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
     }
+
+    void save(VM& vm, std::ofstream&stream);
+    void load(VM& vm, std::ifstream&stream);
 
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJSLocker&, UniquedStringImpl* key)

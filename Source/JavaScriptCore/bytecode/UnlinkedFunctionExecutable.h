@@ -69,10 +69,10 @@ public:
     }
 
 
-    static UnlinkedFunctionExecutable* create(VM* vm, std::ifstream& stream, const char* prefix, const char* suffix)
+    static UnlinkedFunctionExecutable* create(VM* vm, std::ifstream& stream)
     {
         UnlinkedFunctionExecutable* instance = new (NotNull, allocateCell<UnlinkedFunctionExecutable>(vm->heap))
-            UnlinkedFunctionExecutable(vm, vm->unlinkedFunctionExecutableStructure.get(), stream, prefix, suffix);
+            UnlinkedFunctionExecutable(vm, vm->unlinkedFunctionExecutableStructure.get(), stream);
         instance->finishCreation(*vm);
         return instance;
     }
@@ -83,7 +83,7 @@ public:
     void saveCode(VM&, std::ofstream&);
     //void loadCode(VM&, std::ifstream&);
     
-    UnlinkedFunctionCodeBlock* loadCode(VM& vm, std::ifstream& stream, CodeSpecializationKind specializationKind,
+    UnlinkedFunctionCodeBlock* loadCode(VM& vm, CodeSpecializationKind specializationKind,
         DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode);
 
     const Identifier& name() const { return m_name; }
@@ -158,9 +158,17 @@ public:
     void setSourceURLDirective(const String& sourceURL) { m_sourceURLDirective = sourceURL; }
     void setSourceMappingURLDirective(const String& sourceMappingURL) { m_sourceMappingURLDirective = sourceMappingURL; }
 
+    void setByteCodeBundleOffsetForCall(unsigned offset) { m_byteCodeBundleOffsetForCall = offset; }
+    void setByteCodeBundleOffsetForConstruct(unsigned offset) { m_byteCodeBundleOffsetForConstruct = offset; }
+
 private:
     UnlinkedFunctionExecutable(VM*, Structure*, const SourceCode&, SourceCode&& parentSourceOverride, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, VariableEnvironment&,  JSC::DerivedContextType);
-    UnlinkedFunctionExecutable(VM*, Structure*, std::ifstream& stream, const char* prefix, const char* suffix);
+    UnlinkedFunctionExecutable(VM*, Structure*, std::ifstream& stream);
+
+    bool m_isLoadingByteCodes;
+
+    unsigned m_byteCodeBundleOffsetForCall;
+    unsigned m_byteCodeBundleOffsetForConstruct;
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;
@@ -194,8 +202,6 @@ private:
     SourceCode m_parentSourceOverride;
     SourceCode m_classSource;
 
-    char* m_prefix;
-    
     String m_sourceURLDirective;
     String m_sourceMappingURLDirective;
 

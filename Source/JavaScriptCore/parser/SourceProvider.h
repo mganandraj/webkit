@@ -37,7 +37,6 @@ namespace JSC {
 
     enum class SourceProviderSourceType {
         Program,
-        ProgramBytecodes,
         Module,
         WebAssembly,
     };
@@ -52,7 +51,8 @@ namespace JSC {
 
         virtual unsigned hash() const = 0;
         virtual StringView source() const = 0;
-        StringView getRange(int start, int end) const
+		  virtual int length() const = 0;
+		  StringView getRange(int start, int end) const
         {
             return source().substring(start, end - start);
         }
@@ -91,6 +91,41 @@ namespace JSC {
         uintptr_t m_id : sizeof(uintptr_t) * 8 - 1;
     };
 
+    class MemoryMappedFileSourceProvider : public SourceProvider {
+    public:
+        // TODO :: Signature ?? FD/FileName ?
+        static Ref<MemoryMappedFileSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+        {
+            return adoptRef(*new MemoryMappedFileSourceProvider(source, sourceOrigin, url, startPosition, sourceType));
+        }
+        
+        unsigned hash() const override
+        {
+            // Not Implemented yet.
+            ASSERT(0);
+            //return m_source.get().hash();
+        }
+
+        StringView source() const override
+        {
+            // Not Implemented yet.
+            ASSERT(0);
+            //return m_source.get();
+        }
+
+		  int length() const override
+		  {
+			  return -1;
+		  }
+
+    private:
+        MemoryMappedFileSourceProvider(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+            : SourceProvider(sourceOrigin, url, startPosition, sourceType){}
+        
+        //Ref<StringImpl> m_source;
+    };
+
+
     class StringSourceProvider : public SourceProvider {
     public:
         static Ref<StringSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
@@ -107,6 +142,11 @@ namespace JSC {
         {
             return m_source.get();
         }
+
+		  int length() const override
+		  {
+			  return source().length();
+		  }
 
     private:
         StringSourceProvider(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
@@ -135,6 +175,11 @@ namespace JSC {
         {
             return m_source;
         }
+
+		  int length() const override
+		  {
+			  return source().length();
+		  }
 
         const Vector<uint8_t>& data() const
         {

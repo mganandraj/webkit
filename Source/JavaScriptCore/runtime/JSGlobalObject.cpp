@@ -1516,8 +1516,10 @@ bool JSGlobalObject::hasInteractiveDebugger() const
 
 JSGlobalObject* JSGlobalObject::create(VM& vm, Structure* structure)
 {
+    double start = currentTime();
     JSGlobalObject* globalObject = new (NotNull, allocateCell<JSGlobalObject>(vm.heap)) JSGlobalObject(vm, structure);
     globalObject->finishCreation(vm);
+    dataLogLn("#GO:", currentTime() - start);
     return globalObject;
 }
 

@@ -38,6 +38,8 @@
 #include "Structure.h"
 #include "UnlinkedFunctionCodeBlock.h"
 
+#include "ByteCodeProvider.h"
+
 namespace JSC {
 
 static_assert(sizeof(UnlinkedFunctionExecutable) <= 256, "UnlinkedFunctionExecutable should fit in a 256-byte cell.");
@@ -75,23 +77,11 @@ static UnlinkedFunctionCodeBlock* generateUnlinkedFunctionCodeBlock(
     return result;
 }
 
-UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, std::ifstream& stream, const char* prefix, const char* suffix)
+UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, std::ifstream& stream)
     : Base(*vm, structure)
+    , m_isLoadingByteCodes(true)
 {
     this->loadNonCode(*vm, stream);
-
-    const Identifier& nameid = inferredName();
-    std::string fileName(reinterpret_cast<const char*>(nameid.string().characters8()), nameid.string().length());
-    // const char* fileName = nameid.ascii().data();
-    
-    std::string prefixstr(prefix);
-    prefixstr.append("_");
-    prefixstr.append(fileName);
-    prefixstr.append("_");
-    prefixstr.append(suffix);
-    
-    m_prefix = new char[prefixstr.size() + 1];
-	strncpy(m_prefix, prefixstr.c_str(), prefixstr.size() + 1);
 
     // Make sure these bitfields are adequately wide.
     //ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -134,8 +124,9 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     , m_inferredName(node->inferredName())
     , m_parentSourceOverride(WTFMove(parentSourceOverride))
     , m_classSource(node->classSource())
-    , m_prefix(nullptr)
-
+    , m_byteCodeBundleOffsetForCall(0)
+    , m_byteCodeBundleOffsetForConstruct(0)
+    , m_isLoadingByteCodes(false)
 {
     // Make sure these bitfields are adequately wide.
     ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -186,6 +177,8 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
     // TODO
     // VariableEnvironment m_parentScopeTDZVariables;
 
+    ofstream << m_byteCodeBundleOffsetForCall << " " << m_byteCodeBundleOffsetForConstruct << " ";
+
     ofstream << m_firstLineOffset << " ";
     ofstream << m_lineCount << " ";
     ofstream << m_unlinkedFunctionNameStart << " ";
@@ -193,8 +186,7 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
     ofstream << m_unlinkedBodyEndColumn << " ";
     ofstream << m_startOffset << " ";
     ofstream << m_sourceLength << " ";
-    //ofstream << m_sourceOffset << " ";
-
+    
     ofstream << m_parametersStartOffset << " ";
     ofstream << m_typeProfilingStartOffset << " ";
     ofstream << m_typeProfilingEndOffset << " ";
@@ -241,6 +233,8 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm, std::ifstream& ifstream){
     //ifstream >> token;
     //m_sourceMappingURLDirective = String(reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
 
+    ifstream >> m_byteCodeBundleOffsetForCall;
+    ifstream >> m_byteCodeBundleOffsetForConstruct;
 
     ifstream >> m_firstLineOffset;
     ifstream >> m_lineCount;
@@ -280,16 +274,30 @@ void UnlinkedFunctionExecutable::saveCode(VM& vm, std::ofstream&){
     // We are saving through FunctionExecutable.
 }
 
-UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, std::ifstream& ifs, CodeSpecializationKind specializationKind,
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpecializationKind specializationKind,
     DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode)
 {
-    int index; ifs >> index;
-    ASSERT( index == 1);
+    std::ifstream& ifs(vm.byteCodeProvider().getReadStream(""));    
 
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
     unsigned endColumn;
+
+    switch(specializationKind){
+        case CodeSpecializationKind::CodeForCall:
+            ifs.seekg(m_byteCodeBundleOffsetForCall);
+            break;
+
+        case CodeSpecializationKind::CodeForConstruct:
+            ifs.seekg(m_byteCodeBundleOffsetForConstruct);
+            break;
+        default:
+            ASSERT(0);
+    }
+    
+	 int index; ifs >> index;
+	 ASSERT(index == 1);
 
     ifs >> features;
     ifs >> hasCapturedVariables;
@@ -315,7 +323,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, std::ifs
         EvalContextType::FunctionEvalContext), 
         debuggerMode);
     
-    unlinkedCodeblock->load(vm, ifs, m_prefix);
+    unlinkedCodeblock->load(vm, ifs);
 
     return unlinkedCodeblock;
 }   
@@ -412,24 +420,8 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
 
     UnlinkedFunctionCodeBlock* result = nullptr;
 
-    if(m_prefix){
-
-        std::string codePath("c:\\tmp\\jsc\\script\\");
-        codePath.append(m_prefix);
-
-        switch (specializationKind) {
-            case CodeForCall:
-                codePath.append("_call");
-                break;
-            case CodeForConstruct:
-                codePath.append("_ctr");
-                break;
-        }
-
-        codePath.append(".jsb");
-        std::ifstream stream(codePath, std::ios::binary);
-
-        result = this->loadCode(vm, stream, specializationKind, debuggerMode, 
+    if(m_isLoadingByteCodes){
+        result = this->loadCode(vm, specializationKind, debuggerMode, 
             isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
             error, parseMode); 
     }

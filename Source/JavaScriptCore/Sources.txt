@@ -31,6 +31,7 @@ API/JSContextRef.cpp
 API/JSHeapFinalizerPrivate.cpp
 API/JSMarkingConstraintPrivate.cpp
 API/JSObjectRef.cpp
+API/JSSamplingProfiler.cpp
 API/JSTypedArray.cpp
 API/JSScriptRef.cpp
 API/JSStringRef.cpp
@@ -921,6 +922,7 @@ runtime/WeakMapConstructor.cpp
 runtime/WeakMapPrototype.cpp
 runtime/WeakSetConstructor.cpp
 runtime/WeakSetPrototype.cpp
+runtime/ByteCodeProvider.cpp
 
 # Derived Sources
 # FIXME: We should move this to runtime but it kept breaking the Windows build in weird ways... https://bugs.webkit.org/show_bug.cgi?id=177486

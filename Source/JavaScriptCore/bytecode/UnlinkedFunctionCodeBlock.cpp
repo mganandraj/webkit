@@ -41,8 +41,8 @@ void UnlinkedFunctionCodeBlock::save(VM&vm, std::ofstream& ofs) {
     UnlinkedCodeBlock::save(vm, ofs);
 }
 
-void UnlinkedFunctionCodeBlock::load(VM&vm, std::ifstream& ofs, const char* prefix) {
-	UnlinkedCodeBlock::load(vm, ofs, prefix);
+void UnlinkedFunctionCodeBlock::load(VM&vm, std::ifstream& ofs) {
+	UnlinkedCodeBlock::load(vm, ofs);
 }
 
 

@@ -771,11 +771,13 @@ static inline JSObject* checkedReturn(JSObject* returnValue)
 
 JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFrame, JSObject* thisObj)
 {
+    double start = currentTime();    
+
     JSScope* scope = thisObj->globalObject()->globalScope();
     VM& vm = *scope->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 
-    bool isProgramBytecodes = source.provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes;
+    // bool isProgramBytecodes = source.provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes;
 
     ProgramExecutable* program = ProgramExecutable::create(callFrame, source);
     EXCEPTION_ASSERT(throwScope.exception() || program);
@@ -790,7 +792,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     if (UNLIKELY(!vm.isSafeToRecurseSoft()))
         return checkedReturn(throwStackOverflowError(callFrame, throwScope));
 
-    if(!isProgramBytecodes) {
+    if(!JSC::Options::loadBytecodes()) {
 
     // First check if the "program" is actually just a JSON object. If so,
     // we'll handle the JSON object here. Else, we'll handle real JS code
@@ -903,6 +905,8 @@ failedJSONP:
     if (UNLIKELY(error))
         return checkedReturn(throwException(callFrame, throwScope, error));
     
+    dataLogLn("#XP2:", currentTime() - start);
+    
     if(JSC::Options::saveBytecodes()) {
         //Don't execute.. Just save the byte codes.
         program->save(vm, "script");
@@ -919,6 +923,8 @@ failedJSONP:
             return checkedReturn(error);
         codeBlock = jsCast<ProgramCodeBlock*>(tempCodeBlock);
     }
+
+    dataLogLn("#XP3:", currentTime() - start);  
 
     VMTraps::Mask mask(VMTraps::NeedTermination, VMTraps::NeedWatchdogCheck);
     if (UNLIKELY(vm.needTrapHandling(mask))) {
@@ -937,6 +943,9 @@ failedJSONP:
     // Execute the code:
     throwScope.release();
     JSValue result = program->generatedJITCode()->execute(&vm, &protoCallFrame);
+
+    dataLogLn("#XP:", currentTime() - start);    
+    
     return checkedReturn(result);
     }
 }

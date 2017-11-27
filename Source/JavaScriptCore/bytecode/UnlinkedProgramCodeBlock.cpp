@@ -45,8 +45,8 @@ void UnlinkedProgramCodeBlock::save(VM&vm, std::ofstream& ofs){
     ofs<<std::endl;
 }
 
-void UnlinkedProgramCodeBlock::load(VM&vm, std::ifstream& ifs, const char* prefix){
-    UnlinkedCodeBlock::load(vm, ifs, prefix);
+void UnlinkedProgramCodeBlock::load(VM&vm, std::ifstream& ifs){
+    UnlinkedCodeBlock::load(vm, ifs);
 
     m_varDeclarations.load(ifs, identifiers());
     m_lexicalDeclarations.load(ifs, identifiers());

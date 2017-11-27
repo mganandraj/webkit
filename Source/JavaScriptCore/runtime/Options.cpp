@@ -624,8 +624,9 @@ bool Options::setOptions(const char* optionsStr)
         p = strstr(p, "=");
         if (!p) {
             dataLogF("'=' not found in option string: %p\n", optionStart);
-            WTF::fastFree(optionsStrCopy);
-            return false;
+            //WTF::fastFree(optionsStrCopy);
+            // return false;
+				break;
         }
         p++;
 

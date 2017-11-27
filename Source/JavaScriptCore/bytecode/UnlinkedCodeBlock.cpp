@@ -47,6 +47,8 @@
 #include "UnlinkedProgramCodeBlock.h"
 #include <wtf/DataLog.h>
 
+#include <sstream>
+
 namespace JSC {
 
 const ClassInfo UnlinkedCodeBlock::s_info = { "UnlinkedCodeBlock", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedCodeBlock) };
@@ -87,7 +89,7 @@ UnlinkedCodeBlock::UnlinkedCodeBlock(VM* vm, Structure* structure, CodeType code
     ASSERT(m_constructorKind == static_cast<unsigned>(info.constructorKind()));
 }
 
-void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs, const char* prefix){
+void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
     int index; ifs >> index;
     ASSERT(index == 2);
 
@@ -203,30 +205,54 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs, const char* prefix){
                 m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
 
             }
-                break;
+            break;
+
             case ConstantType::String:
             {
                 // std::string constant;
                 uint32_t constRepresentation;
 
-					 int length;
-					 ifs >> length;
+                bool is8bit;
+                ifs >> is8bit;
 
-                    // Read an empty space.
-                    char space;
-                    ifs.read(&space, 1);
+                int length;
+                ifs >> length;
 
-					 RefCountedArray<unsigned char> data(length);
-					 ifs.read(reinterpret_cast<char*>(data.begin()), length);
+                // Read an empty space.
+                char space;
+                ifs.read(&space, 1);
+
+                if(is8bit) {
+                    RefCountedArray<unsigned char> data(length);
+                    ifs.read(reinterpret_cast<char*>(data.begin()), length);
+
+                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const LChar*>(data.data()), length).string());
+                    m_constantRegisters.last().set(vm, this, JSValue(jsString));  
+                } else {
+                    RefCountedArray<unsigned char> data(2 * length);
+                    ifs.read(reinterpret_cast<char*>(data.begin()), 2 * length);
+
+                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const UChar*>(data.data()), length).string());
+                    m_constantRegisters.last().set(vm, this, JSValue(jsString));  
+                }
 
                 // ifs >> constant;
                 ifs >> constRepresentation;
 
-                JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const LChar*>(data.data()), length).string());
-                
-                JSValue jsValue(jsString);
-                
-                m_constantRegisters.last().set(vm, this, jsValue);  
+                m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
+            }
+
+                break;
+            case ConstantType::SymbolTable:
+            {
+                SymbolTable* functionSymbolTable = SymbolTable::create(vm);
+                functionSymbolTable->load(vm, ifs);
+
+                JSValue jsValue(functionSymbolTable);
+                m_constantRegisters.last().set(vm, this, jsValue);
+
+                uint32_t constRepresentation;
+                ifs >> constRepresentation;
                 m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
             }
                 break;
@@ -286,15 +312,7 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs, const char* prefix){
     for(int i=0; i<numFuncDecls; i++) {
         ifs.get(); // newline
         m_functionDecls.append(WriteBarrier<UnlinkedFunctionExecutable>());
-        std::string suffix("d_");
-        
-        // TODO
-        // suffix.append(std::to_string(i));
-        std::stringstream ss;
-        ss << i;
-        suffix.append(ss.str());
-
-        m_functionDecls.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs, prefix, suffix.c_str()));
+        m_functionDecls.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs));
     }
     
     // misc
@@ -307,15 +325,7 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs, const char* prefix){
     for(int i=0; i<numFuncExprs; i++) {
         ifs.get(); // newline
         m_functionExprs.append(WriteBarrier<UnlinkedFunctionExecutable>());
-        std::string suffix("x_");
-        
-        // TODO ..
-        //suffix.append(std::to_string(i));
-        std::stringstream ss;
-        ss << i;
-        suffix.append(ss.str());
-
-        m_functionExprs.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs, prefix, suffix.c_str()));
+        m_functionExprs.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs));
     }
 
     ifs.get(); // newline    
@@ -541,7 +551,7 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
     stream<<std::endl;
     
     // Constants
-
+	
     stream << "7 ";
 
     stream<<constantRegisters().size()<<" ";
@@ -565,14 +575,35 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
                     stream << " ";
 
                     const String& constStr = static_cast<const JSString*>(value.asCell())->tryGetValue();
-                    std::string str(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
+                    
+                    bool is8bit = constStr.is8Bit();
 
-						  stream << constStr.length();
-						  stream << " ";
-						  stream.write(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
-						  stream << " ";
+                    stream << is8bit << " ";
+                    
+                    //std::string str(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
 
-                          stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    stream << constStr.length();
+                    stream << " ";
+
+                    if(is8bit) {
+                        stream.write(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
+                        stream << " ";
+                    } else {
+                        stream.write(reinterpret_cast<const char* >(constStr.characters16()), 2*constStr.length());
+                        stream << " ";
+                    }
+
+                    stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    stream << " ";
+                }
+                else if (value.asCell()->classInfo(vm) == SymbolTable::info()) {
+                    stream<<static_cast<int16_t>(ConstantType::SymbolTable);
+                    stream << " ";
+
+                    SymbolTable* symbolTable = jsCast<SymbolTable*>(value);
+                    symbolTable->save(vm, stream);
+
+                    stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
                     stream << " ";
                 }
                 else {
@@ -688,9 +719,9 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
 
     stream << std::endl;
 
-
-    stream << "18 " << constantBufferCount() << " " ;
-    for(int i=0; i<constantBufferCount(); i++) {
+    int _constantBufferCount = hasRareData() ? constantBufferCount() : 0;
+    stream << "18 " << _constantBufferCount << " " ;
+    for(int i=0; i < _constantBufferCount; i++) {
         ConstantBuffer& buffer = constantBuffer(i);
         stream << buffer.size() << " ";
         

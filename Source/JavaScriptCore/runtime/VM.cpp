@@ -123,6 +123,11 @@
 #include <wtf/text/AtomicStringTable.h>
 #include <wtf/text/SymbolRegistry.h>
 
+#include "HeapSnapshotBuilder.h"
+
+#include "ByteCodeProvider.h"
+
+#include "ConfigFile.h"
 #if !ENABLE(JIT)
 #include "CLoopStack.h"
 #include "CLoopStackInlines.h"
@@ -215,12 +220,21 @@ VM::VM(VMType vmType, HeapType heapType)
 #endif
     , m_stackPointerAtVMEntry(0)
     , m_codeCache(std::make_unique<CodeCache>())
+    , m_byteCodeProvider(std::make_unique<ByteCodeProvider>())  
     , m_builtinExecutables(std::make_unique<BuiltinExecutables>(*this))
     , m_typeProfilerEnabledCount(0)
     , m_primitiveGigacageEnabled(IsWatched)
     , m_controlFlowProfilerEnabledCount(0)
     , m_shadowChicken(std::make_unique<ShadowChicken>())
 {
+    #if OS(WINDOWS)    
+    //processConfigFile("c:\\jsc\\jsc.cfg", "jsc");
+    #else
+    processConfigFile("/sdcard/jsc/jsc.cfg", "jsc");
+    #endif
+
+    double vmStart = currentTime();
+
     interpreter = new Interpreter(*this);
     StackBounds stack = Thread::current().stack();
     updateSoftReservedZoneSize(Options::softReservedZoneSize());
@@ -351,6 +365,8 @@ VM::VM(VMType vmType, HeapType heapType)
     }
 
     VMInspector::instance().add(this);
+
+    dataLogLn("#VM: ", currentTime() - vmStart);
 }
 
 static StaticReadWriteLock s_destructionLock;
@@ -359,6 +375,34 @@ void waitForVMDestruction()
 {
     auto locker = holdLock(s_destructionLock.write());
 }
+
+void VM::startSamplingProfiler() {
+    setShouldBuildPCToCodeOriginMapping();
+    Ref<Stopwatch> stopwatch = Stopwatch::create();
+    stopwatch->start();
+    m_samplingProfiler = adoptRef(new SamplingProfiler(*this, WTFMove(stopwatch)));
+    if (Options::samplingProfilerPath())
+        m_samplingProfiler->registerForReportAtExit();
+    m_samplingProfiler->start();
+}
+
+void VM::pokeSamplingProfiler() {
+    if(m_samplingProfiler) {
+        m_samplingProfiler->reportTopFunctions();
+        m_samplingProfiler->reportTopBytecodes();
+    } else {
+        dataLog("Poking Sampling profiler when it is not running ...");
+    }
+
+    dataLogLn("Heap size is ", heap.size(), " and capacity is ", heap.capacity());
+
+    HeapSnapshotBuilder snapshotBuilder(ensureHeapProfiler());
+    snapshotBuilder.buildSnapshot();
+
+    String jsonString = snapshotBuilder.json();
+    dataLogLn(jsonString);
+}
+
 
 VM::~VM()
 {

@@ -4,6 +4,10 @@ if (MSVC)
     include(OptionsMSVC)
 endif ()
 
+if (NOT WIN32)
+    add_definitions(-D__BIONIC__)    
+endif ()
+
 add_definitions(-DBUILDING_JSCONLY__)
 
 set(PROJECT_VERSION_MAJOR 1)

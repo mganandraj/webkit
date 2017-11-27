@@ -39,6 +39,9 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
+#include <sstream>
+#include "ByteCodeProvider.h"
+
 namespace JSC {
 
 const ClassInfo ProgramExecutable::s_info = { "ProgramExecutable", &ScriptExecutable::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(ProgramExecutable) };
@@ -46,8 +49,7 @@ const ClassInfo ProgramExecutable::s_info = { "ProgramExecutable", &ScriptExecut
 ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
     : ScriptExecutable(exec->vm().programExecutableStructure.get(), exec->vm(), source, false, DerivedContextType::None, false, EvalContextType::None, NoIntrinsic)
 {
-    ASSERT(source.provider()->sourceType() == SourceProviderSourceType::Program ||
-		 source.provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes);
+    ASSERT(source.provider()->sourceType() == SourceProviderSourceType::Program);
 
     m_typeProfilingStartOffset = 0;
     m_typeProfilingEndOffset = source.length() - 1;
@@ -57,57 +59,47 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
 
 void ProgramExecutable::save(VM& vm, const char* prefix){
     std::string repoPath("c:\\tmp\\jsc\\script\\");
-    std::string newprefix(prefix);
-    newprefix.append("__global");
-
-    repoPath.append(newprefix);
+    repoPath.append(prefix);
     repoPath.append(".jsb");
 
     std::ofstream ofs(repoPath, std::ios::binary);
 
-    // Write recordParse
-    ScriptExecutable::save(vm, ofs);
-
-    // Write codeblock.
-    m_unlinkedProgramCodeBlock.get()->save(vm, ofs);
+    //vm.byteCodeProvider.getWriteStream("global");
 
     // Write functions.
     for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
         FunctionExecutable* func = ufunc->link(vm, this->source());
-        std::string suffix("d_");
-        //suffix.append(std::to_string(i));
-        std::stringstream ss;
-        ss << i;
-        suffix.append(ss.str());
-
-        func->save(vm, newprefix.c_str(), suffix.c_str());
+        func->save(vm, ofs);
     }
 
-    // Write functions.
+    // Write function expressions.
     for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
         FunctionExecutable* func = ufunc->link(vm, this->source());
-        std::string suffix("x_");
-        //suffix.append(std::to_string(i));
-        std::stringstream ss;
-        ss << i;
-        suffix.append(ss.str());
-
-        func->save(vm, newprefix.c_str(), suffix.c_str());
+        func->save(vm, ofs);
     }
+
+    std::string indexPath("c:\\tmp\\jsc\\script\\index.jsb");
+    std::ofstream ofsindex(indexPath, std::ios::binary);
+
+    // Write the offset of program executable in the index file.
+    ofsindex << ofs.tellp();
+    ofsindex.close();
+
+    // Write recordParse
+    ScriptExecutable::save(vm, ofs);
+        
+    // Write codeblock.
+    m_unlinkedProgramCodeBlock.get()->save(vm, ofs);    
 }
 
 UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
-    std::string repoPath("c:\\tmp\\jsc\\script\\");
-    std::string newprefix(prefix);
-	newprefix.append("__global");
+    std::ifstream&ifs(vm.byteCodeProvider().getReadStream(prefix));
+    int programOffset = vm.byteCodeProvider().getProgramOffset("");
     
-    repoPath.append(newprefix);
-    repoPath.append(".jsb");
-        
-    std::ifstream ifs(repoPath, std::ios::binary);
-    
+    ifs.seekg(programOffset);
+
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
@@ -121,7 +113,7 @@ UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
     //unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURL());
     //unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
 
-    unlinkedCodeBlock->load(vm, ifs, newprefix.c_str());
+    unlinkedCodeBlock->load(vm, ifs);
 
     return unlinkedCodeBlock;
 }
@@ -171,7 +163,7 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock;
     
-    if(source().provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes){
+    if(JSC::Options::loadBytecodes()){
         unlinkedCodeBlock = load(vm, "script");
     }
     else {

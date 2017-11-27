@@ -30,6 +30,8 @@
 
 #include "UnlinkedSourceCode.h"
 
+#include "Options.h"
+
 namespace JSC {
 
     class SourceCode : public UnlinkedSourceCode {
@@ -90,6 +92,11 @@ namespace JSC {
     {
         return SourceCode(StringSourceProvider::create(source, sourceOrigin, url, startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
     }
+
+	 inline SourceCode makeMemoryMappedSource(const String& source, const SourceOrigin& sourceOrigin, const String& url = String(), const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+	 {
+        return SourceCode(MemoryMappedFileSourceProvider::create(source, sourceOrigin, url, startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
+	 }
     
     inline SourceCode SourceCode::subExpression(unsigned openBrace, unsigned closeBrace, int firstLine, int startColumn)
     {

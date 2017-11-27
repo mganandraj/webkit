@@ -345,10 +345,12 @@ if (NOT USE_SYSTEM_MALLOC)
     list(APPEND WTF_LIBRARIES bmalloc)
 endif ()
 
-list(APPEND WTF_SOURCES
-#    unicode/icu/CollatorICU.cpp
-    unicode/CollatorDefault.cpp
-)
+if (NOT WIN32)
+    list(APPEND WTF_SOURCES unicode/CollatorDefault.cpp)
+else ()
+    list(APPEND WTF_SOURCES unicode/icu/CollatorICU.cpp)
+endif ()    
+
 set(WTF_SYSTEM_INCLUDE_DIRECTORIES
     ${ICU_INCLUDE_DIRS}
 )

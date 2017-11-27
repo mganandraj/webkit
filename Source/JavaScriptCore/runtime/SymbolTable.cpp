@@ -39,6 +39,57 @@ namespace JSC {
 
 const ClassInfo SymbolTable::s_info = { "SymbolTable", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(SymbolTable) };
 
+void SymbolTable::save(VM& vm, std::ofstream&stream)
+{
+    uint16_t flags = 0;
+    flags |= m_usesNonStrictEval;
+    flags |= m_nestedLexicalScope << 1;
+    flags |= m_scopeType << 2;
+    
+    stream << flags << " ";
+
+    stream << this->size() << " ";
+    
+    for( auto& entry : m_map) {
+        RefPtr<UniquedStringImpl> key = entry.key;
+        std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
+        intptr_t value = entry.value.bits();
+
+        // TODO :: We are assuming that symbols can't have breaking characters in it.
+        stream << keystr << " ";
+        stream << value << " ";
+    }
+}
+
+void SymbolTable::load(VM& vm, std::ifstream&stream)
+{
+    uint16_t flags;
+    stream >> flags;
+    
+    m_usesNonStrictEval = flags & 0x0001;
+    m_nestedLexicalScope = (flags >> 1) & 0x0001;
+    m_scopeType =  (flags >> 2) & 0x0003;
+    
+    int numSymbols;
+    stream >> numSymbols;
+
+    for(int i=0; i< numSymbols; i++) {
+        std::string key;
+        intptr_t bits;
+
+        stream >> key;
+        stream >> bits;
+
+        RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(
+            reinterpret_cast<const LChar*>(key.c_str()), key.length());
+
+        SymbolTableEntry entry;
+        entry.bits() = bits;
+
+        this->add(atomicStringKey.get(), WTFMove(entry));
+    }
+}
+
 SymbolTableEntry& SymbolTableEntry::copySlow(const SymbolTableEntry& other)
 {
     ASSERT(other.isFat());

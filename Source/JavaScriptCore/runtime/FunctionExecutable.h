@@ -29,6 +29,8 @@
 #include "SourceCode.h"
 #include <wtf/Box.h>
 
+#include <fstream>
+
 namespace JSC {
 
 class FunctionExecutable final : public ScriptExecutable {
@@ -38,7 +40,7 @@ public:
     typedef ScriptExecutable Base;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
-    void save(VM& vm, const char* prefix, const char* suffix);
+    void save(VM& vm, std::ofstream&);
     UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
 
     static FunctionExecutable* create(
