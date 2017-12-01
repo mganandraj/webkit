@@ -174,9 +174,6 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
     //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceMappingURLDirective.characters8()), m_sourceMappingURLDirective.length());
     //ofstream << " ";
 
-    // TODO
-    // VariableEnvironment m_parentScopeTDZVariables;
-
     ofstream << m_byteCodeBundleOffsetForCall << " " << m_byteCodeBundleOffsetForConstruct << " ";
 
     ofstream << m_firstLineOffset << " ";
@@ -208,6 +205,9 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
     funcMetadata |= m_derivedContextType << 10;
 
     ofstream <<  funcMetadata << " ";
+
+    // TODO Parent Scope TDZ
+    // m_parentScopeTDZVariables->;
 }
 
 void UnlinkedFunctionExecutable::loadNonCode(VM&vm, std::ifstream& ifstream){
@@ -323,6 +323,9 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
         EvalContextType::FunctionEvalContext), 
         debuggerMode);
     
+    //std::string funcName(reinterpret_cast<const char* >(m_name.string().characters8()), m_name.string().length());
+    //dataLogLn("Loading codeblock for : ", funcName.c_str());
+
     unlinkedCodeblock->load(vm, ifs);
 
     return unlinkedCodeblock;

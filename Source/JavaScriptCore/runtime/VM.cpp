@@ -228,7 +228,7 @@ VM::VM(VMType vmType, HeapType heapType)
     , m_shadowChicken(std::make_unique<ShadowChicken>())
 {
     #if OS(WINDOWS)    
-    //processConfigFile("c:\\jsc\\jsc.cfg", "jsc");
+    processConfigFile("C:\\JSC\\jsc_win.cfg", "jsc");
     #else
     processConfigFile("/sdcard/jsc/jsc.cfg", "jsc");
     #endif
@@ -680,6 +680,10 @@ void VM::throwException(ExecState* exec, Exception* exception)
         CodeBlock* codeBlock = exec->codeBlock();
         dataLog("Throwing exception in call frame ", RawPointer(exec), " for code block ", codeBlock, "\n");
         CRASH();
+    }
+
+    if(exception) {
+        dataLogLn("VM::throwException :: ", exception->value().toWTFString(exec));    
     }
 
     ASSERT(exec == topCallFrame || exec == exec->lexicalGlobalObject()->globalExec() || exec == exec->vmEntryGlobalObject()->globalExec());

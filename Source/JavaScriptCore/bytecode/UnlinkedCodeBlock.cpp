@@ -90,6 +90,7 @@ UnlinkedCodeBlock::UnlinkedCodeBlock(VM* vm, Structure* structure, CodeType code
 }
 
 void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
+
     int index; ifs >> index;
     ASSERT(index == 2);
 
@@ -143,10 +144,22 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
     int numIdentifiers;
     ifs >> numIdentifiers;
     for(int i=0; i<numIdentifiers; i++) {
-        std::string id;
-        ifs >> id;
+        //std::string id;
+        //ifs >> id;
         // TODO :: Handle ES6 symbols
-        m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(id.c_str()), static_cast<int>(id.size())));
+        //m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(id.c_str()), static_cast<int>(id.size())));
+
+        int idlength;
+        ifs >> idlength;
+
+        // Read an empty space.
+        char space;
+        ifs.read(&space, 1);
+        
+        RefCountedArray<unsigned char> data(idlength);
+        ifs.read(reinterpret_cast<char*>(data.begin()), idlength);
+
+        m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
     }
 
     ifs.get(); // newline
@@ -407,21 +420,39 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
     int numbRegexps;
     ifs >> numbRegexps;
 
-        if (numbRegexps > 0) {
-            createRareDataIfNecessary();
-        }
+    if (numbRegexps > 0) {
+        createRareDataIfNecessary();
+    }
 
     for(int i=0; i<numbRegexps; i++) {
 
-        std::string patternString;
+        int regexplength;
+        ifs >> regexplength;
+
+        bool is8bit;
+        ifs >> is8bit;
+
+        // Read an empty space.
+        char space;
+        ifs.read(&space, 1);
+
+        WTF::String pattern;
+        if(is8bit){
+            RefCountedArray<unsigned char> data(regexplength);
+            ifs.read(reinterpret_cast<char*>(data.begin()), regexplength);
+            pattern = WTF::String(reinterpret_cast<const LChar*>(data.data()), regexplength);
+        } else {
+            RefCountedArray<unsigned char> data(2 * regexplength);
+            ifs.read(reinterpret_cast<char*>(data.begin()), 2*regexplength);
+            pattern = WTF::String(reinterpret_cast<const LChar*>(data.data()), regexplength);
+        }
+
         /*RegExpFlags*/ uint16_t flagsVal;
         /*RegExpState*/ uint16_t stateVal;
         
-        ifs >> patternString;
         ifs >> flagsVal;
         ifs >> stateVal;
 
-        WTF::String pattern(reinterpret_cast<const char*>(patternString.c_str()), patternString.length());
         m_rareData->m_regexps.append(WriteBarrier<RegExp>(vm, this, 
             RegExp::create(vm, pattern, static_cast<RegExpFlags>(flagsVal))));
         
@@ -443,7 +474,7 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
     for(int i=0; i<numConstantBuffers; i++) {
         int numConstants;
         ifs >> numConstants;
-        m_rareData->m_constantBuffers.append(Vector<JSValue>(numConstants));
+        m_rareData->m_constantBuffers.append(Vector<JSValue>());
         
         for(int i=0; i<numConstants; i++) {
             uint16_t constTypeVal;
@@ -463,11 +494,11 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
 
                     case ConstantType::Empty:
                 {
-                    std::string constant;    
+                    std::string constant;
                     ifs >> constant;
-    
-                    m_rareData->m_constantBuffers.last().append(JSValue());  
-    
+
+                    m_rareData->m_constantBuffers.last().append(JSValue()); 
+
                 }
                     break;
 
@@ -492,6 +523,59 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
             //m_rareData->m_constantBuffers.last().append(JSValue::decode(static_cast<EncodedJSValue>(jsValueEnc)));
         }
     }
+
+    ifs.get(); // newline    
+    
+    ifs >> index;
+    ASSERT (index == 19);
+
+    int numberOfPropertyAccessInstructions;
+    ifs >> numberOfPropertyAccessInstructions;
+
+    for(int i=0; i<numberOfPropertyAccessInstructions; i++) {
+        unsigned instr;
+        ifs >> instr;
+        this->addPropertyAccessInstruction(instr);
+    }
+    
+    ifs.get(); // newline    
+    
+    ifs >> index;
+    ASSERT (index == 20);
+
+    int numberOfJumpTargets;
+    ifs >> numberOfJumpTargets;
+
+    for(int i=0; i<numberOfJumpTargets; i++) {
+        unsigned jmpTarget;
+        ifs >> jmpTarget;
+        this->addJumpTarget(jmpTarget);
+    }
+
+
+    ifs.get(); // newline    
+    
+    ifs >> index;
+    ASSERT (index == 21);
+    
+    size_t expressionInfoSize;
+    ifs >> expressionInfoSize;
+    
+    for (size_t i = 0; i < expressionInfoSize; i++) {
+        unsigned instructionOffset;
+        int divotPoint, startOffset, endOffset, line, column;
+
+        ifs >> instructionOffset;
+        ifs >> divotPoint;
+        ifs >> startOffset;
+        ifs >> endOffset;
+        ifs >> line;
+        ifs >> column;
+
+        this->addExpressionInfo(instructionOffset, divotPoint, startOffset,
+            endOffset, line, column);
+    }
+
 }
 
 void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
@@ -531,8 +615,16 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
 
     stream<<m_identifiers.size()<<" ";
     for (auto &identifier : m_identifiers){
-        stream<<std::string(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
-		stream << " ";
+        //stream<<std::string(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+        //stream << " ";
+
+        if(identifier.isSymbol() || identifier.isPrivateName()) {
+            dataLogLn("!! Symbol/PrivateName Idenfier found : ", identifier.string().ascii().data());
+        }
+		
+        
+        stream << identifier.length() << " ";
+        stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
     }
 
     stream<<std::endl;
@@ -747,7 +839,7 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
                     for(auto constant : m_constantRegisters) {
                         JSValue jsValue = constant.get();
                     
-                        if(jsValue.isString()) {
+                        if(!jsValue.isEmpty() && jsValue.isString()) {
 
                             JSString* jsString = JSC::asString(jsValue);
                             const String& stringVal = jsString->tryGetValue();
@@ -790,6 +882,38 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
     }
 
     stream << std::endl;
+
+    size_t numberOfPropertyAccessInstructions = this->numberOfPropertyAccessInstructions();
+    stream << "19 " << numberOfPropertyAccessInstructions << " " ;
+    for (auto instr : this->propertyAccessInstructions()) {
+      stream << instr << " ";
+    }
+   
+    stream << std::endl;
+
+    stream << "20 " << m_jumpTargets.size() << " " ;
+    for (auto& jmptarget : m_jumpTargets) {
+      stream << jmptarget << " ";
+    }
+
+    stream << std::endl;
+
+    Vector<ExpressionRangeInfo>& expressionInfo = m_expressionInfo;
+    size_t expressionInfoSize = m_expressionInfo.size();
+    stream << "21 " << expressionInfoSize << " " ;
+    
+    for (size_t i = 0; i < expressionInfoSize; i++) {
+        ExpressionRangeInfo& info = expressionInfo[i];
+        unsigned line;
+        unsigned column;
+        getLineAndColumn(info, line, column);
+
+        stream << info.instructionOffset << " " << info.divotPoint << " "
+            << info.startOffset << " " << info.endOffset << " "
+            << line << " " << column << " ";
+    }
+
+    //stream << std::endl;
 }
 
 void UnlinkedStringJumpTable::save(VM& vm, std::ofstream&stream) {

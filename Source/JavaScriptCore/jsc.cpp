@@ -1445,7 +1445,8 @@ static inline SourceCode jscSource(const Vector& utf8, const SourceOrigin& sourc
 	 if(!JSC::Options::loadBytecodes())
 	     return makeSource(str, sourceOrigin, filename);
 	 else
-        return makeMemoryMappedSource(str, sourceOrigin, filename);
+        //return makeMemoryMappedSource(str, sourceOrigin, filename);
+        return makeSource(str, sourceOrigin, filename);
 }
 
 class GlobalObject : public JSGlobalObject {
@@ -3669,9 +3670,9 @@ static bool runWithOptions(GlobalObject* globalObject, CommandLine& options)
         if (scripts[i].codeSource == Script::CodeSource::File) {
             fileName = scripts[i].argument;
             
-            if(JSC::Options::loadBytecodes()) {
+            //if(JSC::Options::loadBytecodes()) {
                 // No need to read the file contents now ..     
-            } else {
+            //} else {
             
                 if (scripts[i].strictMode == Script::StrictMode::Strict)
                     scriptBuffer.append("\"use strict\";\n", strlen("\"use strict\";\n"));
@@ -3683,7 +3684,7 @@ static bool runWithOptions(GlobalObject* globalObject, CommandLine& options)
                     if (!fetchScriptFromLocalFileSystem(fileName, scriptBuffer))
                         return false; // fail early so we can catch missing files
                 }
-            }
+            //}
         } else {
             size_t commandLineLength = strlen(scripts[i].argument);
             scriptBuffer.resize(commandLineLength);

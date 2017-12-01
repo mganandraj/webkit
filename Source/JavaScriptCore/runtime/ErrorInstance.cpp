@@ -44,6 +44,9 @@ ErrorInstance* ErrorInstance::create(ExecState* state, Structure* structure, JSV
     auto scope = DECLARE_THROW_SCOPE(vm);
     String messageString = message.isUndefined() ? String() : message.toWTFString(state);
     RETURN_IF_EXCEPTION(scope, nullptr);
+
+    dataLogLn("ErrorInstance::create :: ", messageString);
+
     return create(state, vm, structure, messageString, appender, type, useCurrentFrame);
 }
 

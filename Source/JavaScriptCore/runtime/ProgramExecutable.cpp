@@ -58,13 +58,11 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
 }
 
 void ProgramExecutable::save(VM& vm, const char* prefix){
-    std::string repoPath("c:\\tmp\\jsc\\script\\");
-    repoPath.append(prefix);
-    repoPath.append(".jsb");
 
-    std::ofstream ofs(repoPath, std::ios::binary);
+    const char* byteCodeStorePath = Options::byteCodeStore();
+    std::ofstream ofs(byteCodeStorePath, std::ios::binary);
 
-    //vm.byteCodeProvider.getWriteStream("global");
+    dataLogLn("#Saving to :", byteCodeStorePath);        
 
     // Write functions.
     for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
@@ -80,18 +78,15 @@ void ProgramExecutable::save(VM& vm, const char* prefix){
         func->save(vm, ofs);
     }
 
-    std::string indexPath("c:\\tmp\\jsc\\script\\index.jsb");
-    std::ofstream ofsindex(indexPath, std::ios::binary);
-
-    // Write the offset of program executable in the index file.
-    ofsindex << ofs.tellp();
-    ofsindex.close();
-
+	long programIndex = ofs.tellp();
+	 
     // Write recordParse
     ScriptExecutable::save(vm, ofs);
-        
+    
     // Write codeblock.
     m_unlinkedProgramCodeBlock.get()->save(vm, ofs);    
+
+    ofs << " " << programIndex;
 }
 
 UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {

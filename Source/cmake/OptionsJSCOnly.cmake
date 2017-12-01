@@ -6,6 +6,8 @@ endif ()
 
 if (NOT WIN32)
     add_definitions(-D__BIONIC__)    
+#    add_definitions(-D__ARM_NEON__) 
+    add_definitions(-D__thumb2__)
 endif ()
 
 add_definitions(-DBUILDING_JSCONLY__)

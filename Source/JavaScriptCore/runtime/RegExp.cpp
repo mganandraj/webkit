@@ -227,9 +227,20 @@ RegExp::RegExp(VM& vm, const String& patternString, RegExpFlags flags)
 {
 }
 
-void RegExp::save(VM&, std::ostream& stream){
-    stream << std::string(reinterpret_cast<const char*>(m_patternString.characters8()), m_patternString.length()) << " "
-    << static_cast<uint16_t>(m_flags) << " " << static_cast<uint16_t>(m_state) << " ";
+void RegExp::save(VM&, std::ostream& stream) 
+{   
+    stream << m_patternString.length() << " ";
+    
+    bool is8bit = m_patternString.is8Bit();
+    stream << is8bit << " ";
+    
+    if(is8bit) {
+        stream.write(reinterpret_cast<const char* >(m_patternString.characters8()), m_patternString.length());
+    } else {
+        stream.write(reinterpret_cast<const char* >(m_patternString.characters16()), 2 * m_patternString.length());
+    }
+    
+    stream << " " << static_cast<uint16_t>(m_flags) << " " << static_cast<uint16_t>(m_state) << " ";
 }
 
 void RegExp::finishCreation(VM& vm)
