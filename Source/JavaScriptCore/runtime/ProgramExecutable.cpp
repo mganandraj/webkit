@@ -62,7 +62,10 @@ void ProgramExecutable::save(VM& vm, const char* prefix){
     const char* byteCodeStorePath = Options::byteCodeStore();
     std::ofstream ofs(byteCodeStorePath, std::ios::binary);
 
-    dataLogLn("#Saving to :", byteCodeStorePath);        
+    // dataLogLn("#Saving to :", byteCodeStorePath);        
+
+    // Start with a magic .. It serves some purpose !!
+    ofs << "MSOJSC ";
 
     // Write functions.
     for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
@@ -91,6 +94,9 @@ void ProgramExecutable::save(VM& vm, const char* prefix){
 
 UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
     std::ifstream&ifs(vm.byteCodeProvider().getReadStream(prefix));
+    //std::string magic;
+    //ifs >> magic;
+    //ASSERT(true);
     int programOffset = vm.byteCodeProvider().getProgramOffset("");
     
     ifs.seekg(programOffset);

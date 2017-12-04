@@ -320,7 +320,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
         specializationKind == CodeForConstruct, false /* !UnlinkedBuiltinFunction*/, 
         this->constructorKind(), _scriptMode, this->superBinding(),
         parseMode, this->derivedContextType(), false, isClassContext, 
-        EvalContextType::FunctionEvalContext), 
+        EvalContextType::None), 
         debuggerMode);
     
     //std::string funcName(reinterpret_cast<const char* >(m_name.string().characters8()), m_name.string().length());

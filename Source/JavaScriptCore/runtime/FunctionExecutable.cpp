@@ -60,68 +60,101 @@ FunctionExecutable::FunctionExecutable(VM& vm, const SourceCode& source, Unlinke
 void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
     
     ParserError error;
-    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall;
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall = nullptr, *unlinkedCodeBlockForConstruct = nullptr;
 
-    const Identifier& id =  this->m_unlinkedExecutable->name();
+    // Just for debugging.
+    const Identifier& id =  this->m_unlinkedExecutable->ecmaName();
     std::string idstr(reinterpret_cast<const char* >(id.string().characters8()), id.string().length());
     
+    if(constructAbility() == ConstructAbility::CanConstruct) {
 
-    unlinkedCodeBlockForCall = 
-        this->m_unlinkedExecutable->unlinkedCodeBlockFor(
-            vm, this->m_source, CodeSpecializationKind::CodeForCall, DebuggerMode::DebuggerOff, error, 
-                parseMode());
+        unlinkedCodeBlockForConstruct = 
+            this->m_unlinkedExecutable->unlinkedCodeBlockFor(
+                vm, this->m_source, CodeSpecializationKind::CodeForConstruct , DebuggerMode::DebuggerOff, error, 
+                    parseMode());
 
+    }
+
+    // These cannot be called as of my knowledge...
+    // 1. Class constructors
+    // 2. ???
+
+    if(!isClassConstructorFunction()) {
+        unlinkedCodeBlockForCall = 
+            this->m_unlinkedExecutable->unlinkedCodeBlockFor(
+                vm, this->m_source, CodeSpecializationKind::CodeForCall, DebuggerMode::DebuggerOff, error, 
+                    parseMode());
+    }
+    
+    ASSERT(unlinkedCodeBlockForCall || unlinkedCodeBlockForConstruct);
+    
     recordParse(
         m_unlinkedExecutable->features(), 
         m_unlinkedExecutable->hasCapturedVariables(),
         lastLine(), endColumn()); 
 
+    // UnlinkedFunctionCodeBlock* eitherCodeBlock = unlinkedCodeBlockForConstruct ? unlinkedCodeBlockForConstruct : unlinkedCodeBlockForCall;
 
-    // Write functions.
-    for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
-        UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save(vm, ofs);
+
+    // TODO :: Need to find a way to not write both
+    if(unlinkedCodeBlockForConstruct) {
+
+        // Write functions.
+        for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionDecls(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionDecl(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            func->save(vm, ofs);	
+        }
+
+        // Write functions expressions.
+        for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionExprs(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionExpr(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            func->save(vm, ofs);
+        }
+
     }
 
-    // Write functions expressions.
-    for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
-        UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save(vm, ofs);
+    if(unlinkedCodeBlockForCall) {
+        
+        // Write functions.
+        for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            func->save(vm, ofs);	
+        }
+
+        // Write functions expressions.
+        for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            func->save(vm, ofs);
+        }
     }
     
-    this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(static_cast<unsigned>(ofs.tellp()));
+    // All the descendants are written .. Now write self.
 
-    // Write recordParse
-    ScriptExecutable::save(vm, ofs);
-    
-    // Write codeblock.
-    unlinkedCodeBlockForCall->save(vm, ofs);
-            
-
-    // Now write for construct if needed.
-    if(constructAbility() == ConstructAbility::CanConstruct) {
-
-        UnlinkedFunctionCodeBlock* unlinkedCodeBlock = 
-            this->m_unlinkedExecutable->unlinkedCodeBlockFor(
-                vm, this->m_source, CodeSpecializationKind::CodeForConstruct , DebuggerMode::DebuggerOff, error, 
-                    parseMode());
-
-        recordParse(
-            m_unlinkedExecutable->features(), 
-            m_unlinkedExecutable->hasCapturedVariables(),
-            lastLine(), endColumn()); 
+    if(unlinkedCodeBlockForConstruct != nullptr) {
 
         this->unlinkedExecutable()->setByteCodeBundleOffsetForConstruct(static_cast<unsigned>(ofs.tellp()));
-            
+        
         // Write recordParse
         ScriptExecutable::save(vm, ofs);
 
         // Write codeblock.
-        unlinkedCodeBlock->save(vm, ofs);
-    }
+        unlinkedCodeBlockForConstruct->save(vm, ofs);
+    } 
+    
+    if(unlinkedCodeBlockForCall != nullptr) {
 
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(static_cast<unsigned>(ofs.tellp()));
+        
+        // Write recordParse
+        ScriptExecutable::save(vm, ofs);
+        
+        // Write codeblock.
+        unlinkedCodeBlockForCall->save(vm, ofs);
+    }
 }
 
 UnlinkedProgramCodeBlock* FunctionExecutable::load(VM& vm, const char* prefix){
