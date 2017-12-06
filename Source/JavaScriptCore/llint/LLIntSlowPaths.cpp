@@ -1380,6 +1380,7 @@ inline SlowPathReturnType setUpCall(ExecState* execCallee, Instruction* pc, Code
         else
             arity = ArityCheckNotRequired;
         codePtr = functionExecutable->entrypointFor(kind, arity);
+        dataLogLn("codePtr created ...");
     }
 
     ASSERT(!!codePtr);
@@ -1397,6 +1398,8 @@ inline SlowPathReturnType setUpCall(ExecState* execCallee, Instruction* pc, Code
         if (codeBlock)
             codeBlock->linkIncomingCall(exec, callLinkInfo);
     }
+
+    dataLogLn("Returning back to VM");
 
     LLINT_CALL_RETURN(exec, execCallee, codePtr.executableAddress());
 }

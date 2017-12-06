@@ -35,12 +35,28 @@
 #include "SlotVisitorInlines.h"
 #include "TypeProfiler.h"
 
+#include "BuiltinNames.h"
+
 namespace JSC {
 
 const ClassInfo SymbolTable::s_info = { "SymbolTable", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(SymbolTable) };
 
-void SymbolTable::save(VM& vm, std::ofstream&stream)
+enum class SymbolSaveType {
+    BuiltinPrivateName=0,
+    PrivateName,
+    WellKnownSymbol,
+    Symbol,
+    Identifier,
+    Raw
+};
+
+void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers, std::ofstream&stream)
 {
+	PrivateName p1;
+	PrivateName p2;
+	//bool equal = WTF::equal(&(p1.uid()), &(p2.uid()));
+	bool equal = (p1.uid().existingSymbolAwareHash() == p1.uid().existingSymbolAwareHash());
+
     uint16_t flags = 0;
     flags |= m_usesNonStrictEval;
     flags |= m_nestedLexicalScope << 1;
@@ -50,18 +66,63 @@ void SymbolTable::save(VM& vm, std::ofstream&stream)
 
     stream << this->size() << " ";
     
+    int index = -1;
+
     for( auto& entry : m_map) {
         RefPtr<UniquedStringImpl> key = entry.key;
-        std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
+        
+        dataLogLn("Writing Symbol table entry : ", key, " issymbol : ", key->isSymbol(),
+            " isAtomic : ", key->isAtomic(), " hash :", key->existingSymbolAwareHash());
+        
+        int identifierIndex = 0;
+        // Find the symbol in hte code block identifiers.
+        for(const Identifier& identifier : codeblockIdentifiers) {
+            if(identifier.impl()->existingSymbolAwareHash() == key.get()->existingSymbolAwareHash()) {
+                break; 
+            }
+
+            identifierIndex ++;
+        }
+        
+        if(identifierIndex < codeblockIdentifiers.size()) {
+            stream << static_cast<uint16_t>(SymbolSaveType::Identifier) << " ";
+            stream << identifierIndex << " ";
+
+				dataLogLn("Mapping to identifier : ", identifierIndex);
+        }
+        else if( (index = vm.propertyNames->builtinNames().findPrivateNameIndex2(key.get())) >= 0) {
+                stream << static_cast<uint16_t>(SymbolSaveType::BuiltinPrivateName) << " ";
+                stream << index << " ";
+            //}
+            //else if( (index = vm.propertyNames->findCommonSymbol(identifier)) >= 0 ) {
+            //    stream << static_cast<uint16_t>(SymbolSaveType::WellKnownSymbol) << " ";
+            //    stream << index << " ";
+            //} else {
+            //    ASSERT(0);
+            //}
+            //ASSERT(0);
+        } else if(!key->isSymbol()){
+            stream << static_cast<uint16_t>(SymbolSaveType::Raw) << " ";
+
+            ASSERT(key->length() > 0);
+            stream << key->length() << " ";
+		  // TODO :: this can be 16 ..
+		    stream.write(reinterpret_cast<const char* >(key->characters8()), key->length());
+        } else {
+            ASSERT(0);
+        }
+
+        //std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
         intptr_t value = entry.value.bits();
 
-        // TODO :: We are assuming that symbols can't have breaking characters in it.
-        stream << keystr << " ";
+		  
+
+        // stream << identifierIndex << " ";
         stream << value << " ";
     }
 }
 
-void SymbolTable::load(VM& vm, std::ifstream&stream)
+void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers, std::ifstream&stream)
 {
     uint16_t flags;
     stream >> flags;
@@ -74,19 +135,82 @@ void SymbolTable::load(VM& vm, std::ifstream&stream)
     stream >> numSymbols;
 
     for(int i=0; i< numSymbols; i++) {
-        std::string key;
+        uint16_t symbolTypeVal;
+        stream >> symbolTypeVal;
+        
+        RefPtr<UniquedStringImpl> keyStringImpl;
+
+        switch(static_cast<SymbolSaveType>(symbolTypeVal)) {
+            case SymbolSaveType::Identifier: {
+                int identifierIndex;
+                stream >> identifierIndex;
+
+                const Identifier& id = codeblockIdentifiers[identifierIndex];
+                keyStringImpl = id.impl();
+
+                dataLogLn("Loading identifier to symbol table..", identifierIndex);
+            }
+            break;
+            
+            case SymbolSaveType::BuiltinPrivateName: {
+                int index;
+                stream >> index;
+
+                keyStringImpl = vm.propertyNames->builtinNames().getPrivateNameIdentifier2(index);
+                
+                dataLogLn("Loading builtin name to symbol table..", index);
+            }
+            break;
+
+            case SymbolSaveType::Raw: {
+
+                int keyLength;
+                stream >> keyLength;
+        
+                // Read an empty space.
+                char space;
+                stream.read(&space, 1);
+        
+                RefCountedArray<unsigned char> data(keyLength);
+                stream.read(reinterpret_cast<char*>(data.begin()), keyLength);
+                RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
+
+                keyStringImpl=atomicStringKey.get();
+
+                dataLogLn("Loading raw to symbol table..");
+
+            }
+            break;
+            case SymbolSaveType::PrivateName:
+            case SymbolSaveType::WellKnownSymbol:
+            case SymbolSaveType::Symbol:
+            default:
+                ASSERT(0);
+        }
+        
+        //std::string key;
         intptr_t bits;
 
-        stream >> key;
-        stream >> bits;
+        // stream >> key;
+        
+        /*
+		int keyLength;
+		stream >> keyLength;
 
-        RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(
-            reinterpret_cast<const LChar*>(key.c_str()), key.length());
+		// Read an empty space.
+		char space;
+		stream.read(&space, 1);
+
+		  RefCountedArray<unsigned char> data(keyLength);
+		  stream.read(reinterpret_cast<char*>(data.begin()), keyLength);
+        RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
+*/
+		  stream >> bits;
 
         SymbolTableEntry entry;
         entry.bits() = bits;
 
-        this->add(atomicStringKey.get(), WTFMove(entry));
+        this->add(keyStringImpl.get(), WTFMove(entry));
     }
 }
 

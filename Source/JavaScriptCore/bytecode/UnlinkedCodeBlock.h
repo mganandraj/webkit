@@ -75,6 +75,15 @@ enum class ConstantType {
     NonCellValue
 };
 
+enum class IdentifierType {
+    CommonIdentifier = 0, // Look at CommonIdentifier.h
+    WellKnownSymbol,
+    Symbol,
+    BuiltinPrivateName,
+    PrivateName,
+    Normal
+};
+
 struct UnlinkedStringJumpTable {
     struct OffsetLocation {
         int32_t branchOffset;
@@ -187,7 +196,17 @@ public:
     // Constant Pools
 
     size_t numberOfIdentifiers() const { return m_identifiers.size(); }
-    void addIdentifier(const Identifier& i) { return m_identifiers.append(i); }
+    void addIdentifier(const Identifier& i) { 
+         const char* pid = i.string().ascii().data();
+         if(i.string().length() == 0){
+            dataLogLn("empty identifier.");
+         }
+		 if (i.isSymbol() || i.isPrivateName()) {
+			 dataLogLn("!! Symbol/PrivateName Idenfier added to codeblock : ", pid);
+		 }
+
+		 return m_identifiers.append(i); 
+	 }
     const Identifier& identifier(int index) const { return m_identifiers[index]; }
     const Vector<Identifier>& identifiers() const { return m_identifiers; }
 

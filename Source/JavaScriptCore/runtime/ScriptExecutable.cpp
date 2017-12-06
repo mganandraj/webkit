@@ -381,6 +381,7 @@ JSObject* ScriptExecutable::prepareForExecutionImpl(
 
     JSObject* exception = nullptr;
     CodeBlock* codeBlock = newCodeBlockFor(kind, function, scope, exception);
+    dataLogLn("New code block created..");
     resultCodeBlock = codeBlock;
     EXCEPTION_ASSERT(!!throwScope.exception() == !codeBlock);
     if (UNLIKELY(!codeBlock))

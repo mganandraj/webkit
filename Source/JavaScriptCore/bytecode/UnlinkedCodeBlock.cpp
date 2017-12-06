@@ -47,6 +47,8 @@
 #include "UnlinkedProgramCodeBlock.h"
 #include <wtf/DataLog.h>
 
+#include "BuiltinNames.h"
+
 #include <sstream>
 
 namespace JSC {
@@ -149,17 +151,100 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
         // TODO :: Handle ES6 symbols
         //m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(id.c_str()), static_cast<int>(id.size())));
 
-        int idlength;
-        ifs >> idlength;
+        uint16_t idType;
+        ifs >> idType;
+        switch(static_cast<IdentifierType>(idType)) {
+            case IdentifierType::CommonIdentifier:{
+                uint32_t index;
+                ifs >> index;
 
-        // Read an empty space.
-        char space;
-        ifs.read(&space, 1);
+                m_identifiers.append(vm.propertyNames->getCommonPropNameIdenfier(index));
+            }
+            break;
+
+            case IdentifierType::WellKnownSymbol: {
+                uint32_t index;
+                ifs >> index;
+
+                m_identifiers.append(vm.propertyNames->getCommonSymbolIdenfier(index));
+            }
+            break;
+
+            case IdentifierType::Symbol: {
+					int idlength;
+					ifs >> idlength;
+
+					// Read an empty space.
+					char space;
+					ifs.read(&space, 1);
+
+					ASSERT(idlength >= 0);
+					if (idlength > 0) {
+						ASSERT(0); // Need to implement this.
+					}
+					else {
+						m_identifiers.append(Identifier::fromUid(PrivateName()));
+					}
+            }
+            break; 
+
+            case IdentifierType::PrivateName: {
+                int idlength;
+                ifs >> idlength;
         
-        RefCountedArray<unsigned char> data(idlength);
-        ifs.read(reinterpret_cast<char*>(data.begin()), idlength);
+                // Read an empty space.
+                char space;
+                ifs.read(&space, 1);
+                
+                ASSERT(idlength >=0 );
+                if(idlength > 0) {
+                    RefCountedArray<unsigned char> data(idlength);
+                    ifs.read(reinterpret_cast<char*>(data.begin()), idlength);
 
-        m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
+                    ASSERT(0); // Need to implement this.
+                    // m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
+                    
+
+                    //Identifier::fromUid(PrivateName());
+                } else {
+                    m_identifiers.append(Identifier::fromUid(PrivateName()));
+                }
+        
+            }
+            break;
+
+            case IdentifierType::BuiltinPrivateName: {
+                uint32_t index;
+                ifs >> index;
+
+                m_identifiers.append(vm.propertyNames->builtinNames().getPrivateNameIdentifier(index));
+            }
+            break;
+
+            case IdentifierType::Normal: {
+                int idlength;
+                ifs >> idlength;
+        
+                // Read an empty space.
+                char space;
+                ifs.read(&space, 1);
+                
+                RefCountedArray<unsigned char> data(idlength);
+                ifs.read(reinterpret_cast<char*>(data.begin()), idlength);
+        
+                //String idString(reinterpret_cast<const LChar *>(data.data()), idlength);
+        
+                //if(WTF::equal(idString.impl(), "Symbol.iterator")) {
+                //    m_identifiers.append(vm.propertyNames->iteratorSymbol);
+                //} else {
+                m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
+                //}
+            }
+            break;
+
+            default:
+                ASSERT(0);
+        }
     }
 
     ifs.get(); // newline
@@ -259,7 +344,7 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
             case ConstantType::SymbolTable:
             {
                 SymbolTable* functionSymbolTable = SymbolTable::create(vm);
-                functionSymbolTable->load(vm, ifs);
+                functionSymbolTable->load(vm, this->identifiers(), ifs);
 
                 JSValue jsValue(functionSymbolTable);
                 m_constantRegisters.last().set(vm, this, jsValue);
@@ -576,6 +661,8 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
             endOffset, line, column);
     }
 
+    dataLogLn("Loading completed ...");
+
 }
 
 void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
@@ -618,13 +705,52 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
         //stream<<std::string(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
         //stream << " ";
 
+		 const char* pid = identifier.string().ascii().data();
+
         if(identifier.isSymbol() || identifier.isPrivateName()) {
             dataLogLn("!! Symbol/PrivateName Idenfier found : ", identifier.string().ascii().data());
         }
-		
-        
-        stream << identifier.length() << " ";
-        stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+
+        if (identifier.isPrivateName()) {
+            int privateNameIndex = vm.propertyNames->builtinNames().findPrivateNameIndex(identifier);
+            //ASSERT(privateNameIndex >= 0);
+            if(privateNameIndex >= 0) {
+                stream << static_cast<uint16_t>(IdentifierType::BuiltinPrivateName) << " ";            
+                stream << privateNameIndex << " ";
+            } else {
+                stream << static_cast<uint16_t>(IdentifierType::PrivateName) << " ";
+
+                stream << identifier.length() << " ";
+                // TODO :: this can be 16 ..
+                stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+            }
+        }
+        else if(identifier.isSymbol()) {
+            int symbolIndex = vm.propertyNames->findCommonSymbol(identifier);
+
+				if (symbolIndex >= 0) {
+					stream << static_cast<uint16_t>(IdentifierType::WellKnownSymbol) << " ";
+					stream << symbolIndex << " ";
+				}
+				else {
+					stream << static_cast<uint16_t>(IdentifierType::Symbol) << " ";
+
+					stream << identifier.length() << " ";
+					// TODO :: this can be 16 ..
+					stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+				}
+        } else {
+            int commonIdIndex = vm.propertyNames->findCommonPropName(identifier);
+            if(commonIdIndex >= 0) {
+                stream << static_cast<uint16_t>(IdentifierType::CommonIdentifier) << " ";            
+                stream << commonIdIndex << " ";
+            } else {
+                stream << static_cast<uint16_t>(IdentifierType::Normal) << " ";            
+                
+                stream << identifier.length() << " ";
+                stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+            }
+        }
     }
 
     stream<<std::endl;
@@ -693,7 +819,7 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
                     stream << " ";
 
                     SymbolTable* symbolTable = jsCast<SymbolTable*>(value);
-                    symbolTable->save(vm, stream);
+                    symbolTable->save(vm, this->identifiers(), stream);
 
                     stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
                     stream << " ";

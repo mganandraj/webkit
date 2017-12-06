@@ -44,9 +44,43 @@ JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(INITIALIZE_BUILTIN_PRIVATE_NAM
 #undef INITIALIZE_BUILTIN_PRIVATE_NAMES
 
 SymbolImpl::StaticSymbolImpl dollarVMPrivateName { "PrivateSymbol.$vm", SymbolImpl::s_flagIsPrivate };
-SymbolImpl::StaticSymbolImpl underscoreProtoPrivateName { "PrivateSymbol.__proto__", SymbolImpl::s_flagIsPrivate };
+SymbolImpl::StaticSymbolImpl underscoreProtoPrivateName { "PrivateSymbol.__proto__", SymbolImpl::s_flagIsPrivate };    
 
 } // namespace Symbols
+
+int BuiltinNames::findPrivateNameIndex(const Identifier& inId) const{
+    int index = 0;
+    for(const Identifier* identifier : privateNameVector) {
+        if(Identifier::equal(identifier->impl(), inId.impl()))
+            return index;
+        index++;
+    }
+
+    return -1;
+}
+
+const Identifier& BuiltinNames::getPrivateNameIdentifier(int index) const{
+    ASSERT(index >=0 && index < privateNameVector.size());
+    return *privateNameVector[index];
+}
+
+int BuiltinNames::findPrivateNameIndex2(const UniquedStringImpl*inImpl) const {
+    int index = 0;
+    for(const Identifier* identifier : privateNameVector) {
+        if(Identifier::equal(identifier->impl(), inImpl))
+            return index;
+        index++;
+    }
+
+    return -1;
+}
+
+UniquedStringImpl* BuiltinNames::getPrivateNameIdentifier2(int index) const{
+    ASSERT(index >=0 && index < privateNameVector.size());
+    return privateNameVector[index]->impl();
+}
+
+
 } // namespace JSC
 
 #if COMPILER(MSVC)

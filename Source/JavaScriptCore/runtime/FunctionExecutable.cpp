@@ -62,10 +62,15 @@ void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
     ParserError error;
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall = nullptr, *unlinkedCodeBlockForConstruct = nullptr;
 
-    // Just for debugging.
     const Identifier& id =  this->m_unlinkedExecutable->ecmaName();
     std::string idstr(reinterpret_cast<const char* >(id.string().characters8()), id.string().length());
-    
+
+    // Don't proceed if this is a builtin.
+    if(isBuiltinFunction()) {
+        dataLogLn("# Skipping builtin : ", idstr.c_str());
+        return;
+    }
+
     if(constructAbility() == ConstructAbility::CanConstruct) {
 
         unlinkedCodeBlockForConstruct = 
@@ -103,6 +108,7 @@ void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
         for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionDecls(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionDecl(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
+            dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
             func->save(vm, ofs);	
         }
 
@@ -110,6 +116,7 @@ void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
         for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionExprs(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionExpr(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
+            dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
             func->save(vm, ofs);
         }
 

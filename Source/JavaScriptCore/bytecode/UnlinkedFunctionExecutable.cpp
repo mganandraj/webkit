@@ -279,6 +279,10 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
 {
     std::ifstream& ifs(vm.byteCodeProvider().getReadStream(""));    
 
+
+    std::string keystr(reinterpret_cast<const char*>(m_ecmaName.string().characters8()), m_ecmaName.string().length());
+    dataLogLn("Loading : ", keystr.c_str());
+
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
@@ -423,9 +427,9 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
 
     UnlinkedFunctionCodeBlock* result = nullptr;
 
-    if(m_isLoadingByteCodes){
+    if(m_isLoadingByteCodes && !isBuiltinFunction()){
         result = this->loadCode(vm, specializationKind, debuggerMode, 
-            isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
+            UnlinkedNormalFunction, 
             error, parseMode); 
     }
     else {

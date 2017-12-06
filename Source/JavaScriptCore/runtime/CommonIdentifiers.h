@@ -304,8 +304,14 @@ namespace JSC {
         const Identifier useStrictIdentifier;
         const Identifier timesIdentifier;
 
-        std::vector<Identifier> idVector;
-        int findIdVectorIndex(Identifier);
+        std::vector<const Identifier*> propNameVector;
+        std::vector<const Identifier*> symbolVector;
+
+        int findCommonPropName(const Identifier&);
+        int findCommonSymbol(const Identifier&);
+
+        const Identifier& getCommonPropNameIdenfier(int);
+        const Identifier& getCommonSymbolIdenfier(int);
 
     private:
         std::unique_ptr<BuiltinNames> m_builtinNames;

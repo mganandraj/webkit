@@ -461,8 +461,8 @@ public:
         return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
     }
 
-    void save(VM& vm, std::ofstream&stream);
-    void load(VM& vm, std::ifstream&stream);
+    void save(VM& vm, const Vector<Identifier>&, std::ofstream&stream);
+    void load(VM& vm, const Vector<Identifier>&, std::ifstream&stream);
 
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJSLocker&, UniquedStringImpl* key)
@@ -574,7 +574,7 @@ public:
     template<typename Entry>
     void add(const ConcurrentJSLocker&, UniquedStringImpl* key, Entry&& entry)
     {
-        RELEASE_ASSERT(!m_localToEntry);
+		RELEASE_ASSERT(!m_localToEntry);
         didUseVarOffset(entry.varOffset());
         Map::AddResult result = m_map.add(key, std::forward<Entry>(entry));
         ASSERT_UNUSED(result, result.isNewEntry);
