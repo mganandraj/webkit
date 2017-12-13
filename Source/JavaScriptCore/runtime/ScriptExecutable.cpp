@@ -70,9 +70,8 @@ ScriptExecutable::ScriptExecutable(Structure* structure, VM& vm, const SourceCod
 void ScriptExecutable::save(VM&vm){
     // Save everything that is recorded after parsting through recordParse
 
-    uint8_t fieldHeaderIndex = 1;
+    WRITEMAGIC(MAGIC_SCRIPT);
 
-    WRITEFIELD(fieldHeaderIndex);
     WRITEFIELD(m_features);
 
     bool hasCapturedVariables = m_hasCapturedVariables;
@@ -97,11 +96,7 @@ std::string nexttoken(std::string text, size_t& next, size_t& last, char delimit
 
 /*static */void ScriptExecutable::load(VM&vm, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn){
     
-    //dataLogLn("Loading script ..");
-
-    uint8_t index; 
-    READFIELD(index);
-    ASSERT(index == 1);
+    VERIFYMAGIC(MAGIC_SCRIPT);
 
     READFIELD(features);
     READFIELD(hasCapturedVariables);

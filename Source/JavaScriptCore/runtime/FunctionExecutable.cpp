@@ -89,9 +89,9 @@ void FunctionExecutable::save2(VM& vm) {
     }        
 
     // It is a very bad practice for a method to be both called and constructed ..
-    if(unlinkedCodeBlockForCall && unlinkedCodeBlockForConstruct) {
+    //if(unlinkedCodeBlockForCall && unlinkedCodeBlockForConstruct) {
         //dataLogLn("Function is both called and constructed !!!");
-    }
+    //}
 
     if(unlinkedCodeBlockForCall) {
 

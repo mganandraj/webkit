@@ -33,8 +33,7 @@ namespace JSC {
 
 void VariableEnvironment::save(VM& vm, const Vector<Identifier>& identifiers) {
     
-    uint8_t fieldHeaderIndex = 'V';
-    WRITEFIELD(fieldHeaderIndex);
+    WRITEMAGIC(MAGIC_VARIABLEENVIRONMENT);
 
     unsigned mapSize = m_map.size();
     WRITEFIELD(mapSize);
@@ -59,11 +58,7 @@ void VariableEnvironment::save(VM& vm, const Vector<Identifier>& identifiers) {
 }
 
 void VariableEnvironment::load(VM& vm, const Vector<Identifier>& identifiers) {
-    uint8_t index_1; 
-	int index;
-
-    READFIELD(index_1);
-    ASSERT(index_1 == 'V');
+    VERIFYMAGIC(MAGIC_VARIABLEENVIRONMENT);
     
     unsigned mapSize;
     READFIELD(mapSize);

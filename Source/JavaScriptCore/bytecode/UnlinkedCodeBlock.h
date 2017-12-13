@@ -135,6 +135,63 @@ public:
     void save(VM&);
     void load(VM&);
 
+    void saveInstructions(VM&);
+    void loadInstructions(VM&);
+
+    void saveVirtualRegisters(VM&);
+    void loadVirtualRegisters(VM&);
+
+    void saveIdentifiers(VM&);
+    void loadIdentifiers(VM&);
+
+    void saveBitVectors(VM&);
+    void loadBitVectors(VM&);
+
+    void saveConstants(VM&);
+    void loadConstants(VM&);
+
+    void saveConstantIdentifierSets(VM&);
+    void loadConstantIdentifierSets(VM&);
+
+    void saveLinkTimeConstants(VM&);
+    void loadLinkTimeConstants(VM&);
+
+    void saveProfileCounts(VM&);
+    void loadProfileCounts(VM&);
+
+    void loadMisc(VM&);
+    void saveMisc(VM&);
+
+    void loadFunctionDecls(VM&);
+    void saveFunctionDecls(VM&);
+
+    void loadFunctionExprs(VM&);
+    void saveFunctionExprs(VM&);
+
+    void loadSwitchJumpTables(VM&);
+    void saveSwitchJumpTables(VM&);
+
+    void loadStringSwitchJumpTables(VM&);
+    void saveStringSwitchJumpTables(VM&);
+
+    void loadExceptionHandlers(VM&);
+    void saveExceptionHandlers(VM&);
+
+    void loadRegexps(VM&);
+    void saveRegexps(VM&);
+
+    void loadConstantBuffers(VM&);
+    void saveConstantBuffers(VM&);
+
+    void loadPropertyAccessInstructions(VM&);
+    void savePropertyAccessInstructions(VM&);
+
+    void loadJumpTargets(VM&);
+    void saveJumpTargets(VM&);
+
+    void loadExpressionRangeInfos(VM&);
+    void saveExpressionRangeInfos(VM&);
+
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;
 
@@ -196,17 +253,7 @@ public:
     // Constant Pools
 
     size_t numberOfIdentifiers() const { return m_identifiers.size(); }
-    void addIdentifier(const Identifier& i) { 
-         //const char* pid = i.string().ascii().data();
-         //if(i.string().length() == 0){
-         //   dataLogLn("empty identifier.");
-         //}
-		 //if (i.isSymbol() || i.isPrivateName()) {
-	//		 dataLogLn("!! Symbol/PrivateName Idenfier added to codeblock : ", pid);
-	//	 }
-
-		 return m_identifiers.append(i); 
-	 }
+    void addIdentifier(const Identifier& i) { return m_identifiers.append(i); }
     const Identifier& identifier(int index) const { return m_identifiers[index]; }
     const Vector<Identifier>& identifiers() const { return m_identifiers; }
 

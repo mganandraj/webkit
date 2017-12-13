@@ -124,8 +124,7 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     , m_parentSourceOverride(WTFMove(parentSourceOverride))
     , m_classSource(node->classSource())
     , m_byteCodeBundleOffsetForCall(0)
-//    , m_byteCodeBundleOffsetForConstruct(0)
-//    , m_isLoadingByteCodes(false)
+    , m_byteCodeBundleOffsetForConstruct(0)
 {
     // Make sure these bitfields are adequately wide.
     ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -141,40 +140,32 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
 
 void UnlinkedFunctionExecutable::saveNonCode(VM&vm) {
     
-    uint8_t fieldHeaderIndex = 'U';
-    WRITEFIELD(fieldHeaderIndex);
+    WRITEMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
 
-    unsigned identifierLength = m_name.string().length();
-    WRITEFIELD(identifierLength);
-    if(identifierLength > 0)
-        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_name.string().characters8()), identifierLength);
+    WRITEATOMICIDENTIFIER(m_name);
 
-    identifierLength = m_ecmaName.string().length();
-    WRITEFIELD(identifierLength);
-    if(identifierLength > 0)
-        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_ecmaName.string().characters8()), identifierLength);
+    WRITEATOMICIDENTIFIER(m_ecmaName);
 
-    identifierLength = m_inferredName.string().length();
-    WRITEFIELD(identifierLength);
-    if(identifierLength > 0)
-        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_inferredName.string().characters8()), identifierLength);
+    WRITEATOMICIDENTIFIER(m_inferredName);
 
     if(!m_parentSourceOverride.isNull()) {
-        unsigned sourceLength = m_parentSourceOverride.provider()->source().length();
-        WRITEFIELD(sourceLength);
+        StringView source = m_parentSourceOverride.provider()->source();
+        
+        unsigned length = source.length();
+        WRITEFIELD(length);
 
-        // TODO :: this can be 16
-        // Unfortunately, we have to write the string out for now being ..
-        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_parentSourceOverride.provider()->source().characters8()), sourceLength);
+        bool is8Bit = source.is8Bit();
+        WRITEFIELD(is8Bit);
+
+        if(source.is8Bit()) {
+            WRITEVECTOR8(source.characters8(), length);
+        } else {
+            WRITEVECTOR8(source.characters16(), length);
+        }
     } else {
         unsigned sourceLength = 0;
         WRITEFIELD(sourceLength);
     }
-
-    //ofstream<<std::string(reinterpret_cast<const char* >(m_parentSourceOverride.string().characters8()), m_parentSourceOverride.string().length());
-    //ofstream << " ";
-    //ofstream<<std::string(reinterpret_cast<const char* >(m_classSource.string().characters8()), m_classSource.string().length());
-    //ofstream << " ";
 
     //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceURLDirective.characters8()), m_sourceURLDirective.length());
     //ofstream << " ";
@@ -221,50 +212,35 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm) {
 }
 
 void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
-    uint8_t index;
-    READFIELD(index);
-    ASSERT(index == 'U');
+
+    VERIFYMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
     
-    unsigned identifierlength;
-    READFIELD(identifierlength);
-    if(identifierlength > 0) {
-        RefCountedArray<unsigned char> data(identifierlength);
-        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), identifierlength);
-        m_name = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), identifierlength);
+    READATOMICIDENTIFIER(m_name);
+
+    READATOMICIDENTIFIER(m_ecmaName);
+
+    READATOMICIDENTIFIER(m_inferredName);
+    
+    {
+        unsigned sourceLength;
+        READFIELD(sourceLength);
+
+        if(sourceLength > 0) {
+
+            bool isSource8bit;
+            READFIELD(isSource8bit);
+
+            if(isSource8bit) {
+                unsigned char* _data;
+                READVECTOR8(&_data, sourceLength);
+                m_parentSourceOverride = makeSource(StringImpl::create(reinterpret_cast<const LChar*>(_data), sourceLength), { });
+            } else {
+                unsigned char* _data;
+                READVECTOR16(&_data, sourceLength);
+                m_parentSourceOverride = makeSource(StringImpl::create(reinterpret_cast<const UChar*>(_data), sourceLength), { });
+            }
+        }
     }
-
-    READFIELD(identifierlength);
-    if(identifierlength > 0) {
-        RefCountedArray<unsigned char> data(identifierlength);
-        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), identifierlength);
-        m_ecmaName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), identifierlength);
-    }
-
-    READFIELD(identifierlength);
-    if(identifierlength > 0) {
-        RefCountedArray<unsigned char> data(identifierlength);
-        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), identifierlength);
-        m_inferredName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), identifierlength);
-    }
-
-    unsigned sourceLength;
-    READFIELD(sourceLength);
-    if(sourceLength > 0) {
-        RefCountedArray<unsigned char> data(sourceLength);
-        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), sourceLength);
-        
-        m_parentSourceOverride = makeSource(StringImpl::create(data.data(), sourceLength), { });
-    }
-
-    //ifstream >> token;
-    //m_parentSourceOverride = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
-    //ifstream >> token;
-    //m_classSource = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
-
-    //ifstream >> token;
-    //m_sourceURLDirective = String(reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
-    //ifstream >> token;
-    //m_sourceMappingURLDirective = String(reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
 
     READFIELD(m_byteCodeBundleOffsetForCall);
     READFIELD(m_byteCodeBundleOffsetForConstruct);
@@ -307,20 +283,13 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpecializationKind specializationKind,
     DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode)
 {
-    //std::string keystr(reinterpret_cast<const char*>(m_ecmaName.string().characters8()), m_ecmaName.string().length());
-    //dataLogLn("Loading : ", keystr.c_str());
-
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
     unsigned endColumn;
 
-    // vm.byteCodeProvider().seekFunction(this, specializationKind);
-
-    uint8_t index; 
-    READFIELD(index);
-    ASSERT(index == 1);
-
+    VERIFYMAGIC(MAGIC_SCRIPT);
+    
     READFIELD(features);
     READFIELD(hasCapturedVariables);
     READFIELD(lastLine);
@@ -344,9 +313,6 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
         parseMode, this->derivedContextType(), false, isClassContext, 
         EvalContextType::None), 
         debuggerMode);
-    
-    //std::string funcName(reinterpret_cast<const char* >(m_name.string().characters8()), m_name.string().length());
-    //dataLogLn("Loading codeblock for : ", funcName.c_str());
 
     unlinkedCodeblock->load(vm);
 
