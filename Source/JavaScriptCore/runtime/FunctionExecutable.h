@@ -40,7 +40,9 @@ public:
     typedef ScriptExecutable Base;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
-    void save(VM& vm, std::ofstream&);
+    void save(VM& vm);
+    void save2(VM& vm);
+
     UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
 
     static FunctionExecutable* create(

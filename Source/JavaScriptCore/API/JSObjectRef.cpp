@@ -55,6 +55,8 @@
 #include "ProxyObject.h"
 #include "RegExpConstructor.h"
 
+#include <wtf/DataLog.h>
+
 #if ENABLE(REMOTE_INSPECTOR)
 #include "JSGlobalObjectInspectorController.h"
 #endif
@@ -569,6 +571,8 @@ JSValueRef JSObjectCallAsFunction(JSContextRef ctx, JSObjectRef object, JSObject
     JSLockHolder locker(vm);
     auto scope = DECLARE_CATCH_SCOPE(vm);
 
+    // dataLogLn("JSObjectCallAsFunction");
+
     if (!object)
         return 0;
 
@@ -586,6 +590,8 @@ JSValueRef JSObjectCallAsFunction(JSContextRef ctx, JSObjectRef object, JSObject
     CallType callType = jsObject->methodTable(vm)->getCallData(jsObject, callData);
     if (callType == CallType::None)
         return 0;
+
+    //dataLogLn("callType :", static_cast<uint16_t>(callType));
 
     JSValueRef result = toRef(exec, profiledCall(exec, ProfilingReason::API, jsObject, callType, callData, jsThisObject, argList));
     if (handleExceptionIfNeeded(scope, exec, exception) == ExceptionStatus::DidThrow)

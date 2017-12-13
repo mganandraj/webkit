@@ -40,6 +40,8 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
+#include "ByteCodeProvider.h"
+
 namespace JSC {
 
 const ClassInfo ScriptExecutable::s_info = { "ScriptExecutable", &ExecutableBase::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(ScriptExecutable) };
@@ -65,11 +67,19 @@ ScriptExecutable::ScriptExecutable(Structure* structure, VM& vm, const SourceCod
 {
 }
 
-void ScriptExecutable::save(VM&vm, std::ofstream& ofs){
+void ScriptExecutable::save(VM&vm){
     // Save everything that is recorded after parsting through recordParse
 
-    ofs << "1 " << static_cast<int16_t>(m_features) << " " << m_hasCapturedVariables
-        << " " << m_lastLine << " " << m_endColumn << std::endl;
+    uint8_t fieldHeaderIndex = 1;
+
+    WRITEFIELD(fieldHeaderIndex);
+    WRITEFIELD(m_features);
+
+    bool hasCapturedVariables = m_hasCapturedVariables;
+    WRITEFIELD(hasCapturedVariables);
+
+    WRITEFIELD(m_lastLine);
+    WRITEFIELD(m_endColumn);
 }
 
 // Caller should know how many times to call this.
@@ -85,28 +95,18 @@ std::string nexttoken(std::string text, size_t& next, size_t& last, char delimit
     return token;
 }
 
-/*static */void ScriptExecutable::load(VM&vm, std::ifstream& ifs, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn){
-    //std::string line;
-    //std::getline(ifs, line);
-
-    //char delimiter= ' ';
-    //size_t next=0, last=0;
-    //std::string token;
+/*static */void ScriptExecutable::load(VM&vm, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn){
     
+    //dataLogLn("Loading script ..");
 
-	 //Ignore first index token
-    int index; ifs >> index;
-    ASSERT (index == 1);
+    uint8_t index; 
+    READFIELD(index);
+    ASSERT(index == 1);
 
-    ifs >> features;
-    ifs >> hasCapturedVariables;
-    ifs >> lastLine;
-    ifs >> endColumn;
-
-    // Read the last new line
-    ifs.get();
-
-    //token = nexttoken(line, next, last, delimiter); 
+    READFIELD(features);
+    READFIELD(hasCapturedVariables);
+    READFIELD(lastLine);
+    READFIELD(endColumn);
 }
 
 void ScriptExecutable::destroy(JSCell* cell)
@@ -212,6 +212,8 @@ void ScriptExecutable::installCode(VM& vm, CodeBlock* genericCodeBlock, CodeType
     vm.heap.writeBarrier(this);
 }
 
+#include <sys/types.h>
+
 CodeBlock* ScriptExecutable::newCodeBlockFor(
     CodeSpecializationKind kind, JSFunction* function, JSScope* scope, JSObject*& exception)
 {
@@ -284,10 +286,19 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
     RELEASE_ASSERT(!executable->codeBlockFor(kind));
     ParserError error;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
+    
+    if(JSC::Options::enableBytecodeCaching()) {
+        vm->byteCodeProvider().prepareToReadFunction(*vm, executable, kind);
+    }
+    
     UnlinkedFunctionCodeBlock* unlinkedCodeBlock = 
         executable->m_unlinkedExecutable->unlinkedCodeBlockFor(
             *vm, executable->m_source, kind, debuggerMode, error, 
             executable->parseMode());
+
+    // dataLogLn("1", static_cast<uint32_t>(gettid()));
+    //dataLogLn("1");
+
     recordParse(
         executable->m_unlinkedExecutable->features(), 
         executable->m_unlinkedExecutable->hasCapturedVariables(),
@@ -298,6 +309,8 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
             error.toErrorObject(globalObject, executable->m_source));
         return nullptr;
     }
+
+    //dataLogLn("2");    
 
     throwScope.release();
     return FunctionCodeBlock::create(vm, executable, unlinkedCodeBlock, scope, 
@@ -381,7 +394,6 @@ JSObject* ScriptExecutable::prepareForExecutionImpl(
 
     JSObject* exception = nullptr;
     CodeBlock* codeBlock = newCodeBlockFor(kind, function, scope, exception);
-    dataLogLn("New code block created..");
     resultCodeBlock = codeBlock;
     EXCEPTION_ASSERT(!!throwScope.exception() == !codeBlock);
     if (UNLIKELY(!codeBlock))
@@ -396,6 +408,7 @@ JSObject* ScriptExecutable::prepareForExecutionImpl(
         setupJIT(vm, codeBlock);
     
     installCode(vm, codeBlock, codeBlock->codeType(), codeBlock->specializationKind());
+    
     return nullptr;
 }
 

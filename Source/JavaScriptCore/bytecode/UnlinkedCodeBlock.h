@@ -92,8 +92,8 @@ struct UnlinkedStringJumpTable {
     typedef HashMap<RefPtr<StringImpl>, OffsetLocation> StringOffsetTable;
     StringOffsetTable offsetTable;
 
-    void save(VM& vm, std::ofstream& stream);
-    void load(VM& vm, std::ifstream& stream);
+    void save(VM& vm);
+    void load(VM& vm);
 
     inline int32_t offsetForValue(StringImpl* value, int32_t defaultOffset)
     {
@@ -132,8 +132,8 @@ struct UnlinkedInstruction {
 class UnlinkedCodeBlock : public JSCell {
 public:
 
-    void save(VM&, std::ofstream&);
-    void load(VM&, std::ifstream&);
+    void save(VM&);
+    void load(VM&);
 
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;
@@ -197,13 +197,13 @@ public:
 
     size_t numberOfIdentifiers() const { return m_identifiers.size(); }
     void addIdentifier(const Identifier& i) { 
-         const char* pid = i.string().ascii().data();
-         if(i.string().length() == 0){
-            dataLogLn("empty identifier.");
-         }
-		 if (i.isSymbol() || i.isPrivateName()) {
-			 dataLogLn("!! Symbol/PrivateName Idenfier added to codeblock : ", pid);
-		 }
+         //const char* pid = i.string().ascii().data();
+         //if(i.string().length() == 0){
+         //   dataLogLn("empty identifier.");
+         //}
+		 //if (i.isSymbol() || i.isPrivateName()) {
+	//		 dataLogLn("!! Symbol/PrivateName Idenfier added to codeblock : ", pid);
+	//	 }
 
 		 return m_identifiers.append(i); 
 	 }

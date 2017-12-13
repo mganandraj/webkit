@@ -37,6 +37,8 @@
 
 #include "BuiltinNames.h"
 
+#include "ByteCodeProvider.h"
+
 namespace JSC {
 
 const ClassInfo SymbolTable::s_info = { "SymbolTable", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(SymbolTable) };
@@ -50,33 +52,29 @@ enum class SymbolSaveType {
     Raw
 };
 
-void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers, std::ofstream&stream)
+void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers)
 {
-	PrivateName p1;
-	PrivateName p2;
-	//bool equal = WTF::equal(&(p1.uid()), &(p2.uid()));
-	bool equal = (p1.uid().existingSymbolAwareHash() == p1.uid().existingSymbolAwareHash());
-
-    uint16_t flags = 0;
+	uint8_t flags = 0;
     flags |= m_usesNonStrictEval;
     flags |= m_nestedLexicalScope << 1;
     flags |= m_scopeType << 2;
     
-    stream << flags << " ";
+    WRITEFIELD(flags);
 
-    stream << this->size() << " ";
+    size_t symbolTableSize = this->size();
+    WRITEFIELD(symbolTableSize);
     
     int index = -1;
-
     for( auto& entry : m_map) {
         RefPtr<UniquedStringImpl> key = entry.key;
         
-        dataLogLn("Writing Symbol table entry : ", key, " issymbol : ", key->isSymbol(),
-            " isAtomic : ", key->isAtomic(), " hash :", key->existingSymbolAwareHash());
+        //dataLogLn("Writing Symbol table entry : ", key, " issymbol : ", key->isSymbol(),
+        //    " isAtomic : ", key->isAtomic(), " hash :", key->existingSymbolAwareHash());
         
         int identifierIndex = 0;
         // Find the symbol in hte code block identifiers.
         for(const Identifier& identifier : codeblockIdentifiers) {
+            // This is required so that the symbols are matched correctly.
             if(identifier.impl()->existingSymbolAwareHash() == key.get()->existingSymbolAwareHash()) {
                 break; 
             }
@@ -85,14 +83,21 @@ void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers, s
         }
         
         if(identifierIndex < codeblockIdentifiers.size()) {
-            stream << static_cast<uint16_t>(SymbolSaveType::Identifier) << " ";
-            stream << identifierIndex << " ";
+            //stream << static_cast<uint16_t>(SymbolSaveType::Identifier) << " ";
+            //stream << identifierIndex << " ";
+            uint8_t symbolType = static_cast<uint8_t>(SymbolSaveType::Identifier);
+            WRITEFIELD(symbolType);
+            WRITEFIELD(identifierIndex);
 
-				dataLogLn("Mapping to identifier : ", identifierIndex);
+
+				//dataLogLn("Mapping to identifier : ", identifierIndex);
         }
         else if( (index = vm.propertyNames->builtinNames().findPrivateNameIndex2(key.get())) >= 0) {
-                stream << static_cast<uint16_t>(SymbolSaveType::BuiltinPrivateName) << " ";
-                stream << index << " ";
+            uint8_t symbolType = static_cast<uint8_t>(SymbolSaveType::BuiltinPrivateName);
+            WRITEFIELD(symbolType);
+            WRITEFIELD(index);    
+            //stream << static_cast<uint16_t>(SymbolSaveType::BuiltinPrivateName) << " ";
+            //stream << index << " ";
             //}
             //else if( (index = vm.propertyNames->findCommonSymbol(identifier)) >= 0 ) {
             //    stream << static_cast<uint16_t>(SymbolSaveType::WellKnownSymbol) << " ";
@@ -102,12 +107,18 @@ void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers, s
             //}
             //ASSERT(0);
         } else if(!key->isSymbol()){
-            stream << static_cast<uint16_t>(SymbolSaveType::Raw) << " ";
+            //stream << static_cast<uint16_t>(SymbolSaveType::Raw) << " ";
+            uint8_t symbolType = static_cast<uint8_t>(SymbolSaveType::Raw);
+            WRITEFIELD(symbolType);
 
             ASSERT(key->length() > 0);
-            stream << key->length() << " ";
+            
+            unsigned keyLength = key->length();
+            WRITEFIELD(keyLength);
+
+            //stream << key->length() << " ";
 		  // TODO :: this can be 16 ..
-		    stream.write(reinterpret_cast<const char* >(key->characters8()), key->length());
+		    vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(key->characters8()), key->length());
         } else {
             ASSERT(0);
         }
@@ -115,72 +126,78 @@ void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers, s
         //std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
         intptr_t value = entry.value.bits();
 
-		  
-
         // stream << identifierIndex << " ";
-        stream << value << " ";
+        //stream << value << " ";
+        WRITEFIELD(value);
+    }
+
+    // Now write ScopedArguments table.
+    uint32_t argsLength = argumentsLength();
+    WRITEFIELD(argsLength);
+
+    for(uint32_t i=0; i<argsLength; i++) {
+        unsigned offset = this->argumentOffset(i).offsetUnchecked();
+        WRITEFIELD(offset);
     }
 }
 
-void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers, std::ifstream&stream)
-{
-    uint16_t flags;
-    stream >> flags;
+void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers) {
+    uint8_t flags;
+    READFIELD(flags);
     
     m_usesNonStrictEval = flags & 0x0001;
     m_nestedLexicalScope = (flags >> 1) & 0x0001;
     m_scopeType =  (flags >> 2) & 0x0003;
     
-    int numSymbols;
-    stream >> numSymbols;
+    size_t numSymbols;
+    READFIELD(numSymbols);
 
     for(int i=0; i< numSymbols; i++) {
-        uint16_t symbolTypeVal;
-        stream >> symbolTypeVal;
-        
+        uint8_t symbolTypeVal;
+        //stream >> symbolTypeVal;
+        READFIELD(symbolTypeVal);
+
         RefPtr<UniquedStringImpl> keyStringImpl;
 
         switch(static_cast<SymbolSaveType>(symbolTypeVal)) {
             case SymbolSaveType::Identifier: {
                 int identifierIndex;
-                stream >> identifierIndex;
+                //stream >> identifierIndex;
+                READFIELD(identifierIndex);
 
                 const Identifier& id = codeblockIdentifiers[identifierIndex];
                 keyStringImpl = id.impl();
 
-                dataLogLn("Loading identifier to symbol table..", identifierIndex);
+                //dataLogLn("Loading identifier to symbol table..", identifierIndex);
             }
             break;
             
             case SymbolSaveType::BuiltinPrivateName: {
                 int index;
-                stream >> index;
+                //stream >> index;
+                READFIELD(index);
 
                 keyStringImpl = vm.propertyNames->builtinNames().getPrivateNameIdentifier2(index);
                 
-                dataLogLn("Loading builtin name to symbol table..", index);
+                //dataLogLn("Loading builtin name to symbol table..", index);
             }
             break;
 
             case SymbolSaveType::Raw: {
 
-                int keyLength;
-                stream >> keyLength;
-        
-                // Read an empty space.
-                char space;
-                stream.read(&space, 1);
-        
+                unsigned keyLength;
+                READFIELD(keyLength);
+
                 RefCountedArray<unsigned char> data(keyLength);
-                stream.read(reinterpret_cast<char*>(data.begin()), keyLength);
+                vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), keyLength);
                 RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
 
                 keyStringImpl=atomicStringKey.get();
 
-                dataLogLn("Loading raw to symbol table..");
-
+                //dataLogLn("Loading raw to symbol table..");
             }
             break;
+
             case SymbolSaveType::PrivateName:
             case SymbolSaveType::WellKnownSymbol:
             case SymbolSaveType::Symbol:
@@ -188,29 +205,27 @@ void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers, s
                 ASSERT(0);
         }
         
-        //std::string key;
         intptr_t bits;
-
-        // stream >> key;
-        
-        /*
-		int keyLength;
-		stream >> keyLength;
-
-		// Read an empty space.
-		char space;
-		stream.read(&space, 1);
-
-		  RefCountedArray<unsigned char> data(keyLength);
-		  stream.read(reinterpret_cast<char*>(data.begin()), keyLength);
-        RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
-*/
-		  stream >> bits;
+        READFIELD(bits);
 
         SymbolTableEntry entry;
         entry.bits() = bits;
 
         this->add(keyStringImpl.get(), WTFMove(entry));
+    }
+
+    // Read ScopedArguments table
+
+    // Now write ScopedArguments table.
+    uint32_t argumentsLength;
+    READFIELD(argumentsLength);
+    this->setArgumentsLength(vm, argumentsLength);
+
+    for(uint32_t i=0; i<argumentsLength; i++) {
+        unsigned offset;
+        READFIELD(offset);
+
+        this->setArgumentOffset(vm, i, ScopeOffset(offset));
     }
 }
 

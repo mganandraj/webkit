@@ -136,8 +136,6 @@ typedef const char* optionString;
     v(unsigned, repatchBufferingCountdown, 8, Normal, nullptr) \
     \
     v(bool, dumpGeneratedBytecodes, false, Normal, nullptr) \
-    v(bool, saveBytecodes, false, Normal, nullptr) \
-    v(bool, loadBytecodes, false, Normal, nullptr) \
     v(bool, dumpBytecodeLivenessResults, false, Normal, nullptr) \
     v(bool, validateBytecode, false, Normal, nullptr) \
     v(bool, forceDebuggerBytecodeGeneration, false, Normal, nullptr) \
@@ -476,9 +474,11 @@ typedef const char* optionString;
     v(bool, useObjectRestSpread, true, Normal, "If true, we will enable Object Rest/Spread feature.") \
     v(bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.")\
     v(bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.")\
-    v(bool, saveBytecode, false, Normal, "") \
-    v(optionString, byteCodeStore, "c:\\tmp\\jsc\\script\\script.jsb", Normal, "The path to the directory where the bytecodes will be saved.") \
-    
+    v(bool, enableBytecodeCaching, false, Normal, "") \
+    v(optionString, byteCodeStore, "c:\\tmp\\jsc\\script\\", Normal, "The path to the directory where the bytecodes will be saved.") \
+    v(optionString, programIdForBytecodeCaching, "myprogram", Normal, "Program Cache ID") \
+
+
 enum OptionEquivalence {
     SameOption,
     InvertedOption,

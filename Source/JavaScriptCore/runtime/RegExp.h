@@ -124,7 +124,7 @@ public:
 
     RegExpKey key() { return RegExpKey(m_flags, m_patternString); }
 
-    void save(VM&, std::ostream&);
+    void save(VM&);
 
 protected:
     void finishCreation(VM&);

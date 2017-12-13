@@ -1442,9 +1442,9 @@ template<typename Vector>
 static inline SourceCode jscSource(const Vector& utf8, const SourceOrigin& sourceOrigin, const String& filename)
 {
     String str = stringFromUTF(utf8);
-	 if(!JSC::Options::loadBytecodes())
-	     return makeSource(str, sourceOrigin, filename);
-	 else
+	 //if(!JSC::Options::loadBytecodes())
+	 //    return makeSource(str, sourceOrigin, filename);
+	 //else
         //return makeMemoryMappedSource(str, sourceOrigin, filename);
         return makeSource(str, sourceOrigin, filename);
 }
@@ -3650,12 +3650,6 @@ static bool runWithOptions(GlobalObject* globalObject, CommandLine& options)
     if (options.m_dump)
         JSC::Options::dumpGeneratedBytecodes() = true;
 
-    if (options.m_save)
-        JSC::Options::saveBytecodes() = true;
-
-    if (options.m_loadb)
-        JSC::Options::loadBytecodes() = true;
-
     VM& vm = globalObject->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
     bool success = true;
@@ -3670,21 +3664,16 @@ static bool runWithOptions(GlobalObject* globalObject, CommandLine& options)
         if (scripts[i].codeSource == Script::CodeSource::File) {
             fileName = scripts[i].argument;
             
-            //if(JSC::Options::loadBytecodes()) {
-                // No need to read the file contents now ..     
-            //} else {
-            
-                if (scripts[i].strictMode == Script::StrictMode::Strict)
-                    scriptBuffer.append("\"use strict\";\n", strlen("\"use strict\";\n"));
+            if (scripts[i].strictMode == Script::StrictMode::Strict)
+                scriptBuffer.append("\"use strict\";\n", strlen("\"use strict\";\n"));
 
-                if (isModule) {
-                    promise = loadAndEvaluateModule(globalObject->globalExec(), fileName);
-                    scope.releaseAssertNoException();
-                } else {
-                    if (!fetchScriptFromLocalFileSystem(fileName, scriptBuffer))
-                        return false; // fail early so we can catch missing files
-                }
-            //}
+            if (isModule) {
+                promise = loadAndEvaluateModule(globalObject->globalExec(), fileName);
+                scope.releaseAssertNoException();
+            } else {
+                if (!fetchScriptFromLocalFileSystem(fileName, scriptBuffer))
+                    return false; // fail early so we can catch missing files
+            }
         } else {
             size_t commandLineLength = strlen(scripts[i].argument);
             scriptBuffer.resize(commandLineLength);

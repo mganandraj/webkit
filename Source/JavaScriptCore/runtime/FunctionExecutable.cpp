@@ -37,6 +37,8 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
+#include "ByteCodeProvider.h"
+
 #include <sstream>
 
 namespace JSC {
@@ -57,19 +59,123 @@ FunctionExecutable::FunctionExecutable(VM& vm, const SourceCode& source, Unlinke
     m_typeProfilingEndOffset = unlinkedExecutable->typeProfilingEndOffset();
 }
 
-void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
+void FunctionExecutable::save2(VM& vm) {
+
+    ParserError error;
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall = nullptr, *unlinkedCodeBlockForConstruct = nullptr;
+
+    //dataLogLn("Saving function : ", this->unlinkedExecutable()->name().string(), " : ",
+      //  this->unlinkedExecutable()->ecmaName().string(),  " : ",
+    //    this->unlinkedExecutable()->inferredName().string(), " : ",
+    //    this->source().firstLine().oneBasedInt(),  " : ",
+    //    this->source().startColumn().oneBasedInt()
+    //);
+
+    //const Identifier& id =  this->m_unlinkedExecutable->ecmaName();
+    //std::string idstr(reinterpret_cast<const char* >(id.string().characters8()), id.string().length());
+
+    // Don't proceed if this is a builtin.
+    //if(isBuiltinFunction()) {
+    //    dataLogLn("# Skipping builtin : ", idstr.c_str());
+    //    return;
+    //}
+
+    unlinkedCodeBlockForCall = this->m_unlinkedExecutable->m_unlinkedCodeBlockForCall.get();
+    unlinkedCodeBlockForConstruct = this->m_unlinkedExecutable->m_unlinkedCodeBlockForConstruct.get();
+
+    if(!unlinkedCodeBlockForCall && !unlinkedCodeBlockForConstruct) {
+        //dataLogLn("Bytecodes are not yet generated .. returning");
+        return;
+    }        
+
+    // It is a very bad practice for a method to be both called and constructed ..
+    if(unlinkedCodeBlockForCall && unlinkedCodeBlockForConstruct) {
+        //dataLogLn("Function is both called and constructed !!!");
+    }
+
+    if(unlinkedCodeBlockForCall) {
+
+        // Write functions.
+        for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            //dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
+            func->save2(vm);
+        }
+
+        // Write functions expressions.
+        for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            func->save2(vm);
+        }
+
+    }
+
+
+
+    
+    if(unlinkedCodeBlockForConstruct) {
+        // Write functions.
+        for(size_t i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionDecls(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionDecl(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            //dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
+            func->save2(vm);
+        }
+
+        // Write functions expressions.
+        for(size_t i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionExprs(); i++) {
+            UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionExpr(i);
+            FunctionExecutable* func = ufunc->link(vm, this->source());
+            func->save2(vm);
+        }
+
+    }
+
+    
+    const char* functionPrelogue = "FFF";
+
+    // All the descendants are written .. Now write self.
+    if(unlinkedCodeBlockForCall) {
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
+        
+        vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
+
+        // Write recordParse
+        ScriptExecutable::save(vm);
+        
+        // Write codeblock.
+        unlinkedCodeBlockForCall->save(vm);
+    }
+
+    if(unlinkedCodeBlockForConstruct) { 
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForConstruct(vm.byteCodeProvider().currentWritePosition());
+        
+        vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
+
+        // Write recordParse
+        ScriptExecutable::save(vm);
+        
+        // Write codeblock.
+        unlinkedCodeBlockForConstruct->save(vm);
+    }
+
+}
+
+void FunctionExecutable::save(VM& vm){
     
     ParserError error;
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall = nullptr, *unlinkedCodeBlockForConstruct = nullptr;
 
-    const Identifier& id =  this->m_unlinkedExecutable->ecmaName();
-    std::string idstr(reinterpret_cast<const char* >(id.string().characters8()), id.string().length());
+    //const Identifier& id =  this->m_unlinkedExecutable->ecmaName();
+    //std::string idstr(reinterpret_cast<const char* >(id.string().characters8()), id.string().length());
 
     // Don't proceed if this is a builtin.
-    if(isBuiltinFunction()) {
-        dataLogLn("# Skipping builtin : ", idstr.c_str());
-        return;
-    }
+    //if(isBuiltinFunction()) {
+    //    dataLogLn("# Skipping builtin : ", idstr.c_str());
+    //    return;
+    //}
 
     if(constructAbility() == ConstructAbility::CanConstruct) {
 
@@ -108,16 +214,16 @@ void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
         for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionDecls(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionDecl(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
-            dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
-            func->save(vm, ofs);	
+            //dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
+            func->save(vm);	
         }
 
         // Write functions expressions.
         for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionExprs(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionExpr(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
-            dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
-            func->save(vm, ofs);
+            //dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
+            func->save(vm);
         }
 
     }
@@ -128,14 +234,14 @@ void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
         for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
-            func->save(vm, ofs);	
+            func->save(vm);	
         }
 
         // Write functions expressions.
         for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
-            func->save(vm, ofs);
+            func->save(vm);
         }
     }
     
@@ -143,24 +249,24 @@ void FunctionExecutable::save(VM& vm, std::ofstream& ofs){
 
     if(unlinkedCodeBlockForConstruct != nullptr) {
 
-        this->unlinkedExecutable()->setByteCodeBundleOffsetForConstruct(static_cast<unsigned>(ofs.tellp()));
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
         
         // Write recordParse
-        ScriptExecutable::save(vm, ofs);
+        ScriptExecutable::save(vm);
 
         // Write codeblock.
-        unlinkedCodeBlockForConstruct->save(vm, ofs);
+        unlinkedCodeBlockForConstruct->save(vm);
     } 
     
     if(unlinkedCodeBlockForCall != nullptr) {
 
-        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(static_cast<unsigned>(ofs.tellp()));
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
         
         // Write recordParse
-        ScriptExecutable::save(vm, ofs);
+        ScriptExecutable::save(vm);
         
         // Write codeblock.
-        unlinkedCodeBlockForCall->save(vm, ofs);
+        unlinkedCodeBlockForCall->save(vm);
     }
 }
 

@@ -27,63 +27,55 @@
 #include "VariableEnvironment.h"
 #include <wtf/text/UniquedStringImpl.h>
 
+#include "ByteCodeProvider.h"
+
 namespace JSC {
 
-void VariableEnvironment::save(std::ofstream& stream, const Vector<Identifier>& identifiers){
-    stream << "V ";
+void VariableEnvironment::save(VM& vm, const Vector<Identifier>& identifiers) {
     
-    stream << m_map.size();
-    stream << " ";
+    uint8_t fieldHeaderIndex = 'V';
+    WRITEFIELD(fieldHeaderIndex);
 
-    for_each (m_map.begin(), m_map.end(), [this, &stream, &identifiers](auto keyvaluepair){
+    unsigned mapSize = m_map.size();
+    WRITEFIELD(mapSize);
+
+    for_each (m_map.begin(), m_map.end(), [this, &vm, &identifiers](auto keyvaluepair){
         
         WTF::RefPtr<WTF::UniquedStringImpl> key = keyvaluepair.key;
         JSC::VariableEnvironmentEntry entry = keyvaluepair.value;
 
         // Find the index in the identifier vector
-        int keyindex=0;
+        uint32_t keyindex=0;
         for(const Identifier& id : identifiers){
             if (WTF::equal(id.impl(), key.get()))
-            //if(id.impl()->equal(key))
                 break;
             keyindex++;
         }
         ASSERT(keyindex < identifiers.size());
 
-        // WTF::KeyValuePair<WTF::RefPtr<WTF::UniquedStringImpl>,JSC::VariableEnvironmentEntry>
-        
-        // const std::string keystr(reinterpret_cast<const char* >(key->characters8()), key->length());
-        stream<<keyindex;
-        stream<<" ";
-        
-        stream<<entry.m_bits;
-        stream<<" ";
+        WRITEFIELD(keyindex);        
+        WRITEFIELD(entry.m_bits);
     });
 }
 
-void VariableEnvironment::load(std::ifstream& stream, const Vector<Identifier>& identifiers) {
-    std::string id;
-    stream >> id;
-	ASSERT (id.at(0) == 'V');
-    
-    int count;
-    stream >> count;
+void VariableEnvironment::load(VM& vm, const Vector<Identifier>& identifiers) {
+    uint8_t index_1; 
+	int index;
 
-    for(int i=0; i<count; i++) {
-        int key;
+    READFIELD(index_1);
+    ASSERT(index_1 == 'V');
+    
+    unsigned mapSize;
+    READFIELD(mapSize);
+
+    for(int i=0; i<mapSize; i++) {
+        uint32_t keyindex;
         uint16_t entryBits;   
     
-        stream >> key;
-        stream >> entryBits;
+        READFIELD(keyindex);
+        READFIELD(entryBits);
 
-        RefPtr<UniquedStringImpl> keystr(identifiers[key].impl());
-
-        //RefPtr<AtomicStringImpl> key1 =
-         //   AtomicStringImpl::add(reinterpret_cast<const LChar*>(key.c_str()),
-          //      key.size());
-
-        //RefPtr<UniquedStringImpl> key2 (key1.get());
-
+        RefPtr<UniquedStringImpl> keystr(identifiers[keyindex].impl());
         
         VariableEnvironmentEntry entry;
         entry.m_bits = entryBits;

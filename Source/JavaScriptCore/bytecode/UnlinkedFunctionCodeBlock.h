@@ -43,8 +43,8 @@ public:
 
     static void destroy(JSCell*);
 
-    void save(VM&vm, std::ofstream& ofs);
-    void load(VM&vm, std::ifstream& ofs);
+    void save(VM&vm);
+    void load(VM&vm);
 
 private:
     UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)

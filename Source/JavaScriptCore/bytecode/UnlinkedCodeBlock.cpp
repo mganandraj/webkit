@@ -49,6 +49,8 @@
 
 #include "BuiltinNames.h"
 
+#include "ByteCodeProvider.h"
+
 #include <sstream>
 
 namespace JSC {
@@ -91,92 +93,65 @@ UnlinkedCodeBlock::UnlinkedCodeBlock(VM* vm, Structure* structure, CodeType code
     ASSERT(m_constructorKind == static_cast<unsigned>(info.constructorKind()));
 }
 
-void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
+void UnlinkedCodeBlock::load(VM& vm) {
 
-    int index; ifs >> index;
-    ASSERT(index == 2);
+    uint8_t index_1; 
+	
+    READFIELD(index_1);
+    ASSERT(index_1 == 2);
 
-    ifs >> m_numParameters;
-    ifs.get(); // newline
-
-    ifs >> index;
-    ASSERT (index == 3);
+    READFIELD(m_numParameters);
+    
+    READFIELD(index_1);
+    ASSERT(index_1 == 3);
 
     unsigned instructioncount;
-    ifs >> instructioncount;
+    READFIELD(instructioncount);
+    
+    size_t instructionStreamSize;
+    READFIELD(instructionStreamSize);
 
-    int size;
-    ifs >> size;
-
-	 // Read an empty space.
-	 char space;
-	 ifs.read(&space, 1);
-
-    RefCountedArray<unsigned char> data(size);
-	ifs.read(reinterpret_cast<char*>(data.begin()), size);
-	 //for(int i=0; i<size; i++) {
-    //    ifs >> data[i];
-    //}
-
+    RefCountedArray<unsigned char> data(instructionStreamSize);
+    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), instructionStreamSize);
+    
     m_unlinkedInstructions = std::make_unique<UnlinkedInstructionStream>(data, instructioncount);
     
-	 int c = ifs.get(); // newline
-	 //c = ifs.get(); // newline
-	 //c = ifs.get(); // newline
-	 //c = ifs.get(); // newline
-	 //c = ifs.get(); // newline
-
-
-    ifs >> index;
-    ASSERT (index == 4);
+    READFIELD(index_1);
+    ASSERT(index_1 == 4);
 
     int regoffset;
-    ifs >> regoffset;
+    READFIELD(regoffset);
     m_thisRegister=VirtualRegister(regoffset);
-    ifs >> regoffset;
+    READFIELD(regoffset);
     m_scopeRegister=VirtualRegister(regoffset);
-    ifs >> regoffset;
+    READFIELD(regoffset);
     m_globalObjectRegister=VirtualRegister(regoffset);
 
-    ifs.get(); // newline
+    READFIELD(index_1);
+    ASSERT(index_1 == 5);
 
-    ifs >> index;
-    ASSERT (index == 5);
-
-    int numIdentifiers;
-    ifs >> numIdentifiers;
-    for(int i=0; i<numIdentifiers; i++) {
-        //std::string id;
-        //ifs >> id;
-        // TODO :: Handle ES6 symbols
-        //m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(id.c_str()), static_cast<int>(id.size())));
-
-        uint16_t idType;
-        ifs >> idType;
-        switch(static_cast<IdentifierType>(idType)) {
+    size_t numIdentifiers;
+    uint8_t identifierType;
+    int identifierIndex;
+    READFIELD(numIdentifiers);
+    for(size_t i=0; i<numIdentifiers; i++) {
+        READFIELD(identifierType);
+        switch(static_cast<IdentifierType>(identifierType)) {
             case IdentifierType::CommonIdentifier:{
-                uint32_t index;
-                ifs >> index;
-
-                m_identifiers.append(vm.propertyNames->getCommonPropNameIdenfier(index));
+                READFIELD(identifierIndex);
+                m_identifiers.append(vm.propertyNames->getCommonPropNameIdenfier(identifierIndex));
             }
             break;
 
             case IdentifierType::WellKnownSymbol: {
-                uint32_t index;
-                ifs >> index;
-
-                m_identifiers.append(vm.propertyNames->getCommonSymbolIdenfier(index));
+                READFIELD(identifierIndex);
+                m_identifiers.append(vm.propertyNames->getCommonSymbolIdenfier(identifierIndex));
             }
             break;
 
             case IdentifierType::Symbol: {
 					int idlength;
-					ifs >> idlength;
-
-					// Read an empty space.
-					char space;
-					ifs.read(&space, 1);
+					READFIELD(idlength);
 
 					ASSERT(idlength >= 0);
 					if (idlength > 0) {
@@ -190,55 +165,37 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
 
             case IdentifierType::PrivateName: {
                 int idlength;
-                ifs >> idlength;
-        
-                // Read an empty space.
-                char space;
-                ifs.read(&space, 1);
+                READFIELD(idlength);
                 
                 ASSERT(idlength >=0 );
                 if(idlength > 0) {
                     RefCountedArray<unsigned char> data(idlength);
-                    ifs.read(reinterpret_cast<char*>(data.begin()), idlength);
+                    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), idlength);
 
                     ASSERT(0); // Need to implement this.
-                    // m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
-                    
-
-                    //Identifier::fromUid(PrivateName());
                 } else {
                     m_identifiers.append(Identifier::fromUid(PrivateName()));
                 }
-        
             }
             break;
 
             case IdentifierType::BuiltinPrivateName: {
-                uint32_t index;
-                ifs >> index;
+                READFIELD(identifierIndex);
+                ASSERT(identifierIndex >= 0);
 
-                m_identifiers.append(vm.propertyNames->builtinNames().getPrivateNameIdentifier(index));
+                m_identifiers.append(vm.propertyNames->builtinNames().getPrivateNameIdentifier(identifierIndex));
             }
             break;
 
             case IdentifierType::Normal: {
                 int idlength;
-                ifs >> idlength;
-        
-                // Read an empty space.
-                char space;
-                ifs.read(&space, 1);
-                
+                READFIELD(idlength);
+                        
                 RefCountedArray<unsigned char> data(idlength);
-                ifs.read(reinterpret_cast<char*>(data.begin()), idlength);
+                vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), idlength);
         
-                //String idString(reinterpret_cast<const LChar *>(data.data()), idlength);
-        
-                //if(WTF::equal(idString.impl(), "Symbol.iterator")) {
-                //    m_identifiers.append(vm.propertyNames->iteratorSymbol);
-                //} else {
+                // TODO :: Handle 16
                 m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
-                //}
             }
             break;
 
@@ -246,58 +203,52 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
                 ASSERT(0);
         }
     }
+    
+    READFIELD(index_1);
+    ASSERT(index_1 == 6);
 
-    ifs.get(); // newline
+    size_t numBitVectors;
+    READFIELD(numBitVectors);
+    for(size_t i=0; i<numBitVectors; i++) {
+        uintptr_t bits;
+        READFIELD(bits);
 
-    ifs >> index;
-    ASSERT (index == 6);
-
-    int numBitVectors;
-    ifs >> numBitVectors;
-    for(int i=0; i<numBitVectors; i++) {
-        uint32_t bits;
-        ifs >> bits;
         BitVector bitVector;
         *(bitVector.bits()) = bits;
         m_bitVectors.append(bitVector);
     }
 
-    ifs.get(); // newline
+    READFIELD(index_1);
+    ASSERT(index_1 == 7);
+
+    size_t numConstantRegisters;
+    READFIELD(numConstantRegisters);
     
-    ifs >> index;
-    ASSERT (index == 7);
-
-    int numConstants;
-    ifs >> numConstants;
-    for(int i=0; i<numConstants; i++) {
+    for(size_t i=0; i<numConstantRegisters; i++) {
+        uint8_t constTypeVal;
+        READFIELD(constTypeVal);
         
-        uint16_t constTypeVal;
-        ifs >> constTypeVal;
-        ConstantType constantType = static_cast<ConstantType>(constTypeVal);
-
         m_constantRegisters.append(WriteBarrier<Unknown>());
         
-        switch (constantType) {
+        switch (static_cast<ConstantType>(constTypeVal)) {
 
             case ConstantType::NonCellValue:
             {
                 uint64_t constant;
                 uint32_t constRepresentation;
 
-                ifs >> constant;
-                ifs >> constRepresentation;        
-    
+                READFIELD(constant);
+                READFIELD(constRepresentation);
+
                 m_constantRegisters.last().set(vm, this, JSValue::decode(static_cast<EncodedJSValue>(constant)));  
                 m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
             }
-                break;
+            break;
+
             case ConstantType::Empty:
             {
-                std::string constant;
                 uint32_t constRepresentation;
-
-                ifs >> constant;
-                ifs >> constRepresentation;
+                READFIELD(constRepresentation);
 
                 m_constantRegisters.last().set(vm, this, JSValue());  
                 m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
@@ -307,236 +258,214 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
 
             case ConstantType::String:
             {
-                // std::string constant;
-                uint32_t constRepresentation;
-
                 bool is8bit;
-                ifs >> is8bit;
+                READFIELD(is8bit);
 
-                int length;
-                ifs >> length;
-
-                // Read an empty space.
-                char space;
-                ifs.read(&space, 1);
+                unsigned stringLength;
+                READFIELD(stringLength);
 
                 if(is8bit) {
-                    RefCountedArray<unsigned char> data(length);
-                    ifs.read(reinterpret_cast<char*>(data.begin()), length);
+                    RefCountedArray<unsigned char> data(stringLength);
+                    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), stringLength);
 
-                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const LChar*>(data.data()), length).string());
+                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const LChar*>(data.data()), stringLength).string());
                     m_constantRegisters.last().set(vm, this, JSValue(jsString));  
                 } else {
-                    RefCountedArray<unsigned char> data(2 * length);
-                    ifs.read(reinterpret_cast<char*>(data.begin()), 2 * length);
+                    RefCountedArray<unsigned char> data(2 * stringLength);
+                    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), 2 * stringLength);
 
-                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const UChar*>(data.data()), length).string());
+                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const UChar*>(data.data()), stringLength).string());
                     m_constantRegisters.last().set(vm, this, JSValue(jsString));  
                 }
 
-                // ifs >> constant;
-                ifs >> constRepresentation;
+                uint32_t constRepresentation;
+                READFIELD(constRepresentation);
 
                 m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
             }
-
-                break;
+            break;
+            
             case ConstantType::SymbolTable:
             {
                 SymbolTable* functionSymbolTable = SymbolTable::create(vm);
-                functionSymbolTable->load(vm, this->identifiers(), ifs);
+                functionSymbolTable->load(vm, this->identifiers());
 
                 JSValue jsValue(functionSymbolTable);
                 m_constantRegisters.last().set(vm, this, jsValue);
 
                 uint32_t constRepresentation;
-                ifs >> constRepresentation;
+                READFIELD(constRepresentation);
                 m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
             }
-                break;
+            break;
+
             default:
                 ASSERT(0);
-                //throw "Unknown constant type.";
         }
-
     }
 
-    ifs.get(); // newline
+    READFIELD(index_1);
+    ASSERT(index_1 == 8);
 
-    ifs >> index;
-    ASSERT (index == 8);
+    size_t numConstantIdentiferSets;
+    READFIELD(numConstantIdentiferSets);
 
-    ifs.get(); // newline
-    
-    ifs >> index;
-    ASSERT (index == 9);
+    // We haven't seen a use case yet.
+    ASSERT(numConstantIdentiferSets == 0);
 
-    int numLinktimeConstants;
-    ifs >> numLinktimeConstants;
-    for(int i=0; i<numLinktimeConstants; i++) {
+    READFIELD(index_1);
+    ASSERT(index_1 == 9);
+
+    size_t numLinktimeConstants;
+    READFIELD(numLinktimeConstants);
+    for(size_t i=0; i<numLinktimeConstants; i++) {
         unsigned linkTimeConstant;
-        ifs >> linkTimeConstant;
+        READFIELD(linkTimeConstant);
         m_linkTimeConstants[i] = linkTimeConstant;
     }
 
-    ifs.get(); // newline
-    
-    ifs >> index;
-    ASSERT (index == 10);
+    READFIELD(index_1);
+    ASSERT(index_1 == 10);
 
-    ifs >> m_arrayProfileCount;
-    ifs >> m_arrayAllocationProfileCount; 
-    ifs >> m_objectAllocationProfileCount; 
-    ifs >> m_valueProfileCount;
-    ifs >> m_llintCallLinkInfoCount;
-
-    ifs.get(); // newline
-
-    // misc
-    ifs >> index;
-    ASSERT (index == 11);
-    
-    ifs >> m_numVars; 
-    ifs >> m_numCapturedVars;
-    ifs >> m_numCalleeLocals;
+    READFIELD(m_arrayProfileCount);
+    READFIELD(m_arrayAllocationProfileCount);
+    READFIELD(m_objectAllocationProfileCount);
+    READFIELD(m_valueProfileCount);
+    READFIELD(m_llintCallLinkInfoCount);
     
     // misc
-    ifs >> index;
-    ASSERT (index == 12);
+    READFIELD(index_1);
+    ASSERT(index_1 == 11);
+    
+    READFIELD(m_numVars);
+    READFIELD(m_numCapturedVars);
+    READFIELD(m_numCalleeLocals);
 
-    int numFuncDecls;
-    ifs >> numFuncDecls;
+    // Functions ..
+    READFIELD(index_1);
+    ASSERT(index_1 == 12);
+    
+    size_t numFuncDecls;
+    READFIELD(numFuncDecls);
 
-    for(int i=0; i<numFuncDecls; i++) {
-        ifs.get(); // newline
+    for(size_t i=0; i<numFuncDecls; i++) {
         m_functionDecls.append(WriteBarrier<UnlinkedFunctionExecutable>());
-        m_functionDecls.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs));
+        m_functionDecls.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm));
     }
     
     // misc
-    ifs >> index;
-    ASSERT (index == 13);
+    READFIELD(index_1);
+    ASSERT(index_1 == 13);
 
-    int numFuncExprs;
-    ifs >> numFuncExprs;
+    size_t numFuncExprs;
+    READFIELD(numFuncExprs);
 
-    for(int i=0; i<numFuncExprs; i++) {
-        ifs.get(); // newline
+    for(size_t i=0; i<numFuncExprs; i++) {
         m_functionExprs.append(WriteBarrier<UnlinkedFunctionExecutable>());
-        m_functionExprs.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm, ifs));
+        m_functionExprs.last().set(vm, this, UnlinkedFunctionExecutable::create(&vm));
     }
 
-    ifs.get(); // newline    
+    READFIELD(index_1);
+    ASSERT(index_1 == 14);
 
-    ifs >> index;
-    ASSERT (index == 14);
-
-    int numSwitchTables;
-    ifs >> numSwitchTables;
+    size_t numSwitchTables;
+    READFIELD(numSwitchTables);
 
     if(numSwitchTables > 0) {
         createRareDataIfNecessary();
     }
 
-    for(int i=0; i<numSwitchTables; i++) {
+    for(size_t i=0; i<numSwitchTables; i++) {
         m_rareData->m_switchJumpTables.append(UnlinkedSimpleJumpTable());
         
-        int numBranchOffsets;
-        ifs >> numBranchOffsets;
+        size_t numBranchOffsets;
+        READFIELD(numBranchOffsets);
         
-        for(int i=0; i< numBranchOffsets; i++) {
+        for(size_t i=0; i< numBranchOffsets; i++) {
             int32_t branchOffset;
-            ifs >> branchOffset;
+            READFIELD(branchOffset);
             m_rareData->m_switchJumpTables.last().branchOffsets.append(branchOffset);
         }
 
-        ifs >> m_rareData->m_switchJumpTables.last().min;
+        int32_t switchTableMin;
+        READFIELD(switchTableMin);
+        m_rareData->m_switchJumpTables.last().min = switchTableMin;
     }
 
-    ifs.get(); // newline    
-    
-    ifs >> index;
-    ASSERT (index == 15);
+    READFIELD(index_1);
+    ASSERT(index_1 == 15);
 
-    int numStringSwitchTables;
-    ifs >> numStringSwitchTables;
+    size_t numStringSwitchTables;
+    READFIELD(numStringSwitchTables);
 
 	 if (numStringSwitchTables > 0) {
 		 createRareDataIfNecessary();
 	 }
 
-    for(int i=0; i<numStringSwitchTables; i++) {
+    for(size_t i=0; i<numStringSwitchTables; i++) {
         m_rareData->m_stringSwitchJumpTables.append(UnlinkedStringJumpTable());
-        m_rareData->m_stringSwitchJumpTables.last().load(vm, ifs);
+        m_rareData->m_stringSwitchJumpTables.last().load(vm);
     }
 
-    ifs.get(); // newline    
+    READFIELD(index_1);
+    ASSERT(index_1 == 16);
 
-    ifs >> index;
-    ASSERT (index == 16);
-
-    int numberOfExceptionHandlers;
-    ifs >> numberOfExceptionHandlers;
+    size_t numberOfExceptionHandlers;
+    READFIELD(numberOfExceptionHandlers);
 
 	 if (numberOfExceptionHandlers > 0) {
 		 createRareDataIfNecessary();
 	 }
 
-    for(int i=0; i<numberOfExceptionHandlers; i++) {
+    for(size_t i=0; i<numberOfExceptionHandlers; i++) {
 
         uint32_t start;
         uint32_t end;
         uint32_t target;
-        uint32_t handlerTypeVal;
+        uint8_t handlerTypeVal;
 
-        ifs >> start;
-        ifs >> end;
-        ifs >> target;
-        ifs >> handlerTypeVal;
+        READFIELD(start);
+        READFIELD(end);
+        READFIELD(target);
+        READFIELD(handlerTypeVal);
 
         m_rareData->m_exceptionHandlers.append(UnlinkedHandlerInfo(start, end, target, static_cast<HandlerType>(handlerTypeVal)));
     }
 
-    ifs.get(); // newline    
-    
-    ifs >> index;
-    ASSERT (index == 17);
+    READFIELD(index_1);
+    ASSERT(index_1 == 17);
 
-    int numbRegexps;
-    ifs >> numbRegexps;
+    size_t numbRegexps;
+    READFIELD(numbRegexps);
 
     if (numbRegexps > 0) {
         createRareDataIfNecessary();
     }
 
-    for(int i=0; i<numbRegexps; i++) {
+    for(size_t i=0; i<numbRegexps; i++) {
 
-        int regexplength;
-        ifs >> regexplength;
+        unsigned regexplength;
+        READFIELD(regexplength);
 
         bool is8bit;
-        ifs >> is8bit;
-
-        // Read an empty space.
-        char space;
-        ifs.read(&space, 1);
+        READFIELD(is8bit);
 
         WTF::String pattern;
         if(is8bit){
             RefCountedArray<unsigned char> data(regexplength);
-            ifs.read(reinterpret_cast<char*>(data.begin()), regexplength);
+            vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), regexplength);
             pattern = WTF::String(reinterpret_cast<const LChar*>(data.data()), regexplength);
         } else {
             RefCountedArray<unsigned char> data(2 * regexplength);
-            ifs.read(reinterpret_cast<char*>(data.begin()), 2*regexplength);
-            pattern = WTF::String(reinterpret_cast<const LChar*>(data.data()), regexplength);
+            vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), 2*regexplength);
+            pattern = WTF::String(reinterpret_cast<const UChar*>(data.data()), regexplength);
         }
 
-        /*RegExpFlags*/ uint16_t flagsVal;
-        /*RegExpState*/ uint16_t stateVal;
+        /*RegExpFlags*/ uint8_t flagsVal;
+        /*RegExpState*/ uint8_t stateVal;
         
-        ifs >> flagsVal;
-        ifs >> stateVal;
+        READFIELD(flagsVal);
+        READFIELD(stateVal);
 
         m_rareData->m_regexps.append(WriteBarrier<RegExp>(vm, this, 
             RegExp::create(vm, pattern, static_cast<RegExpFlags>(flagsVal))));
@@ -544,34 +473,33 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
         // TODO :: SHould we reset the state 
     }
 
-    ifs.get(); // newline    
     
-    ifs >> index;
-    ASSERT (index == 18) ;
+    READFIELD(index_1);
+    ASSERT(index_1 == 18);
 
-    int numConstantBuffers;
-    ifs >> numConstantBuffers;
+    size_t numConstantBuffers;
+    READFIELD(numConstantBuffers);
 
     if (numConstantBuffers > 0) {
         createRareDataIfNecessary();
     }
 
-    for(int i=0; i<numConstantBuffers; i++) {
-        int numConstants;
-        ifs >> numConstants;
+    for(size_t i=0; i<numConstantBuffers; i++) {
+        size_t numConstants;
+        READFIELD(numConstants);
         m_rareData->m_constantBuffers.append(Vector<JSValue>());
-        
-        for(int i=0; i<numConstants; i++) {
-            uint16_t constTypeVal;
-            ifs >> constTypeVal;
+    
+        for(size_t i=0; i<numConstants; i++) {
+            uint8_t constTypeVal;
+            READFIELD(constTypeVal);
             ConstantType constantType = static_cast<ConstantType>(constTypeVal);
     
             switch (constantType) {
     
                 case ConstantType::NonCellValue:
                 {
-                    uint64_t constant;
-                    ifs >> constant;
+                    int64_t constant;
+                    READFIELD(constant);
                     
                     m_rareData->m_constantBuffers.last().append(JSValue::decode(static_cast<EncodedJSValue>(constant)));  
                 }
@@ -579,9 +507,6 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
 
                     case ConstantType::Empty:
                 {
-                    std::string constant;
-                    ifs >> constant;
-
                     m_rareData->m_constantBuffers.last().append(JSValue()); 
 
                 }
@@ -590,8 +515,8 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
                 case ConstantType::String:
                 {
                     int constRegisterIndex;
-                    ifs >> constRegisterIndex;
-    
+                    READFIELD(constRegisterIndex);
+
                     m_rareData->m_constantBuffers.last().append(m_constantRegisters[constRegisterIndex].get());
                 }
                     break;
@@ -600,179 +525,179 @@ void UnlinkedCodeBlock::load(VM& vm, std::ifstream& ifs){
                     ASSERT(0);
                     //throw "Unknown constant type.";
             }
-         
-
-            //int64_t jsValueEnc;
-            //ifs >> jsValueEnc;
-
-            //m_rareData->m_constantBuffers.last().append(JSValue::decode(static_cast<EncodedJSValue>(jsValueEnc)));
         }
     }
 
-    ifs.get(); // newline    
     
-    ifs >> index;
-    ASSERT (index == 19);
+    READFIELD(index_1);
+    ASSERT(index_1 == 19);
 
-    int numberOfPropertyAccessInstructions;
-    ifs >> numberOfPropertyAccessInstructions;
+    size_t numberOfPropertyAccessInstructions;
+    READFIELD(numberOfPropertyAccessInstructions);
 
-    for(int i=0; i<numberOfPropertyAccessInstructions; i++) {
+    for(size_t i=0; i<numberOfPropertyAccessInstructions; i++) {
         unsigned instr;
-        ifs >> instr;
+        READFIELD(instr);
         this->addPropertyAccessInstruction(instr);
     }
     
-    ifs.get(); // newline    
-    
-    ifs >> index;
-    ASSERT (index == 20);
+    READFIELD(index_1);
+    ASSERT(index_1 == 20);
 
-    int numberOfJumpTargets;
-    ifs >> numberOfJumpTargets;
+    size_t numberOfJumpTargets;
+    READFIELD(numberOfJumpTargets);
 
-    for(int i=0; i<numberOfJumpTargets; i++) {
+    for(size_t i=0; i<numberOfJumpTargets; i++) {
         unsigned jmpTarget;
-        ifs >> jmpTarget;
+        READFIELD(jmpTarget);
         this->addJumpTarget(jmpTarget);
     }
-
-
-    ifs.get(); // newline    
-    
-    ifs >> index;
-    ASSERT (index == 21);
+    READFIELD(index_1);
+    ASSERT(index_1 == 21);
     
     size_t expressionInfoSize;
-    ifs >> expressionInfoSize;
+    READFIELD(expressionInfoSize);
     
     for (size_t i = 0; i < expressionInfoSize; i++) {
-        unsigned instructionOffset;
-        int divotPoint, startOffset, endOffset, line, column;
+        uint32_t instructionOffset, divotPoint, startOffset, endOffset;
+        unsigned line, column;
 
-        ifs >> instructionOffset;
-        ifs >> divotPoint;
-        ifs >> startOffset;
-        ifs >> endOffset;
-        ifs >> line;
-        ifs >> column;
+        READFIELD(instructionOffset);
+        READFIELD(divotPoint);
+        READFIELD(startOffset);
+        READFIELD(endOffset);
+        READFIELD(line);
+        READFIELD(column);
 
         this->addExpressionInfo(instructionOffset, divotPoint, startOffset,
             endOffset, line, column);
     }
 
-    dataLogLn("Loading completed ...");
+    READFIELD(index_1);
+    ASSERT(index_1 == 22);
 
+    //dataLogLndataLogLn("Loading completed ...");
+
+    vm.byteCodeProvider().noCacheNow();
 }
 
-void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
+void UnlinkedCodeBlock::save(VM& vm) {
 
+    uint8_t fieldHeaderIndex = 2;
+
+    WRITEFIELD(fieldHeaderIndex);
     
-    stream << "2 " << m_numParameters << std::endl;
+    WRITEFIELD(m_numParameters);
     
-    // end of metadata
+    // instructions
 
-    // start instuctions
-
-    stream<< "3 " << m_unlinkedInstructions->m_instructionCount;
-    stream<<" ";
-    stream<<m_unlinkedInstructions->m_data.size();
-    stream<<" ";
-
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
     
-    stream.write(reinterpret_cast<char*>(m_unlinkedInstructions->m_data.data()), m_unlinkedInstructions->m_data.size());
-    //for(int idx=0; idx < m_unlinkedInstructions->m_data.size(); idx++){
-    //    stream<<m_unlinkedInstructions->m_data.at(idx);
-    //}
+    unsigned instructionCount = m_unlinkedInstructions->m_instructionCount;
+    WRITEFIELD(instructionCount);
+    
+    size_t instructionStreamSize = m_unlinkedInstructions->m_data.size();
+    WRITEFIELD(instructionStreamSize);
+    vm.byteCodeProvider().outStream.write(reinterpret_cast<char*>(m_unlinkedInstructions->m_data.data()), instructionStreamSize);
+    
+    // (virtual) registers
+	fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
+    
+    int registerOffset = m_thisRegister.offset();
+    WRITEFIELD(registerOffset);
 
-    stream<<std::endl;
+    registerOffset = m_scopeRegister.offset();
+    WRITEFIELD(registerOffset);
 
-    /// End of instructions
+    registerOffset = m_globalObjectRegister.offset();
+    WRITEFIELD(registerOffset);
 
-    // Start (virtual) registers
-
-    stream << "4 " << m_thisRegister.offset() << " " << m_scopeRegister.offset() 
-        << " " <<  m_globalObjectRegister.offset() << std::endl;
-
-    // end registers
-
-    stream << "5 ";
-
-    // TODO :: Serialize bytecode liveness
-
-    stream<<m_identifiers.size()<<" ";
-    for (auto &identifier : m_identifiers){
-        //stream<<std::string(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
-        //stream << " ";
-
-		 const char* pid = identifier.string().ascii().data();
-
-        if(identifier.isSymbol() || identifier.isPrivateName()) {
-            dataLogLn("!! Symbol/PrivateName Idenfier found : ", identifier.string().ascii().data());
-        }
-
+    // Identifiers
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
+    
+    size_t numIdentifiers = m_identifiers.size();
+    WRITEFIELD(numIdentifiers);
+    
+    uint8_t identifierType;
+    for (auto &identifier : m_identifiers) {
         if (identifier.isPrivateName()) {
             int privateNameIndex = vm.propertyNames->builtinNames().findPrivateNameIndex(identifier);
-            //ASSERT(privateNameIndex >= 0);
-            if(privateNameIndex >= 0) {
-                stream << static_cast<uint16_t>(IdentifierType::BuiltinPrivateName) << " ";            
-                stream << privateNameIndex << " ";
-            } else {
-                stream << static_cast<uint16_t>(IdentifierType::PrivateName) << " ";
 
-                stream << identifier.length() << " ";
+            if(privateNameIndex >= 0) {
+                identifierType = static_cast<uint8_t>(IdentifierType::BuiltinPrivateName);
+                WRITEFIELD(identifierType);
+                WRITEFIELD(privateNameIndex);
+            } else {
+                identifierType = static_cast<uint8_t>(IdentifierType::PrivateName);
+                WRITEFIELD(identifierType);
+
+                int identifierLength = identifier.length();
+                WRITEFIELD(identifierLength);
+                
                 // TODO :: this can be 16 ..
-                stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+                vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
             }
         }
         else if(identifier.isSymbol()) {
             int symbolIndex = vm.propertyNames->findCommonSymbol(identifier);
 
-				if (symbolIndex >= 0) {
-					stream << static_cast<uint16_t>(IdentifierType::WellKnownSymbol) << " ";
-					stream << symbolIndex << " ";
-				}
-				else {
-					stream << static_cast<uint16_t>(IdentifierType::Symbol) << " ";
+            if (symbolIndex >= 0) {
+                identifierType = static_cast<uint8_t>(IdentifierType::WellKnownSymbol);
+                WRITEFIELD(identifierType);
+                WRITEFIELD(symbolIndex);
+            }
+            else {
+                identifierType = static_cast<uint8_t>(IdentifierType::Symbol);
+                WRITEFIELD(identifierType);
 
-					stream << identifier.length() << " ";
-					// TODO :: this can be 16 ..
-					stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
-				}
+                int identifierLength = identifier.length();
+                WRITEFIELD(identifierLength);
+                
+                // TODO :: this can be 16 ..
+                vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+            }
         } else {
             int commonIdIndex = vm.propertyNames->findCommonPropName(identifier);
             if(commonIdIndex >= 0) {
-                stream << static_cast<uint16_t>(IdentifierType::CommonIdentifier) << " ";            
-                stream << commonIdIndex << " ";
+                identifierType = static_cast<uint8_t>(IdentifierType::CommonIdentifier);
+                WRITEFIELD(identifierType);
+                WRITEFIELD(commonIdIndex);
             } else {
-                stream << static_cast<uint16_t>(IdentifierType::Normal) << " ";            
+                identifierType = static_cast<uint8_t>(IdentifierType::Normal);
+                WRITEFIELD(identifierType);      
                 
-                stream << identifier.length() << " ";
-                stream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+                int identifierLength = identifier.length();
+                WRITEFIELD(identifierLength);
+
+                // TODO :: This can be 16
+                vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
             }
         }
     }
 
-    stream<<std::endl;
-
-    /// End of identifiers
-
-    stream << "6 ";
-
-    stream<<m_bitVectors.size()<<" ";
-    // Bit vectors
+    // Bitvectors
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
+    
+    size_t bitVectorSize = m_bitVectors.size();
+    WRITEFIELD(bitVectorSize);
     for (auto &bitVector : m_bitVectors){
-        stream << *bitVector.bits();
-        stream << " ";
+        uintptr_t bits = *bitVector.bits();
+        WRITEFIELD(bits);
+        //stream << *bitVector.bits();
+        //stream << " ";
     }
 
-    stream<<std::endl;
-    
     // Constants
-	
-    stream << "7 ";
-
-    stream<<constantRegisters().size()<<" ";
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
+    
+    size_t constantRegistersSize = constantRegisters().size();
+    WRITEFIELD(constantRegistersSize);
+    
     if (!constantRegisters().isEmpty()) {
         size_t i = 0;
         for (const auto& constant : constantRegisters()) {
@@ -780,49 +705,42 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
             JSValue value = constant.get();
             if(value.isCell()) {
                 if(value.isEmpty()) {
-                    stream<<static_cast<int16_t>(ConstantType::Empty);
-                    stream << " ";
+                    uint8_t constantType = static_cast<uint8_t>(ConstantType::Empty);
+                    WRITEFIELD(constantType);
 
-                    stream<<"X";
-                    stream << " ";
-                    stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
-                    stream << " ";
+                    int32_t sourceCodeRepresentation = static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    WRITEFIELD(sourceCodeRepresentation);
                 }
                 else if(value.isString()) {
-                    stream<<static_cast<int16_t>(ConstantType::String);
-                    stream << " ";
+                    uint8_t constantType = static_cast<uint8_t>(ConstantType::String);
+                    WRITEFIELD(constantType);
 
                     const String& constStr = static_cast<const JSString*>(value.asCell())->tryGetValue();
-                    
                     bool is8bit = constStr.is8Bit();
 
-                    stream << is8bit << " ";
+                    WRITEFIELD(is8bit);
                     
-                    //std::string str(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
-
-                    stream << constStr.length();
-                    stream << " ";
+                    unsigned length = constStr.length();
+                    WRITEFIELD(length);
 
                     if(is8bit) {
-                        stream.write(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
-                        stream << " ";
+                        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
                     } else {
-                        stream.write(reinterpret_cast<const char* >(constStr.characters16()), 2*constStr.length());
-                        stream << " ";
+                        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(constStr.characters16()), 2*constStr.length());
                     }
 
-                    stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
-                    stream << " ";
+                    int32_t sourceCodeRepresentation = static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    WRITEFIELD(sourceCodeRepresentation);
                 }
                 else if (value.asCell()->classInfo(vm) == SymbolTable::info()) {
-                    stream<<static_cast<int16_t>(ConstantType::SymbolTable);
-                    stream << " ";
+                    uint8_t constantType = static_cast<uint8_t>(ConstantType::SymbolTable);
+                    WRITEFIELD(constantType);
 
                     SymbolTable* symbolTable = jsCast<SymbolTable*>(value);
-                    symbolTable->save(vm, this->identifiers(), stream);
+                    symbolTable->save(vm, this->identifiers());
 
-                    stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
-                    stream << " ";
+                    int32_t sourceCodeRepresentation = static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                    WRITEFIELD(sourceCodeRepresentation);
                 }
                 else {
                     // We don't support yet.
@@ -830,129 +748,182 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
                 }
             }
             else {
-                stream<<static_cast<int16_t>(ConstantType::NonCellValue);
-                stream << " ";
-                stream<<static_cast<int64_t>(JSValue::encode(constant.get()));
-                stream << " ";
-                stream<<static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
-                stream << " ";
+                uint8_t constantType = static_cast<uint8_t>(ConstantType::NonCellValue);
+                WRITEFIELD(constantType);
+                
+                int64_t encodedJSValue = static_cast<int64_t>(JSValue::encode(constant.get()));
+                WRITEFIELD(encodedJSValue);
+
+                int32_t sourceCodeRepresentation = static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
+                WRITEFIELD(sourceCodeRepresentation);
             }
 
             ++i;
         }
     }
 
-    stream<<std::endl;    
+    // Constant identifier sets
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
 
-    stream << "8 ";
+    size_t numConstantIdentiferSets = m_constantIdentifierSets.size();
+    WRITEFIELD(numConstantIdentiferSets);
 
-    for (auto &constIdSetEntry : m_constantIdentifierSets){
-        unsigned val = constIdSetEntry.second;
-        stream << val;
-        IdentifierSet idSet = constIdSetEntry.first;
-        stream << "{";
-        for (auto &identifier : idSet){
-            stream<<std::string(reinterpret_cast<const char* >(identifier->characters8()), identifier->length());
-            stream<<" ";
-        }
-        stream << "}";
-    }
+   // for (auto &constIdSetEntry : m_constantIdentifierSets){
+     //   unsigned val = constIdSetEntry.second;
+       // WRITEFIELD(val);
 
-    stream<<std::endl;
+     //   IdentifierSet idSet = constIdSetEntry.first;
+       // for (auto &identifier : idSet){
+            //unsigned length = identifier->length();
+            //WRITEFIELD(length);
+            //vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(constStr.characters8()), length);
+    //    }
+   // }
 
     // lint time constants
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
 
-    stream << "9 ";
+    size_t numLinktimeConstants = m_linkTimeConstants.size();
+    WRITEFIELD(numLinktimeConstants);
 
-    stream<<m_linkTimeConstants.size()<<" ";
-    for (auto linkTimeConstant : m_linkTimeConstants) {
-        stream<<linkTimeConstant << " ";
+    for (unsigned linkTimeConstant : m_linkTimeConstants) {
+        WRITEFIELD(linkTimeConstant);
     }
-
-    stream<<std::endl;
 
     // Profile counts
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
 
-    stream << "10 ";
-
-    stream << m_arrayProfileCount << " " << m_arrayAllocationProfileCount << " " 
-        << m_objectAllocationProfileCount << " " << m_valueProfileCount << " " 
-        << m_llintCallLinkInfoCount << std::endl;
-
+    WRITEFIELD(m_arrayProfileCount);
+    WRITEFIELD(m_arrayAllocationProfileCount);
+    WRITEFIELD(m_objectAllocationProfileCount);
+    WRITEFIELD(m_valueProfileCount);
+    WRITEFIELD(m_llintCallLinkInfoCount);
 
     // misc
-    stream << "11 ";
+    fieldHeaderIndex++;
+	WRITEFIELD(fieldHeaderIndex);
 
-    stream << m_numVars << " " << m_numCapturedVars << " " 
-    << m_numCalleeLocals << std::endl;
+    WRITEFIELD(m_numVars);
+    WRITEFIELD(m_numCapturedVars);
+    WRITEFIELD(m_numCalleeLocals);
 
-    stream << "12 " << m_functionDecls.size() << std::endl;
+    // misc
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
+
+    size_t numFunctionDecls = m_functionDecls.size();
+    WRITEFIELD(numFunctionDecls);
+
     for(WriteBarrier<UnlinkedFunctionExecutable> f : m_functionDecls) {
         UnlinkedFunctionExecutable* ufexe = f.get();
-        ufexe->saveNonCode(vm, stream);
-        stream << std::endl;
+        ufexe->saveNonCode(vm);
     }
 
-    stream << "13 " << m_functionExprs.size() << std::endl;
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
+
+    size_t numFunctionExprs = m_functionExprs.size();
+    WRITEFIELD(numFunctionExprs);
+
     for(WriteBarrier<UnlinkedFunctionExecutable> f : m_functionExprs) {
         UnlinkedFunctionExecutable* ufexe = f.get();
-        ufexe->saveNonCode(vm, stream);
-        stream << std::endl;
+        ufexe->saveNonCode(vm);
     }
 
-    stream << "14 " << numberOfSwitchJumpTables() << " " ;
-    for(int i=0; i<numberOfSwitchJumpTables(); i++) {
-        stream << switchJumpTable(i).branchOffsets.size() << " ";
-        for (int branchOffset : switchJumpTable(i).branchOffsets) {
-            stream << branchOffset << " ";
+    // Non-string switches
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
+
+    size_t numSwitchJumpTables = numberOfSwitchJumpTables();
+    WRITEFIELD(numSwitchJumpTables);
+
+    for(size_t i=0; i<numberOfSwitchJumpTables(); i++) {
+        size_t numbranchOffsets = switchJumpTable(i).branchOffsets.size();
+        WRITEFIELD(numbranchOffsets);
+
+        for (int32_t branchOffset : switchJumpTable(i).branchOffsets) {
+            WRITEFIELD(branchOffset);
         }
-        stream << switchJumpTable(i).min << " ";
+
+        int32_t switchTableMin = switchJumpTable(i).min;
+        WRITEFIELD(switchTableMin);
     }
 
-    stream << std::endl;
+    // String switch
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
 
-    stream << "15 " << numberOfStringSwitchJumpTables() << " " ;
-    for(int i=0; i<numberOfStringSwitchJumpTables(); i++) {
-        stringSwitchJumpTable(i).save(vm, stream);
+    size_t numStringSwitchTables = numberOfStringSwitchJumpTables();
+    WRITEFIELD(numStringSwitchTables);
+    
+    for(size_t i=0; i<numberOfStringSwitchJumpTables(); i++) {
+        stringSwitchJumpTable(i).save(vm);
     }
 
-    stream << std::endl;
+    // Handlers
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
 
-    stream << "16 " << numberOfExceptionHandlers() << " " ;
-    for(int i=0; i<numberOfExceptionHandlers(); i++) {
+    size_t numHandlers = numberOfExceptionHandlers();
+    WRITEFIELD(numHandlers);
+    
+    for(size_t i=0; i<numberOfExceptionHandlers(); i++) {
         UnlinkedHandlerInfo& unlinkedHandlerInfo(exceptionHandler(i));
         
-        stream << unlinkedHandlerInfo.start << " " << unlinkedHandlerInfo.end << 
-            " " << unlinkedHandlerInfo.target << " " << unlinkedHandlerInfo.typeBits << " ";
+        uint32_t start = unlinkedHandlerInfo.start;
+        uint32_t end = unlinkedHandlerInfo.end;
+        uint32_t target = unlinkedHandlerInfo.target;
+        uint8_t typeBits = unlinkedHandlerInfo.typeBits;
 
+        WRITEFIELD(start);
+        WRITEFIELD(end);
+        WRITEFIELD(target);
+        WRITEFIELD(typeBits);
     }
 
-    stream << std::endl;
+    // REGEX
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
 
-    stream << "17 " << numberOfRegExps() << " " ;
-    for(int i=0; i<numberOfRegExps(); i++) {
+    size_t numRegexes = numberOfRegExps();
+    WRITEFIELD(numRegexes);
+
+    for(size_t i=0; i<numberOfRegExps(); i++) {
         RegExp* reg = regexp(i);
-        reg->save(vm, stream);
+        reg->save(vm);
     }
 
-    stream << std::endl;
+    // Constant Buffers
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
 
-    int _constantBufferCount = hasRareData() ? constantBufferCount() : 0;
-    stream << "18 " << _constantBufferCount << " " ;
-    for(int i=0; i < _constantBufferCount; i++) {
+	// if (fieldHeaderIndex == 18) {
+//		 dataLogLn("break");
+	// }
+
+    size_t _constantBufferCount = hasRareData() ? constantBufferCount() : 0;
+    WRITEFIELD(_constantBufferCount);
+
+	 //if (_constantBufferCount == 4) {
+	//	 dataLogLn("break");
+	 //}
+
+    for(size_t i=0; i < _constantBufferCount; i++) {
         ConstantBuffer& buffer = constantBuffer(i);
-        stream << buffer.size() << " ";
+        size_t constBufferSize = buffer.size();
+
+        WRITEFIELD(constBufferSize);
         
         for(JSValue value : buffer) {
             if(value.isCell()) {
                 
                 // Copied from constant regs.
                 if(value.isEmpty()) {
-                    stream<<static_cast<int16_t>(ConstantType::Empty);
-                    stream << " ";
-
-                    stream<<"X";
-                    stream << " ";
+                    uint8_t constantType = static_cast<uint8_t>(ConstantType::Empty);
+                    WRITEFIELD(constantType);
                 }
                 else if(value.isString()) {
 
@@ -983,50 +954,51 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
                         ASSERT(0);
                     }
 
-                    stream<<static_cast<int16_t>(ConstantType::String);
-                    stream << " ";
-    
-                    stream<<constantIndex;
-                    stream << " ";
-
+                    uint8_t constantType = static_cast<uint8_t>(ConstantType::String);
+                    WRITEFIELD(constantType);
+                    WRITEFIELD(constantIndex);
                 }
                 else {
                     ASSERT(0);
                     //throw "We don't support this constant type";
                 }
-
-                
             }
             else {
-                stream<<static_cast<int16_t>(ConstantType::NonCellValue);
-                stream << " ";
+                uint8_t constantType = static_cast<uint8_t>(ConstantType::NonCellValue);
+                int64_t valueEnc = static_cast<int64_t>(JSValue::encode(value));
 
-                EncodedJSValue valueEnc = JSValue::encode(value);
-                stream << valueEnc << " ";
+					 WRITEFIELD(constantType);
+					 WRITEFIELD(valueEnc);
             }
         }
     }
 
-    stream << std::endl;
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
 
     size_t numberOfPropertyAccessInstructions = this->numberOfPropertyAccessInstructions();
-    stream << "19 " << numberOfPropertyAccessInstructions << " " ;
-    for (auto instr : this->propertyAccessInstructions()) {
-      stream << instr << " ";
-    }
-   
-    stream << std::endl;
+    WRITEFIELD(numberOfPropertyAccessInstructions);
 
-    stream << "20 " << m_jumpTargets.size() << " " ;
+    for (unsigned instr : this->propertyAccessInstructions()) {
+      WRITEFIELD(instr);
+    }
+
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
+
+    size_t numJumpTargets = m_jumpTargets.size();
+    WRITEFIELD(numJumpTargets);
+
     for (auto& jmptarget : m_jumpTargets) {
-      stream << jmptarget << " ";
+      WRITEFIELD(jmptarget);
     }
 
-    stream << std::endl;
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
 
     Vector<ExpressionRangeInfo>& expressionInfo = m_expressionInfo;
     size_t expressionInfoSize = m_expressionInfo.size();
-    stream << "21 " << expressionInfoSize << " " ;
+    WRITEFIELD(expressionInfoSize);
     
     for (size_t i = 0; i < expressionInfoSize; i++) {
         ExpressionRangeInfo& info = expressionInfo[i];
@@ -1034,43 +1006,66 @@ void UnlinkedCodeBlock::save(VM& vm, std::ofstream&stream){
         unsigned column;
         getLineAndColumn(info, line, column);
 
-        stream << info.instructionOffset << " " << info.divotPoint << " "
-            << info.startOffset << " " << info.endOffset << " "
-            << line << " " << column << " ";
+        // TODO :: needs to compress these .. 
+        uint32_t instructionOffset = info.instructionOffset;
+        uint32_t startOffset = info.startOffset;
+        uint32_t divotPoint = info.divotPoint;
+        uint32_t endOffset = info.endOffset;
+        
+        WRITEFIELD(instructionOffset);
+        WRITEFIELD(divotPoint);
+        WRITEFIELD(startOffset);
+        WRITEFIELD(endOffset);
+        
+        WRITEFIELD(line);
+        WRITEFIELD(column);
     }
 
-    //stream << std::endl;
+    fieldHeaderIndex++;
+    WRITEFIELD(fieldHeaderIndex);
+
 }
 
-void UnlinkedStringJumpTable::save(VM& vm, std::ofstream&stream) {
-    stream << offsetTable.size() << " ";
+void UnlinkedStringJumpTable::save(VM& vm) {
+    size_t offsetTableSize = offsetTable.size();
+    WRITEFIELD(offsetTableSize);
+
     for( auto& entry : offsetTable) {
         RefPtr<StringImpl> key = entry.key;
         int32_t value = entry.value.branchOffset;
-		  std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
+        
+        unsigned labelLength = key->length();
+        ASSERT(labelLength > 0);
 
-        stream << keystr << " ";
-        stream << value << " ";
+        WRITEFIELD(labelLength);
+        if(labelLength > 0)
+            vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(key->characters8()), labelLength);
+        
+        WRITEFIELD(value);
     }
 }
 
-void UnlinkedStringJumpTable::load(VM& vm, std::ifstream&stream) {
+void UnlinkedStringJumpTable::load(VM& vm) {
     int32_t offsetTableSize;
-    stream >> offsetTableSize;
+    READFIELD(offsetTableSize);
 
     for(int i=0; i < offsetTableSize; i++) {
-        std::string keystr;
+        
         int32_t value;
 
-        stream >> keystr;
-        stream >> value;
+        unsigned keyLength;
+        READFIELD(keyLength);
+
+        RefCountedArray<unsigned char> data(keyLength);
+        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), keyLength);
+        RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
+
+        READFIELD(value);
 
         struct OffsetLocation location;
         location.branchOffset = value;
 
-        //Ref<StringImpl> key = ;
-        //RefPtr<StringImpl> keyPtr (StringImpl::create(keystr.c_str(), keystr.length()));
-        offsetTable.add(StringImpl::create(keystr.c_str(), keystr.length()), location);
+        offsetTable.add(atomicStringKey, location);
     }
 }
 

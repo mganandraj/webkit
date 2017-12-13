@@ -70,12 +70,14 @@ public:
 
     ExecutableInfo executableInfo() const { return ExecutableInfo(usesEval(), isStrictMode(), false, false, ConstructorKind::None, JSParserScriptMode::Classic, SuperBinding::NotNeeded, SourceParseMode::ProgramMode, derivedContextType(), isArrowFunctionContext(), false, EvalContextType::None); }
 
-    void save(VM& vm, const char* prefix);
-    UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
-
 private:
     friend class ExecutableBase;
     friend class ScriptExecutable;
+
+    friend class ByteCodeProvider;
+    void save(VM& vm, const char* prefix);
+    void save2(VM& vm);
+    UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
 
     ProgramExecutable(ExecState*, const SourceCode&);
 

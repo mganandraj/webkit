@@ -29,6 +29,8 @@
 #include "JSCInlines.h"
 #include <wtf/Assertions.h>
 
+#include <wtf/DataLog.h>
+
 namespace JSC {
 
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(GetterSetter);
@@ -73,6 +75,8 @@ GetterSetter* GetterSetter::withSetter(VM& vm, JSGlobalObject* globalObject, JSO
 
 JSValue callGetter(ExecState* exec, JSValue base, JSValue getterSetter)
 {
+	//dataLogLn("callGetter");
+
     VM& vm = exec->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
     // FIXME: Some callers may invoke get() without checking for an exception first.
@@ -89,6 +93,8 @@ JSValue callGetter(ExecState* exec, JSValue base, JSValue getterSetter)
 
 bool callSetter(ExecState* exec, JSValue base, JSValue getterSetter, JSValue value, ECMAMode ecmaMode)
 {
+	//dataLogLn("callSetter");
+
     VM& vm = exec->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 

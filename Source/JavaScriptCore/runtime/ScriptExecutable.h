@@ -36,8 +36,8 @@ public:
 
     static void destroy(JSCell*);
 
-    void save(VM&, std::ofstream& ofs);
-    static void load(VM&, std::ifstream& ifs, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn);
+    void save(VM&);
+    static void load(VM&, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn);
 
     CodeBlockHash hashFor(CodeSpecializationKind) const;
 

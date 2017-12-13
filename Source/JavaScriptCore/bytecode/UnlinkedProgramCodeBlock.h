@@ -51,8 +51,8 @@ public:
     void setLexicalDeclarations(const VariableEnvironment& environment) { m_lexicalDeclarations = environment; }
     const VariableEnvironment& lexicalDeclarations() const { return m_lexicalDeclarations; }
 
-    void save(VM&vm, std::ofstream& ofs);
-    void load(VM&vm, std::ifstream& ofs);
+    void save(VM&vm);
+    void load(VM&vm);
 
 private:
     UnlinkedProgramCodeBlock(VM* vm, Structure* structure, const ExecutableInfo& info, DebuggerMode debuggerMode)

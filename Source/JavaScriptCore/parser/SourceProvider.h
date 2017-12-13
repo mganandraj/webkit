@@ -33,6 +33,8 @@
 #include <wtf/text/TextPosition.h>
 #include <wtf/text/WTFString.h>
 
+#include <wtf/DataLog.h>
+
 namespace JSC {
 
     enum class SourceProviderSourceType {
@@ -54,6 +56,7 @@ namespace JSC {
 		  virtual int length() const = 0;
 		  StringView getRange(int start, int end) const
         {
+            //dataLogLn("StringView::getRange :", sourceOrigin().string(), ":", start, " : ", end );
             return source().substring(start, end - start);
         }
 

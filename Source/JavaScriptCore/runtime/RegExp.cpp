@@ -31,6 +31,8 @@
 #include "YarrJIT.h"
 #include <wtf/Assertions.h>
 
+#include "ByteCodeProvider.h"
+
 namespace JSC {
 
 const ClassInfo RegExp::s_info = { "RegExp", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(RegExp) };
@@ -227,20 +229,25 @@ RegExp::RegExp(VM& vm, const String& patternString, RegExpFlags flags)
 {
 }
 
-void RegExp::save(VM&, std::ostream& stream) 
+void RegExp::save(VM& vm) 
 {   
-    stream << m_patternString.length() << " ";
+    unsigned patternStringLength = m_patternString.length();
+    WRITEFIELD(patternStringLength);
     
     bool is8bit = m_patternString.is8Bit();
-    stream << is8bit << " ";
+    WRITEFIELD(is8bit);
     
     if(is8bit) {
-        stream.write(reinterpret_cast<const char* >(m_patternString.characters8()), m_patternString.length());
+        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_patternString.characters8()), m_patternString.length());
     } else {
-        stream.write(reinterpret_cast<const char* >(m_patternString.characters16()), 2 * m_patternString.length());
+        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_patternString.characters16()), 2 * m_patternString.length());
     }
     
-    stream << " " << static_cast<uint16_t>(m_flags) << " " << static_cast<uint16_t>(m_state) << " ";
+    uint8_t flags = static_cast<uint8_t>(m_flags);
+    WRITEFIELD(flags);
+
+    uint8_t state = static_cast<uint8_t>(m_state);
+    WRITEFIELD(state);
 }
 
 void RegExp::finishCreation(VM& vm)

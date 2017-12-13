@@ -77,11 +77,10 @@ static UnlinkedFunctionCodeBlock* generateUnlinkedFunctionCodeBlock(
     return result;
 }
 
-UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, std::ifstream& stream)
+UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure)
     : Base(*vm, structure)
-    , m_isLoadingByteCodes(true)
 {
-    this->loadNonCode(*vm, stream);
+    this->loadNonCode(*vm);
 
     // Make sure these bitfields are adequately wide.
     //ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -125,8 +124,8 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     , m_parentSourceOverride(WTFMove(parentSourceOverride))
     , m_classSource(node->classSource())
     , m_byteCodeBundleOffsetForCall(0)
-    , m_byteCodeBundleOffsetForConstruct(0)
-    , m_isLoadingByteCodes(false)
+//    , m_byteCodeBundleOffsetForConstruct(0)
+//    , m_isLoadingByteCodes(false)
 {
     // Make sure these bitfields are adequately wide.
     ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -139,30 +138,38 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     m_parentScopeTDZVariables.swap(parentScopeTDZVariables);
 }
 
-void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
+
+void UnlinkedFunctionExecutable::saveNonCode(VM&vm) {
     
-    ofstream << "UF ";
+    uint8_t fieldHeaderIndex = 'U';
+    WRITEFIELD(fieldHeaderIndex);
 
-    std::string name(reinterpret_cast<const char* >(m_name.string().characters8()), m_name.string().length());
-    if(name.empty())
-        name.assign("<>");
+    unsigned identifierLength = m_name.string().length();
+    WRITEFIELD(identifierLength);
+    if(identifierLength > 0)
+        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_name.string().characters8()), identifierLength);
 
-    ofstream<<name;
-    ofstream << " ";
+    identifierLength = m_ecmaName.string().length();
+    WRITEFIELD(identifierLength);
+    if(identifierLength > 0)
+        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_ecmaName.string().characters8()), identifierLength);
 
-    std::string ecmaName(reinterpret_cast<const char* >(m_ecmaName.string().characters8()), m_ecmaName.string().length());
-    if(ecmaName.empty())
-        ecmaName.assign("<>");
+    identifierLength = m_inferredName.string().length();
+    WRITEFIELD(identifierLength);
+    if(identifierLength > 0)
+        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_inferredName.string().characters8()), identifierLength);
 
-    ofstream<<ecmaName;
-    ofstream << " ";
+    if(!m_parentSourceOverride.isNull()) {
+        unsigned sourceLength = m_parentSourceOverride.provider()->source().length();
+        WRITEFIELD(sourceLength);
 
-    std::string inferredName(reinterpret_cast<const char* >(m_inferredName.string().characters8()), m_inferredName.string().length());
-    if(inferredName.empty())
-        inferredName.assign("<>");
-    
-    ofstream << inferredName;
-    ofstream << " ";
+        // TODO :: this can be 16
+        // Unfortunately, we have to write the string out for now being ..
+        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_parentSourceOverride.provider()->source().characters8()), sourceLength);
+    } else {
+        unsigned sourceLength = 0;
+        WRITEFIELD(sourceLength);
+    }
 
     //ofstream<<std::string(reinterpret_cast<const char* >(m_parentSourceOverride.string().characters8()), m_parentSourceOverride.string().length());
     //ofstream << " ";
@@ -174,24 +181,27 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
     //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceMappingURLDirective.characters8()), m_sourceMappingURLDirective.length());
     //ofstream << " ";
 
-    ofstream << m_byteCodeBundleOffsetForCall << " " << m_byteCodeBundleOffsetForConstruct << " ";
-
-    ofstream << m_firstLineOffset << " ";
-    ofstream << m_lineCount << " ";
-    ofstream << m_unlinkedFunctionNameStart << " ";
-    ofstream << m_unlinkedBodyStartColumn << " ";
-    ofstream << m_unlinkedBodyEndColumn << " ";
-    ofstream << m_startOffset << " ";
-    ofstream << m_sourceLength << " ";
+    WRITEFIELD(m_byteCodeBundleOffsetForCall);
+    WRITEFIELD(m_byteCodeBundleOffsetForConstruct);
     
-    ofstream << m_parametersStartOffset << " ";
-    ofstream << m_typeProfilingStartOffset << " ";
-    ofstream << m_typeProfilingEndOffset << " ";
-    ofstream << m_parameterCount << " ";
+    WRITEFIELD(m_firstLineOffset);
+    WRITEFIELD(m_lineCount);
+    WRITEFIELD(m_unlinkedFunctionNameStart);
+    WRITEFIELD(m_unlinkedBodyStartColumn);
+    WRITEFIELD(m_unlinkedBodyEndColumn);
+    WRITEFIELD(m_startOffset);
+    WRITEFIELD(m_sourceLength);
+   
+    WRITEFIELD(m_parametersStartOffset);
+    WRITEFIELD(m_typeProfilingStartOffset);
+    WRITEFIELD(m_typeProfilingEndOffset);
+    WRITEFIELD(m_parameterCount);
     
-    ofstream <<  static_cast<uint16_t>(m_features) << " ";
+    uint16_t codeFeatures = static_cast<uint16_t>(m_features);
+    WRITEFIELD(codeFeatures);
     
-    ofstream <<  static_cast<uint32_t>(m_sourceParseMode) << " ";
+    uint32_t parseMode = static_cast<uint32_t>(m_sourceParseMode);
+    WRITEFIELD(parseMode);
     
     uint16_t funcMetadata = 0;
     funcMetadata |= m_isInStrictContext;
@@ -204,25 +214,48 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm, std::ofstream& ofstream){
     funcMetadata |= m_superBinding << 9;
     funcMetadata |= m_derivedContextType << 10;
 
-    ofstream <<  funcMetadata << " ";
+    WRITEFIELD(funcMetadata);
 
     // TODO Parent Scope TDZ
     // m_parentScopeTDZVariables->;
 }
 
-void UnlinkedFunctionExecutable::loadNonCode(VM&vm, std::ifstream& ifstream){
-    std::string index; 
-    ifstream >> index;
-    ASSERT(index[0] == 'U');
+void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
+    uint8_t index;
+    READFIELD(index);
+    ASSERT(index == 'U');
+    
+    unsigned identifierlength;
+    READFIELD(identifierlength);
+    if(identifierlength > 0) {
+        RefCountedArray<unsigned char> data(identifierlength);
+        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), identifierlength);
+        m_name = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), identifierlength);
+    }
 
-    // TODO :: Handle ES6 symbols
-    std::string token;
-    ifstream >> token;
-    m_name = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
-    ifstream >> token;
-    m_ecmaName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
-    ifstream >> token;
-    m_inferredName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
+    READFIELD(identifierlength);
+    if(identifierlength > 0) {
+        RefCountedArray<unsigned char> data(identifierlength);
+        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), identifierlength);
+        m_ecmaName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), identifierlength);
+    }
+
+    READFIELD(identifierlength);
+    if(identifierlength > 0) {
+        RefCountedArray<unsigned char> data(identifierlength);
+        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), identifierlength);
+        m_inferredName = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), identifierlength);
+    }
+
+    unsigned sourceLength;
+    READFIELD(sourceLength);
+    if(sourceLength > 0) {
+        RefCountedArray<unsigned char> data(sourceLength);
+        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), sourceLength);
+        
+        m_parentSourceOverride = makeSource(StringImpl::create(data.data(), sourceLength), { });
+    }
+
     //ifstream >> token;
     //m_parentSourceOverride = Identifier::fromString(&vm, reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
     //ifstream >> token;
@@ -233,31 +266,32 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm, std::ifstream& ifstream){
     //ifstream >> token;
     //m_sourceMappingURLDirective = String(reinterpret_cast<const LChar *>(token.c_str()), static_cast<int>(token.size()));
 
-    ifstream >> m_byteCodeBundleOffsetForCall;
-    ifstream >> m_byteCodeBundleOffsetForConstruct;
+    READFIELD(m_byteCodeBundleOffsetForCall);
+    READFIELD(m_byteCodeBundleOffsetForConstruct);
 
-    ifstream >> m_firstLineOffset;
-    ifstream >> m_lineCount;
-    ifstream >> m_unlinkedFunctionNameStart;
-    ifstream >> m_unlinkedBodyStartColumn;
-    ifstream >> m_unlinkedBodyEndColumn;
-    ifstream >> m_startOffset;
-    ifstream >> m_sourceLength;
-  //  ifstream >> m_sourceOffset;
-
-    ifstream >> m_parametersStartOffset;
-    ifstream >> m_typeProfilingStartOffset;
-    ifstream >> m_typeProfilingEndOffset;
-    ifstream >> m_parameterCount;
+    READFIELD(m_firstLineOffset);
+    READFIELD(m_lineCount);
+    READFIELD(m_unlinkedFunctionNameStart);
+    READFIELD(m_unlinkedBodyStartColumn);
+    READFIELD(m_unlinkedBodyEndColumn);
+    READFIELD(m_startOffset);
+    READFIELD(m_sourceLength);
     
-    ifstream >>  m_features;
+    READFIELD(m_parametersStartOffset);
+    READFIELD(m_typeProfilingStartOffset);
+    READFIELD(m_typeProfilingEndOffset);
+    READFIELD(m_parameterCount);
+    
+    uint16_t codeFeatures;
+    READFIELD(codeFeatures);
+    m_features = static_cast<CodeFeatures>(codeFeatures);
     
     uint32_t parseMode;
-    ifstream >>  parseMode;
+    READFIELD(parseMode);
     m_sourceParseMode = static_cast<SourceParseMode>(parseMode);
 
-    uint16_t funcMetadata = 0;
-    ifstream >> funcMetadata;
+    uint16_t funcMetadata;
+    READFIELD(funcMetadata);
 
     m_isInStrictContext = funcMetadata & 0x0001;
     m_hasCapturedVariables = (funcMetadata & 0x0002) >> 1;
@@ -270,43 +304,27 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm, std::ifstream& ifstream){
     m_derivedContextType = (funcMetadata & 0x0400) >> 10;
 }
 
-void UnlinkedFunctionExecutable::saveCode(VM& vm, std::ofstream&){
-    // We are saving through FunctionExecutable.
-}
-
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpecializationKind specializationKind,
     DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode)
 {
-    std::ifstream& ifs(vm.byteCodeProvider().getReadStream(""));    
-
-
-    std::string keystr(reinterpret_cast<const char*>(m_ecmaName.string().characters8()), m_ecmaName.string().length());
-    dataLogLn("Loading : ", keystr.c_str());
+    //std::string keystr(reinterpret_cast<const char*>(m_ecmaName.string().characters8()), m_ecmaName.string().length());
+    //dataLogLn("Loading : ", keystr.c_str());
 
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
     unsigned endColumn;
 
-    switch(specializationKind){
-        case CodeSpecializationKind::CodeForCall:
-            ifs.seekg(m_byteCodeBundleOffsetForCall);
-            break;
+    // vm.byteCodeProvider().seekFunction(this, specializationKind);
 
-        case CodeSpecializationKind::CodeForConstruct:
-            ifs.seekg(m_byteCodeBundleOffsetForConstruct);
-            break;
-        default:
-            ASSERT(0);
-    }
-    
-	 int index; ifs >> index;
-	 ASSERT(index == 1);
+    uint8_t index; 
+    READFIELD(index);
+    ASSERT(index == 1);
 
-    ifs >> features;
-    ifs >> hasCapturedVariables;
-    ifs >> lastLine;
-    ifs >> endColumn;
+    READFIELD(features);
+    READFIELD(hasCapturedVariables);
+    READFIELD(lastLine);
+    READFIELD(endColumn);
 
     this->recordParse(features, hasCapturedVariables);
 
@@ -330,7 +348,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
     //std::string funcName(reinterpret_cast<const char* >(m_name.string().characters8()), m_name.string().length());
     //dataLogLn("Loading codeblock for : ", funcName.c_str());
 
-    unlinkedCodeblock->load(vm, ifs);
+    unlinkedCodeblock->load(vm);
 
     return unlinkedCodeblock;
 }   
@@ -427,12 +445,16 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
 
     UnlinkedFunctionCodeBlock* result = nullptr;
 
-    if(m_isLoadingByteCodes && !isBuiltinFunction()){
+    if(vm.byteCodeProvider().isCacheAvailable()) {
+
         result = this->loadCode(vm, specializationKind, debuggerMode, 
-            UnlinkedNormalFunction, 
+            UnlinkedNormalFunction,
             error, parseMode); 
     }
     else {
+
+        //dataLogLn("Byte codes are not yet cached .. Loading from source code.");
+
         result = generateUnlinkedFunctionCodeBlock(
             vm, this, source, specializationKind, debuggerMode, 
             isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 

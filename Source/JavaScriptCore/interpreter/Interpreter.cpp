@@ -85,6 +85,8 @@
 #include <wtf/Threading.h>
 #include <wtf/text/StringBuilder.h>
 
+#include "ByteCodeProvider.h"
+
 #if ENABLE(JIT)
 #include "JIT.h"
 #endif
@@ -792,8 +794,6 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     if (UNLIKELY(!vm.isSafeToRecurseSoft()))
         return checkedReturn(throwStackOverflowError(callFrame, throwScope));
 
-    if(!JSC::Options::loadBytecodes()) {
-
     // First check if the "program" is actually just a JSON object. If so,
     // we'll handle the JSON object here. Else, we'll handle real JS code
     // below at failedJSONP.
@@ -869,6 +869,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
                 MarkedArgumentBuffer jsonArg;
                 jsonArg.append(JSONPValue);
                 JSValue thisValue = JSONPPath.size() == 1 ? jsUndefined(): baseObject;
+                //dataLogLn("really!!");
                 JSONPValue = JSC::call(callFrame, function, callType, callData, thisValue, jsonArg);
                 RETURN_IF_EXCEPTION(throwScope, JSValue());
                 break;
@@ -891,13 +892,17 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
         }
         return result;
     }
-}
 
 failedJSONP:
     // If we get here, then we have already proven that the script is not a JSON
     // object.
 
     VMEntryScope entryScope(vm, scope->globalObject());
+
+    if(JSC::Options::enableBytecodeCaching()) {
+        vm.byteCodeProvider().initializeProgram("");
+        vm.byteCodeProvider().prepareToReadProgram(vm, program);
+    }
 
     // Compile source to bytecode if necessary:
     JSObject* error = program->initializeGlobalProperties(vm, callFrame, scope);
@@ -907,13 +912,6 @@ failedJSONP:
     
     dataLogLn("#XP2:", currentTime() - start);
     
-    if(JSC::Options::saveBytecodes()) {
-        //Don't execute.. Just save the byte codes.
-        program->save(vm, "script");
-        return JSValue(JSValue::JSTrue);
-    }
-    else {
-
     ProgramCodeBlock* codeBlock;
     {
         CodeBlock* tempCodeBlock;
@@ -946,12 +944,17 @@ failedJSONP:
 
     dataLogLn("#XP:", currentTime() - start);    
     
-    return checkedReturn(result);
+    if(JSC::Options::enableBytecodeCaching()) {
+        vm.byteCodeProvider().writeProgram(vm, program);
     }
+
+    return checkedReturn(result);
 }
 
 JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args)
 {
+    // dataLogLn("Interpreter::executeCall : ", static_cast<uint16_t>(callType));
+
     VM& vm = callFrame->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 
@@ -988,11 +991,14 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
 
         ASSERT(!!newCodeBlock);
         newCodeBlock->m_shouldAlwaysBeInlined = false;
-    } else
+    } else {
+        // dataLogLn("A3");
         newCodeBlock = 0;
+    } 
 
     VMTraps::Mask mask(VMTraps::NeedTermination, VMTraps::NeedWatchdogCheck);
     if (UNLIKELY(vm.needTrapHandling(mask))) {
+        // dataLogLn("A4");
         vm.handleTraps(callFrame, mask);
         RETURN_IF_EXCEPTION(throwScope, throwScope.exception());
     }
@@ -1012,11 +1018,15 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
         }
     }
 
+	// dataLogLn("Interpreter::executeCall completed.");
+
     return checkedReturn(result);
 }
 
 JSObject* Interpreter::executeConstruct(CallFrame* callFrame, JSObject* constructor, ConstructType constructType, const ConstructData& constructData, const ArgList& args, JSValue newTarget)
 {
+    // dataLogLn("Interpreter::executeConstruct");
+
     VM& vm = callFrame->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 

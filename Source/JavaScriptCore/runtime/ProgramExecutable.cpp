@@ -59,54 +59,98 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
 
 void ProgramExecutable::save(VM& vm, const char* prefix){
 
-    const char* byteCodeStorePath = Options::byteCodeStore();
-    std::ofstream ofs(byteCodeStorePath, std::ios::binary);
-
+    //vm.byteCodeProvider().initForWrite("");
     // dataLogLn("#Saving to :", byteCodeStorePath);        
 
     // Start with a magic .. It serves some purpose !!
-    ofs << "MSOJSC ";
+    //std::string magic("MSOJSC");
+    //vm.byteCodeProvider().writeBytes(magic.c_str(), magic.length());
+
+    // Write functions.
+    //for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
+   //     UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
+      //  FunctionExecutable* func = ufunc->link(vm, this->source());
+    //    func->save(vm);
+  //  }
+
+    // Write function expressions.
+    //for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
+  //      UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
+        //FunctionExecutable* func = ufunc->link(vm, this->source());
+      //  func->save(vm);
+    //}
+
+	//long programIndex = vm.byteCodeProvider().currentWritePosition();
+	 
+    // Write recordParse
+    //ScriptExecutable::save(vm);
+    
+    // Write codeblock.
+    //m_unlinkedProgramCodeBlock.get()->save(vm);
+
+    // Put the program code block offset as the last integer token .. This will be read by ByteCodeProvider::getProgramOffset
+    //vm.byteCodeProvider().outStream << " " << programIndex;
+}
+
+void ProgramExecutable::save2(VM& vm) {
+
+    // vm.byteCodeProvider().initForWrite("");
+    //dataLogLn("#Saving to :", byteCodeStorePath);        
+
+    // Start with a magic .. It serves some purpose !!
+    const char* magic = "MSOJSC";
+    vm.byteCodeProvider().writeBytes(magic, 6);
 
     // Write functions.
     for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
         FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save(vm, ofs);
+        func->save2(vm);
     }
 
     // Write function expressions.
     for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
         FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save(vm, ofs);
+        func->save2(vm);
     }
 
-	long programIndex = ofs.tellp();
-	 
+	long programIndex = vm.byteCodeProvider().currentWritePosition();
+     
+    const char* programPrelogue = "PPP";
+    vm.byteCodeProvider().writeBytes(programPrelogue, 3);
+
     // Write recordParse
-    ScriptExecutable::save(vm, ofs);
+    ScriptExecutable::save(vm);
     
     // Write codeblock.
-    m_unlinkedProgramCodeBlock.get()->save(vm, ofs);    
+    m_unlinkedProgramCodeBlock.get()->save(vm);
 
-    ofs << " " << programIndex;
+    //dataLogLn("#Writing program index :", programIndex);
+
+    // Put the program code block offset as the last integer token .. This will be read by ByteCodeProvider::getProgramOffset
+    vm.byteCodeProvider().outStream << " " << programIndex;
+
 }
 
 UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
-    std::ifstream&ifs(vm.byteCodeProvider().getReadStream(prefix));
+    //std::ifstream&ifs(vm.byteCodeProvider().getReadStream(prefix));
     //std::string magic;
     //ifs >> magic;
     //ASSERT(true);
-    int programOffset = vm.byteCodeProvider().getProgramOffset("");
+    //std::ifstream ifs;
+    // int programOffset = vm.byteCodeProvider().getProgramOffset();
     
-    ifs.seekg(programOffset);
+    // ifs.seekg(programOffset);
+
+    //vm.byteCodeProvider().initForRead("script");
 
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
     unsigned endColumn;
     
-    ScriptExecutable::load(vm, ifs, features, hasCapturedVariables, lastLine, endColumn);
+    ScriptExecutable::load(vm, features, hasCapturedVariables, lastLine, endColumn);
     recordParse(features, hasCapturedVariables, lastLine, endColumn);
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock = UnlinkedProgramCodeBlock::create(&vm, executableInfo(), DebuggerMode::DebuggerOff);
@@ -114,7 +158,7 @@ UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
     //unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURL());
     //unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
 
-    unlinkedCodeBlock->load(vm, ifs);
+    unlinkedCodeBlock->load(vm);
 
     return unlinkedCodeBlock;
 }
@@ -164,7 +208,8 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock;
     
-    if(JSC::Options::loadBytecodes()){
+    if(vm.byteCodeProvider().isCacheAvailable()) {
+        dataLogLn("Loading byte codes for global program ...");
         unlinkedCodeBlock = load(vm, "script");
     }
     else {

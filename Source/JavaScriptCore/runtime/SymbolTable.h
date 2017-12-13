@@ -461,8 +461,8 @@ public:
         return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
     }
 
-    void save(VM& vm, const Vector<Identifier>&, std::ofstream&stream);
-    void load(VM& vm, const Vector<Identifier>&, std::ifstream&stream);
+    void save(VM& vm, const Vector<Identifier>&);
+    void load(VM& vm, const Vector<Identifier>&);
 
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJSLocker&, UniquedStringImpl* key)
