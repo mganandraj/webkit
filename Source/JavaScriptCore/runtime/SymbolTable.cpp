@@ -64,15 +64,12 @@ void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers)
     size_t symbolTableSize = this->size();
     WRITEFIELD(symbolTableSize);
     
-    int index = -1;
+    size_t index;
     for( auto& entry : m_map) {
         RefPtr<UniquedStringImpl> key = entry.key;
         
-        //dataLogLn("Writing Symbol table entry : ", key, " issymbol : ", key->isSymbol(),
-        //    " isAtomic : ", key->isAtomic(), " hash :", key->existingSymbolAwareHash());
-        
-        int identifierIndex = 0;
-        // Find the symbol in hte code block identifiers.
+        size_t identifierIndex = 0;
+        // Find the symbol in the code block identifiers.
         for(const Identifier& identifier : codeblockIdentifiers) {
             // This is required so that the symbols are matched correctly.
             if(identifier.impl()->existingSymbolAwareHash() == key.get()->existingSymbolAwareHash()) {
@@ -83,51 +80,26 @@ void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers)
         }
         
         if(identifierIndex < codeblockIdentifiers.size()) {
-            //stream << static_cast<uint16_t>(SymbolSaveType::Identifier) << " ";
-            //stream << identifierIndex << " ";
             uint8_t symbolType = static_cast<uint8_t>(SymbolSaveType::Identifier);
             WRITEFIELD(symbolType);
             WRITEFIELD(identifierIndex);
-
-
-				//dataLogLn("Mapping to identifier : ", identifierIndex);
         }
-        else if( (index = vm.propertyNames->builtinNames().findPrivateNameIndex2(key.get())) >= 0) {
+        else if( vm.propertyNames->builtinNames().findPrivateNameIndex2(key.get(), index)) {
             uint8_t symbolType = static_cast<uint8_t>(SymbolSaveType::BuiltinPrivateName);
             WRITEFIELD(symbolType);
             WRITEFIELD(index);    
-            //stream << static_cast<uint16_t>(SymbolSaveType::BuiltinPrivateName) << " ";
-            //stream << index << " ";
-            //}
-            //else if( (index = vm.propertyNames->findCommonSymbol(identifier)) >= 0 ) {
-            //    stream << static_cast<uint16_t>(SymbolSaveType::WellKnownSymbol) << " ";
-            //    stream << index << " ";
-            //} else {
-            //    ASSERT(0);
-            //}
-            //ASSERT(0);
         } else if(!key->isSymbol()){
-            //stream << static_cast<uint16_t>(SymbolSaveType::Raw) << " ";
             uint8_t symbolType = static_cast<uint8_t>(SymbolSaveType::Raw);
             WRITEFIELD(symbolType);
 
             ASSERT(key->length() > 0);
-            
-            unsigned keyLength = key->length();
-            WRITEFIELD(keyLength);
+            WRITESTRING(key);
 
-            //stream << key->length() << " ";
-		  // TODO :: this can be 16 ..
-		    vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(key->characters8()), key->length());
         } else {
             ASSERT(0);
         }
 
-        //std::string keystr(reinterpret_cast<const char*>(key->characters8()), key->length());
         intptr_t value = entry.value.bits();
-
-        // stream << identifierIndex << " ";
-        //stream << value << " ";
         WRITEFIELD(value);
     }
 
@@ -152,49 +124,31 @@ void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers) {
     size_t numSymbols;
     READFIELD(numSymbols);
 
-    for(int i=0; i< numSymbols; i++) {
+    for(size_t i=0; i< numSymbols; i++) {
         uint8_t symbolTypeVal;
-        //stream >> symbolTypeVal;
         READFIELD(symbolTypeVal);
 
         RefPtr<UniquedStringImpl> keyStringImpl;
 
         switch(static_cast<SymbolSaveType>(symbolTypeVal)) {
             case SymbolSaveType::Identifier: {
-                int identifierIndex;
-                //stream >> identifierIndex;
+                size_t identifierIndex;
                 READFIELD(identifierIndex);
 
                 const Identifier& id = codeblockIdentifiers[identifierIndex];
                 keyStringImpl = id.impl();
-
-                //dataLogLn("Loading identifier to symbol table..", identifierIndex);
             }
             break;
             
             case SymbolSaveType::BuiltinPrivateName: {
-                int index;
-                //stream >> index;
+                size_t index;
                 READFIELD(index);
-
-                keyStringImpl = vm.propertyNames->builtinNames().getPrivateNameIdentifier2(index);
-                
-                //dataLogLn("Loading builtin name to symbol table..", index);
+                keyStringImpl = vm.propertyNames->builtinNames().lookupPrivateNameIdentifier2(index);
             }
             break;
 
             case SymbolSaveType::Raw: {
-
-                unsigned keyLength;
-                READFIELD(keyLength);
-
-                RefCountedArray<unsigned char> data(keyLength);
-                vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), keyLength);
-                RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
-
-                keyStringImpl=atomicStringKey.get();
-
-                //dataLogLn("Loading raw to symbol table..");
+                READATOMICSTRING(keyStringImpl);
             }
             break;
 

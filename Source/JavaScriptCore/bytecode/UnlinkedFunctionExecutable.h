@@ -169,7 +169,7 @@ private:
     UnlinkedFunctionExecutable(VM*, Structure*);
 
     unsigned m_byteCodeBundleOffsetForCall { 0 };
-    unsigned m_byteCodeBundleOffsetForConstruct;
+    unsigned m_byteCodeBundleOffsetForConstruct { 0 };
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;

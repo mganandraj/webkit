@@ -123,8 +123,6 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     , m_inferredName(node->inferredName())
     , m_parentSourceOverride(WTFMove(parentSourceOverride))
     , m_classSource(node->classSource())
-    , m_byteCodeBundleOffsetForCall(0)
-    , m_byteCodeBundleOffsetForConstruct(0)
 {
     // Make sure these bitfields are adequately wide.
     ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
@@ -281,7 +279,7 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
 }
 
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpecializationKind specializationKind,
-    DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode)
+    DebuggerMode debuggerMode, bool , ParserError& , SourceParseMode parseMode)
 {
     CodeFeatures features;
     bool hasCapturedVariables;
@@ -300,8 +298,8 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
     bool usesEval = features & EvalFeature;
     bool isStrictMode = features & StrictModeFeature;
 
-    JSParserBuiltinMode builtinMode = isBuiltinFunction() ? JSParserBuiltinMode::Builtin : JSParserBuiltinMode::NotBuiltin;
-    JSParserStrictMode strictMode = isInStrictContext() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;
+    //JSParserBuiltinMode builtinMode = isBuiltinFunction() ? JSParserBuiltinMode::Builtin : JSParserBuiltinMode::NotBuiltin;
+    // JSParserStrictMode strictMode = isInStrictContext() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;
     JSParserScriptMode _scriptMode = scriptMode();
 
     bool isClassContext = superBinding() == SuperBinding::Needed;

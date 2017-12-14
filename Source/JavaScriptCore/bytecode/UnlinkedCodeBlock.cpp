@@ -119,10 +119,6 @@ void UnlinkedCodeBlock::load(VM& vm) {
     loadExpressionRangeInfos(vm);    
 
     VERIFYMAGIC(MAGIC_CODEBLOCK_END);
-
-    //dataLogLndataLogLn("Loading completed ...");
-
-    vm.byteCodeProvider().noCacheNow();
 }
 
 void UnlinkedCodeBlock::save(VM& vm) {
@@ -163,7 +159,8 @@ void UnlinkedCodeBlock::saveInstructions(VM& vm) {
     
     size_t instructionStreamSize = m_unlinkedInstructions->m_data.size();
     WRITEFIELD(instructionStreamSize);
-    vm.byteCodeProvider().outStream.write(reinterpret_cast<char*>(m_unlinkedInstructions->m_data.data()), instructionStreamSize);
+
+    WRITEVECTOR8(m_unlinkedInstructions->m_data.data(), instructionStreamSize);
 }
 
 void UnlinkedCodeBlock::loadInstructions(VM& vm) {
@@ -175,10 +172,10 @@ void UnlinkedCodeBlock::loadInstructions(VM& vm) {
     size_t instructionStreamSize;
     READFIELD(instructionStreamSize);
 
-    RefCountedArray<unsigned char> data(instructionStreamSize);
-    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), instructionStreamSize);
-    
-    m_unlinkedInstructions = std::make_unique<UnlinkedInstructionStream>(data, instructioncount);
+    RefCountedArray<unsigned char> instrArray(instructionStreamSize);
+    READVECTOR8_NOALLOC(instrArray.data(), instructionStreamSize);
+
+    m_unlinkedInstructions = std::make_unique<UnlinkedInstructionStream>(instrArray, instructioncount);
 }
 
 void UnlinkedCodeBlock::saveVirtualRegisters(VM&vm) {
@@ -218,44 +215,31 @@ void UnlinkedCodeBlock::saveIdentifiers(VM& vm) {
     uint8_t identifierType;
     for (auto &identifier : m_identifiers) {
         if (identifier.isPrivateName()) {
-            int privateNameIndex = vm.propertyNames->builtinNames().findPrivateNameIndex(identifier);
-
-            if(privateNameIndex >= 0) {
+            size_t privateNameIndex;
+            if(vm.propertyNames->builtinNames().findPrivateNameIndex(identifier, privateNameIndex)) {
                 identifierType = static_cast<uint8_t>(IdentifierType::BuiltinPrivateName);
                 WRITEFIELD(identifierType);
                 WRITEFIELD(privateNameIndex);
             } else {
-                identifierType = static_cast<uint8_t>(IdentifierType::PrivateName);
-                WRITEFIELD(identifierType);
-
-                int identifierLength = identifier.length();
-                WRITEFIELD(identifierLength);
-                
-                // TODO :: this can be 16 ..
-                vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+                ASSERT(0); // Not implemented..
             }
         }
         else if(identifier.isSymbol()) {
-            int symbolIndex = vm.propertyNames->findCommonSymbol(identifier);
-
-            if (symbolIndex >= 0) {
+            size_t symbolIndex;
+            if (vm.propertyNames->findCommonSymbol(identifier, symbolIndex)) {
                 identifierType = static_cast<uint8_t>(IdentifierType::WellKnownSymbol);
                 WRITEFIELD(identifierType);
                 WRITEFIELD(symbolIndex);
             }
             else {
-                identifierType = static_cast<uint8_t>(IdentifierType::Symbol);
-                WRITEFIELD(identifierType);
+                //identifierType = static_cast<uint8_t>(IdentifierType::Symbol);
+                //WRITEFIELD(identifierType);
 
-                int identifierLength = identifier.length();
-                WRITEFIELD(identifierLength);
-                
-                // TODO :: this can be 16 ..
-                vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+                ASSERT(0); // Not implemented..
             }
         } else {
-            int commonIdIndex = vm.propertyNames->findCommonPropName(identifier);
-            if(commonIdIndex >= 0) {
+            size_t commonIdIndex;
+            if(vm.propertyNames->findCommonPropName(identifier, commonIdIndex)) {
                 identifierType = static_cast<uint8_t>(IdentifierType::CommonIdentifier);
                 WRITEFIELD(identifierType);
                 WRITEFIELD(commonIdIndex);
@@ -263,11 +247,10 @@ void UnlinkedCodeBlock::saveIdentifiers(VM& vm) {
                 identifierType = static_cast<uint8_t>(IdentifierType::Normal);
                 WRITEFIELD(identifierType);      
                 
-                int identifierLength = identifier.length();
-                WRITEFIELD(identifierLength);
+                //int identifierLength = identifier.length();
+                //WRITEFIELD(identifierLength);
 
-                // TODO :: This can be 16
-                vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(identifier.string().characters8()), identifier.string().length());
+                WRITEATOMICIDENTIFIER(identifier);
             }
         }
     }   
@@ -279,50 +262,39 @@ void UnlinkedCodeBlock::loadIdentifiers(VM& vm) {
 
     size_t numIdentifiers;
     uint8_t identifierType;
-    int identifierIndex;
+    size_t identifierIndex;
     READFIELD(numIdentifiers);
     for(size_t i=0; i<numIdentifiers; i++) {
         READFIELD(identifierType);
         switch(static_cast<IdentifierType>(identifierType)) {
             case IdentifierType::CommonIdentifier:{
                 READFIELD(identifierIndex);
-                m_identifiers.append(vm.propertyNames->getCommonPropNameIdenfier(identifierIndex));
+                m_identifiers.append(vm.propertyNames->lookupCommonPropNameIdenfier(identifierIndex));
             }
             break;
 
             case IdentifierType::WellKnownSymbol: {
                 READFIELD(identifierIndex);
-                m_identifiers.append(vm.propertyNames->getCommonSymbolIdenfier(identifierIndex));
+                m_identifiers.append(vm.propertyNames->lookupCommonSymbolIdenfier(identifierIndex));
             }
             break;
 
             case IdentifierType::Symbol: {
-					int idlength;
-					READFIELD(idlength);
+                ASSERT(0);
+                //int idlength;
+                //READFIELD(idlength);
+                //ASSERT(idlength == 0);
 
-					ASSERT(idlength >= 0);
-					if (idlength > 0) {
-						ASSERT(0); // Need to implement this.
-					}
-					else {
-						m_identifiers.append(Identifier::fromUid(PrivateName()));
-					}
+                //m_identifiers.append(Identifier::fromUid(PrivateName()));
             }
             break; 
 
             case IdentifierType::PrivateName: {
                 int idlength;
                 READFIELD(idlength);
-                
-                ASSERT(idlength >=0 );
-                if(idlength > 0) {
-                    RefCountedArray<unsigned char> data(idlength);
-                    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), idlength);
+                ASSERT(idlength == 0 );
 
-                    ASSERT(0); // Need to implement this.
-                } else {
-                    m_identifiers.append(Identifier::fromUid(PrivateName()));
-                }
+                m_identifiers.append(Identifier::fromUid(PrivateName()));
             }
             break;
 
@@ -330,19 +302,17 @@ void UnlinkedCodeBlock::loadIdentifiers(VM& vm) {
                 READFIELD(identifierIndex);
                 ASSERT(identifierIndex >= 0);
 
-                m_identifiers.append(vm.propertyNames->builtinNames().getPrivateNameIdentifier(identifierIndex));
+                m_identifiers.append(vm.propertyNames->builtinNames().lookupPrivateNameIdentifier(identifierIndex));
             }
             break;
 
             case IdentifierType::Normal: {
-                int idlength;
-                READFIELD(idlength);
+                //int idlength;
+                //READFIELD(idlength);
                         
-                RefCountedArray<unsigned char> data(idlength);
-                vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), idlength);
-        
-                // TODO :: Handle 16
-                m_identifiers.append(Identifier::fromString(&vm, reinterpret_cast<const LChar *>(data.data()), idlength));
+                Identifier id;
+                READATOMICIDENTIFIER(id);
+                m_identifiers.append(id);
             }
             break;
 
@@ -360,8 +330,6 @@ void UnlinkedCodeBlock::saveBitVectors(VM& vm) {
     for (auto &bitVector : m_bitVectors){
         uintptr_t bits = *bitVector.bits();
         WRITEFIELD(bits);
-        //stream << *bitVector.bits();
-        //stream << " ";
     }
 }
 
@@ -405,18 +373,7 @@ void UnlinkedCodeBlock::saveConstants(VM& vm) {
                     WRITEFIELD(constantType);
 
                     const String& constStr = static_cast<const JSString*>(value.asCell())->tryGetValue();
-                    bool is8bit = constStr.is8Bit();
-
-                    WRITEFIELD(is8bit);
-                    
-                    unsigned length = constStr.length();
-                    WRITEFIELD(length);
-
-                    if(is8bit) {
-                        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(constStr.characters8()), constStr.length());
-                    } else {
-                        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(constStr.characters16()), 2*constStr.length());
-                    }
+                    WRITESTRING(constStr.impl());
 
                     int32_t sourceCodeRepresentation = static_cast<int32_t>(constantsSourceCodeRepresentation()[i]);
                     WRITEFIELD(sourceCodeRepresentation);
@@ -493,24 +450,13 @@ void UnlinkedCodeBlock::loadConstants(VM& vm) {
 
             case ConstantType::String:
             {
-                bool is8bit;
-                READFIELD(is8bit);
-
-                unsigned stringLength;
-                READFIELD(stringLength);
-
-                if(is8bit) {
-                    RefCountedArray<unsigned char> data(stringLength);
-                    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), stringLength);
-
-                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const LChar*>(data.data()), stringLength).string());
-                    m_constantRegisters.last().set(vm, this, JSValue(jsString));  
+                RefPtr<StringImpl> constStringImpl = nullptr;
+                READSTRING(constStringImpl);
+    
+                if(constStringImpl) {
+                    m_constantRegisters.last().set(vm, this, JSValue(jsString(&vm, String(constStringImpl.get()))));  
                 } else {
-                    RefCountedArray<unsigned char> data(2 * stringLength);
-                    vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), 2 * stringLength);
-
-                    JSString* jsString = jsOwnedString(&vm, Identifier::fromString(&vm, reinterpret_cast<const UChar*>(data.data()), stringLength).string());
-                    m_constantRegisters.last().set(vm, this, JSValue(jsString));  
+                    m_constantRegisters.last().set(vm, this, JSValue(jsString(&vm, String())));  
                 }
 
                 uint32_t constRepresentation;
@@ -546,20 +492,6 @@ void UnlinkedCodeBlock::saveConstantIdentifierSets(VM& vm) {
 
     size_t numConstantIdentiferSets = m_constantIdentifierSets.size();
     WRITEFIELD(numConstantIdentiferSets);
-
-   // for (auto &constIdSetEntry : m_constantIdentifierSets){
-     //   unsigned val = constIdSetEntry.second;
-       // WRITEFIELD(val);
-
-     //   IdentifierSet idSet = constIdSetEntry.first;
-       // for (auto &identifier : idSet){
-            //unsigned length = identifier->length();
-            //WRITEFIELD(length);
-            //vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(constStr.characters8()), length);
-    //    }
-   // }
-
-
 }
 
 void UnlinkedCodeBlock::loadConstantIdentifierSets(VM& vm) {
@@ -768,8 +700,6 @@ void UnlinkedCodeBlock::saveStringSwitchJumpTables(VM& vm) {
     for(size_t i=0; i<numberOfStringSwitchJumpTables(); i++) {
         stringSwitchJumpTable(i).save(vm);
     }
-
-    
 }
 
 void UnlinkedCodeBlock::loadExceptionHandlers(VM& vm) {
@@ -818,7 +748,6 @@ void UnlinkedCodeBlock::saveExceptionHandlers(VM& vm) {
         WRITEFIELD(target);
         WRITEFIELD(typeBits);
     }
-   
 }
 
 void UnlinkedCodeBlock::loadRegexps(VM& vm) {
@@ -834,22 +763,11 @@ void UnlinkedCodeBlock::loadRegexps(VM& vm) {
 
     for(size_t i=0; i<numbRegexps; i++) {
 
-        unsigned regexplength;
-        READFIELD(regexplength);
+        RefPtr<StringImpl> patternStringImpl;
+        READSTRING(patternStringImpl);
+        ASSERT(patternStringImpl);
 
-        bool is8bit;
-        READFIELD(is8bit);
-
-        WTF::String pattern;
-        if(is8bit){
-            RefCountedArray<unsigned char> data(regexplength);
-            vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), regexplength);
-            pattern = WTF::String(reinterpret_cast<const LChar*>(data.data()), regexplength);
-        } else {
-            RefCountedArray<unsigned char> data(2 * regexplength);
-            vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), 2*regexplength);
-            pattern = WTF::String(reinterpret_cast<const UChar*>(data.data()), regexplength);
-        }
+        WTF::String pattern(patternStringImpl.get());
 
         /*RegExpFlags*/ uint8_t flagsVal;
         /*RegExpState*/ uint8_t stateVal;
@@ -906,23 +824,24 @@ void UnlinkedCodeBlock::loadConstantBuffers(VM& vm) {
                     
                     m_rareData->m_constantBuffers.last().append(JSValue::decode(static_cast<EncodedJSValue>(constant)));  
                 }
-                    break;
+                break;
 
-                    case ConstantType::Empty:
+                case ConstantType::Empty:
                 {
                     m_rareData->m_constantBuffers.last().append(JSValue()); 
 
                 }
-                    break;
+                break;
 
                 case ConstantType::String:
                 {
-                    int constRegisterIndex;
+                    size_t constRegisterIndex;
                     READFIELD(constRegisterIndex);
+                    ASSERT(constRegisterIndex >= 0 && constRegisterIndex < m_constantRegisters.size());
 
                     m_rareData->m_constantBuffers.last().append(m_constantRegisters[constRegisterIndex].get());
                 }
-                    break;
+                break;
 
                 default:
                     ASSERT(0);
@@ -959,7 +878,7 @@ void UnlinkedCodeBlock::saveConstantBuffers(VM& vm) {
                     JSString* bufferVal = JSC::asString(value);
                     const String& bufferStringVal = bufferVal->tryGetValue();
 
-                    int constantIndex = 0;
+                    size_t constantIndex = 0;
                     for(auto constant : m_constantRegisters) {
                         JSValue jsValue = constant.get();
                     
@@ -994,8 +913,8 @@ void UnlinkedCodeBlock::saveConstantBuffers(VM& vm) {
                 uint8_t constantType = static_cast<uint8_t>(ConstantType::NonCellValue);
                 int64_t valueEnc = static_cast<int64_t>(JSValue::encode(value));
 
-                        WRITEFIELD(constantType);
-                        WRITEFIELD(valueEnc);
+                WRITEFIELD(constantType);
+                WRITEFIELD(valueEnc);
             }
         }
     }
@@ -1109,13 +1028,7 @@ void UnlinkedStringJumpTable::save(VM& vm) {
         RefPtr<StringImpl> key = entry.key;
         int32_t value = entry.value.branchOffset;
         
-        unsigned labelLength = key->length();
-        ASSERT(labelLength > 0);
-
-        WRITEFIELD(labelLength);
-        if(labelLength > 0)
-            vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(key->characters8()), labelLength);
-        
+        WRITESTRING(key);
         WRITEFIELD(value);
     }
 }
@@ -1125,22 +1038,17 @@ void UnlinkedStringJumpTable::load(VM& vm) {
     READFIELD(offsetTableSize);
 
     for(int i=0; i < offsetTableSize; i++) {
-        
+
+        RefPtr<StringImpl> key;
+        READSTRING(key);
+
         int32_t value;
-
-        unsigned keyLength;
-        READFIELD(keyLength);
-
-        RefCountedArray<unsigned char> data(keyLength);
-        vm.byteCodeProvider().readBytes(reinterpret_cast<char*>(data.begin()), keyLength);
-        RefPtr<AtomicStringImpl> atomicStringKey = AtomicStringImpl::add(data.data(), keyLength);
-
         READFIELD(value);
 
         struct OffsetLocation location;
         location.branchOffset = value;
 
-        offsetTable.add(atomicStringKey, location);
+        offsetTable.add(key, location);
     }
 }
 

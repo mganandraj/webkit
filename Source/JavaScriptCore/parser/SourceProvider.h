@@ -106,6 +106,7 @@ namespace JSC {
         {
             // Not Implemented yet.
             ASSERT(0);
+            return 0;
             //return m_source.get().hash();
         }
 
@@ -113,16 +114,17 @@ namespace JSC {
         {
             // Not Implemented yet.
             ASSERT(0);
+            return StringView();
             //return m_source.get();
         }
 
-		  int length() const override
-		  {
-			  return -1;
-		  }
+        int length() const override
+        {
+            return -1;
+        }
 
     private:
-        MemoryMappedFileSourceProvider(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        MemoryMappedFileSourceProvider(const String& , const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
             : SourceProvider(sourceOrigin, url, startPosition, sourceType){}
         
         //Ref<StringImpl> m_source;

@@ -78,7 +78,7 @@ static void append32(unsigned char*& ptr, unsigned value)
 }
 
 UnlinkedInstructionStream::UnlinkedInstructionStream(RefCountedArray<unsigned char> data, unsigned instructionCount)
-    : m_instructionCount(instructionCount), m_data(data)
+    : m_data(data), m_instructionCount(instructionCount)
     {}
 
 UnlinkedInstructionStream::UnlinkedInstructionStream(const Vector<UnlinkedInstruction, 0, UnsafeVectorOverflow>& instructions)

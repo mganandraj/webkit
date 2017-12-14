@@ -59,34 +59,34 @@ CommonIdentifiers::CommonIdentifiers(VM* vm)
     JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_WELL_KNOWN_SYMBOL(APPEND_SYMBOL_TO_IDVECTOR)
 }
 
-int CommonIdentifiers::findCommonPropName(const Identifier& inId) {
-    int index = 0;
+bool CommonIdentifiers::findCommonPropName(const Identifier& inId, size_t& index) {
+    index = 0;
     for(const Identifier* identifier : propNameVector) {
         if(Identifier::equal(identifier->impl(), inId.impl()))
-            return index;
+            return true;
         index++;
     }
 
-    return -1;
+    return false;
 }
 
-int CommonIdentifiers::findCommonSymbol(const Identifier& inId) {
-    int index = 0;
+bool CommonIdentifiers::findCommonSymbol(const Identifier& inId, size_t& index) {
+    index = 0;
     for(const Identifier* identifier : symbolVector) {
         if(Identifier::equal(identifier->impl(), inId.impl()))
-            return index;
+            return true;
         index++;
     }
 
-    return -1;
+    return false;
 }
 
-const Identifier& CommonIdentifiers::getCommonPropNameIdenfier(int index) {
+const Identifier& CommonIdentifiers::lookupCommonPropNameIdenfier(size_t index) {
     ASSERT(index >=0 && index < propNameVector.size());
     return *propNameVector[index];
 }
 
-const Identifier& CommonIdentifiers::getCommonSymbolIdenfier(int index) {
+const Identifier& CommonIdentifiers::lookupCommonSymbolIdenfier(size_t index) {
     ASSERT(index >=0 && index < symbolVector.size());
     return *symbolVector[index];
 }

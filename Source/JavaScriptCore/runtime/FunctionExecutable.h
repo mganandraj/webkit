@@ -43,8 +43,6 @@ public:
     void save(VM& vm);
     void save2(VM& vm);
 
-    UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
-
     static FunctionExecutable* create(
         VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, 
         unsigned lastLine, unsigned endColumn, Intrinsic intrinsic)

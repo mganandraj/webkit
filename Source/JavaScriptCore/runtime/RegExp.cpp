@@ -231,17 +231,7 @@ RegExp::RegExp(VM& vm, const String& patternString, RegExpFlags flags)
 
 void RegExp::save(VM& vm) 
 {   
-    unsigned patternStringLength = m_patternString.length();
-    WRITEFIELD(patternStringLength);
-    
-    bool is8bit = m_patternString.is8Bit();
-    WRITEFIELD(is8bit);
-    
-    if(is8bit) {
-        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_patternString.characters8()), m_patternString.length());
-    } else {
-        vm.byteCodeProvider().outStream.write(reinterpret_cast<const char* >(m_patternString.characters16()), 2 * m_patternString.length());
-    }
+    WRITESTRING(m_patternString.impl());
     
     uint8_t flags = static_cast<uint8_t>(m_flags);
     WRITEFIELD(flags);

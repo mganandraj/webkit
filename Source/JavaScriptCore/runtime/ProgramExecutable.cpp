@@ -57,7 +57,7 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
         exec->vm().functionHasExecutedCache()->insertUnexecutedRange(sourceID(), m_typeProfilingStartOffset, m_typeProfilingEndOffset);
 }
 
-void ProgramExecutable::save(VM& vm, const char* prefix){
+void ProgramExecutable::save(VM&){
 
     //vm.byteCodeProvider().initForWrite("");
     // dataLogLn("#Saving to :", byteCodeStorePath);        
@@ -99,17 +99,18 @@ void ProgramExecutable::save2(VM& vm) {
 
     // Start with a magic .. It serves some purpose !!
     const char* magic = "MSOJSC";
-    vm.byteCodeProvider().writeBytes(magic, 6);
+    WRITEVECTOR8(magic, 6);
+    // vm.byteCodeProvider().writeBytes(magic, 6);
 
     // Write functions.
-    for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
+    for(size_t i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
         FunctionExecutable* func = ufunc->link(vm, this->source());
         func->save2(vm);
     }
 
     // Write function expressions.
-    for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
+    for(size_t i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
         FunctionExecutable* func = ufunc->link(vm, this->source());
         func->save2(vm);
@@ -133,18 +134,7 @@ void ProgramExecutable::save2(VM& vm) {
 
 }
 
-UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm, const char* prefix) {
-    //std::ifstream&ifs(vm.byteCodeProvider().getReadStream(prefix));
-    //std::string magic;
-    //ifs >> magic;
-    //ASSERT(true);
-    //std::ifstream ifs;
-    // int programOffset = vm.byteCodeProvider().getProgramOffset();
-    
-    // ifs.seekg(programOffset);
-
-    //vm.byteCodeProvider().initForRead("script");
-
+UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm) {
     CodeFeatures features;
     bool hasCapturedVariables;
     int lastLine;
@@ -210,7 +200,7 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
     
     if(vm.byteCodeProvider().isCacheAvailable()) {
         dataLogLn("Loading byte codes for global program ...");
-        unlinkedCodeBlock = load(vm, "script");
+        unlinkedCodeBlock = load(vm);
     }
     else {
         unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(

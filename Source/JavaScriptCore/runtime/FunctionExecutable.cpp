@@ -140,7 +140,8 @@ void FunctionExecutable::save2(VM& vm) {
     if(unlinkedCodeBlockForCall) {
         this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
         
-        vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
+        WRITEVECTOR8(functionPrelogue, 3);
+        //vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
 
         // Write recordParse
         ScriptExecutable::save(vm);
@@ -152,7 +153,8 @@ void FunctionExecutable::save2(VM& vm) {
     if(unlinkedCodeBlockForConstruct) { 
         this->unlinkedExecutable()->setByteCodeBundleOffsetForConstruct(vm.byteCodeProvider().currentWritePosition());
         
-        vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
+        WRITEVECTOR8(functionPrelogue, 3);
+        //vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
 
         // Write recordParse
         ScriptExecutable::save(vm);
@@ -211,7 +213,7 @@ void FunctionExecutable::save(VM& vm){
     if(unlinkedCodeBlockForConstruct) {
 
         // Write functions.
-        for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionDecls(); i++) {
+        for(size_t i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionDecls(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionDecl(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
             //dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
@@ -219,7 +221,7 @@ void FunctionExecutable::save(VM& vm){
         }
 
         // Write functions expressions.
-        for(int i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionExprs(); i++) {
+        for(size_t i=0; i<unlinkedCodeBlockForConstruct->numberOfFunctionExprs(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForConstruct->functionExpr(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
             //dataLogLn("#Saving: ", this->firstLine(), ": ", this->startColumn());
@@ -231,14 +233,14 @@ void FunctionExecutable::save(VM& vm){
     if(unlinkedCodeBlockForCall) {
         
         // Write functions.
-        for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
+        for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
             func->save(vm);	
         }
 
         // Write functions expressions.
-        for(int i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
+        for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
             UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
             FunctionExecutable* func = ufunc->link(vm, this->source());
             func->save(vm);
@@ -269,11 +271,6 @@ void FunctionExecutable::save(VM& vm){
         unlinkedCodeBlockForCall->save(vm);
     }
 }
-
-UnlinkedProgramCodeBlock* FunctionExecutable::load(VM& vm, const char* prefix){
-    return nullptr; 
-}
-
 
 void FunctionExecutable::finishCreation(VM& vm)
 {

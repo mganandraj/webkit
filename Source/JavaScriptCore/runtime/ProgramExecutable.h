@@ -75,9 +75,9 @@ private:
     friend class ScriptExecutable;
 
     friend class ByteCodeProvider;
-    void save(VM& vm, const char* prefix);
+    void save(VM& vm);
     void save2(VM& vm);
-    UnlinkedProgramCodeBlock* load(VM& vm, const char* prefix);
+    UnlinkedProgramCodeBlock* load(VM& vm);
 
     ProgramExecutable(ExecState*, const SourceCode&);
 

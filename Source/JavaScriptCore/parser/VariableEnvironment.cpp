@@ -63,7 +63,7 @@ void VariableEnvironment::load(VM& vm, const Vector<Identifier>& identifiers) {
     unsigned mapSize;
     READFIELD(mapSize);
 
-    for(int i=0; i<mapSize; i++) {
+    for(size_t i=0; i<mapSize; i++) {
         uint32_t keyindex;
         uint16_t entryBits;   
     
@@ -76,6 +76,7 @@ void VariableEnvironment::load(VM& vm, const Vector<Identifier>& identifiers) {
         entry.m_bits = entryBits;
 
         Map::AddResult addResult = add(keystr, entry);
+        ASSERT_UNUSED(addResult, addResult.isNewEntry);
     }
 }
 

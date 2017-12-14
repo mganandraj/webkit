@@ -48,34 +48,34 @@ SymbolImpl::StaticSymbolImpl underscoreProtoPrivateName { "PrivateSymbol.__proto
 
 } // namespace Symbols
 
-int BuiltinNames::findPrivateNameIndex(const Identifier& inId) const{
-    int index = 0;
+bool BuiltinNames::findPrivateNameIndex(const Identifier& inId, size_t& index) const{
+    index = 0;
     for(const Identifier* identifier : privateNameVector) {
         if(Identifier::equal(identifier->impl(), inId.impl()))
-            return index;
+            return true;
         index++;
     }
 
-    return -1;
+    return false;
 }
 
-const Identifier& BuiltinNames::getPrivateNameIdentifier(int index) const{
+const Identifier& BuiltinNames::lookupPrivateNameIdentifier(size_t index) const{
     ASSERT(index >=0 && index < privateNameVector.size());
     return *privateNameVector[index];
 }
 
-int BuiltinNames::findPrivateNameIndex2(const UniquedStringImpl*inImpl) const {
-    int index = 0;
+bool BuiltinNames::findPrivateNameIndex2(const UniquedStringImpl*inImpl, size_t& index) const {
+    index = 0;
     for(const Identifier* identifier : privateNameVector) {
         if(Identifier::equal(identifier->impl(), inImpl))
-            return index;
+            return true;
         index++;
     }
 
-    return -1;
+    return false;
 }
 
-UniquedStringImpl* BuiltinNames::getPrivateNameIdentifier2(int index) const{
+UniquedStringImpl* BuiltinNames::lookupPrivateNameIdentifier2(size_t index) const{
     ASSERT(index >=0 && index < privateNameVector.size());
     return privateNameVector[index]->impl();
 }

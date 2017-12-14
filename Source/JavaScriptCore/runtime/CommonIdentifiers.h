@@ -307,11 +307,11 @@ namespace JSC {
         std::vector<const Identifier*> propNameVector;
         std::vector<const Identifier*> symbolVector;
 
-        int findCommonPropName(const Identifier&);
-        int findCommonSymbol(const Identifier&);
+        bool findCommonPropName(const Identifier&, size_t& index);
+        bool findCommonSymbol(const Identifier&, size_t& index);
 
-        const Identifier& getCommonPropNameIdenfier(int);
-        const Identifier& getCommonSymbolIdenfier(int);
+        const Identifier& lookupCommonPropNameIdenfier(size_t);
+        const Identifier& lookupCommonSymbolIdenfier(size_t);
 
     private:
         std::unique_ptr<BuiltinNames> m_builtinNames;

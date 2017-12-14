@@ -267,11 +267,11 @@ public:
     // Bytecode serialization
     std::vector<const Identifier*> privateNameVector;
     
-    int findPrivateNameIndex(const Identifier&) const;
-    const Identifier& getPrivateNameIdentifier(int) const;
+    bool findPrivateNameIndex(const Identifier&, size_t& index) const;
+    const Identifier& lookupPrivateNameIdentifier(size_t) const;
 
-    int findPrivateNameIndex2(const UniquedStringImpl*) const;
-    UniquedStringImpl* getPrivateNameIdentifier2(int) const;
+    bool findPrivateNameIndex2(const UniquedStringImpl*, size_t& index) const;
+    UniquedStringImpl* lookupPrivateNameIdentifier2(size_t) const;
 private:
     Identifier m_emptyIdentifier;
     JSC_FOREACH_BUILTIN_FUNCTION_NAME(DECLARE_BUILTIN_NAMES)
