@@ -636,6 +636,7 @@ llint/LLIntThunks.cpp
 # FIXME: We can't bundle this file due to a clang bug.
 llint/LowLevelInterpreter.cpp #@no-unify
 
+parser/MemoryMappedFileUtils.cpp
 parser/Lexer.cpp
 parser/ModuleAnalyzer.cpp
 parser/Nodes.cpp
@@ -922,7 +923,9 @@ runtime/WeakMapConstructor.cpp
 runtime/WeakMapPrototype.cpp
 runtime/WeakSetConstructor.cpp
 runtime/WeakSetPrototype.cpp
+runtime/ByteCodeStoreUtils.cpp
 runtime/ByteCodeProvider.cpp
+runtime/ByteCodeReadStore.cpp
 
 # Derived Sources
 # FIXME: We should move this to runtime but it kept breaking the Windows build in weird ways... https://bugs.webkit.org/show_bug.cgi?id=177486

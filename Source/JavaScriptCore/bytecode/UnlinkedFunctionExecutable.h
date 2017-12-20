@@ -114,7 +114,7 @@ public:
 
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(
         VM&, const SourceCode&, CodeSpecializationKind, DebuggerMode,
-        ParserError&, SourceParseMode);
+        ParserError&, SourceParseMode, bool);
 
     static UnlinkedFunctionExecutable* fromGlobalCode(
         const Identifier&, ExecState&, const SourceCode&, JSObject*& exception, 
@@ -155,11 +155,11 @@ public:
     void setSourceURLDirective(const String& sourceURL) { m_sourceURLDirective = sourceURL; }
     void setSourceMappingURLDirective(const String& sourceMappingURL) { m_sourceMappingURLDirective = sourceMappingURL; }
 
-    void setByteCodeBundleOffsetForCall(unsigned offset) { m_byteCodeBundleOffsetForCall = offset; }
-    void setByteCodeBundleOffsetForConstruct(unsigned offset) { m_byteCodeBundleOffsetForConstruct = offset; }
+    void setByteCodeBundleOffsetForCall(size_t offset) { m_byteCodeBundleOffsetForCall = offset; }
+    void setByteCodeBundleOffsetForConstruct(size_t offset) { m_byteCodeBundleOffsetForConstruct = offset; }
 
-    unsigned byteCodeBundleOffsetForCall() const {return m_byteCodeBundleOffsetForCall;}
-    unsigned byteCodeBundleOffsetForConstruct() const {return m_byteCodeBundleOffsetForConstruct;}
+    size_t byteCodeBundleOffsetForCall() const { return m_byteCodeBundleOffsetForCall; }
+    size_t byteCodeBundleOffsetForConstruct() const { return m_byteCodeBundleOffsetForConstruct; }
 
     WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForCall;
     WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForConstruct;
@@ -168,8 +168,8 @@ private:
     UnlinkedFunctionExecutable(VM*, Structure*, const SourceCode&, SourceCode&& parentSourceOverride, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, VariableEnvironment&,  JSC::DerivedContextType);
     UnlinkedFunctionExecutable(VM*, Structure*);
 
-    unsigned m_byteCodeBundleOffsetForCall { 0 };
-    unsigned m_byteCodeBundleOffsetForConstruct { 0 };
+    size_t m_byteCodeBundleOffsetForCall { 0 };
+    size_t m_byteCodeBundleOffsetForConstruct { 0 };
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;

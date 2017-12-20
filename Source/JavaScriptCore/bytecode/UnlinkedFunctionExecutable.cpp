@@ -229,11 +229,11 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
             READFIELD(isSource8bit);
 
             if(isSource8bit) {
-                unsigned char* _data;
+                char* _data;
                 READVECTOR8(&_data, sourceLength);
                 m_parentSourceOverride = makeSource(StringImpl::create(reinterpret_cast<const LChar*>(_data), sourceLength), { });
             } else {
-                unsigned char* _data;
+                char* _data;
                 READVECTOR16(&_data, sourceLength);
                 m_parentSourceOverride = makeSource(StringImpl::create(reinterpret_cast<const UChar*>(_data), sourceLength), { });
             }
@@ -394,7 +394,7 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
 
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
     VM& vm, const SourceCode& source, CodeSpecializationKind specializationKind, 
-    DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode)
+    DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode, bool byteCodeCacheAvailable)
 {
     switch (specializationKind) {
     case CodeForCall:
@@ -409,7 +409,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
 
     UnlinkedFunctionCodeBlock* result = nullptr;
 
-    if(vm.byteCodeProvider().isCacheAvailable()) {
+    if(byteCodeCacheAvailable) {
 
         result = this->loadCode(vm, specializationKind, debuggerMode, 
             UnlinkedNormalFunction,

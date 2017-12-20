@@ -282,14 +282,12 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
     ParserError error;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
     
-    if(JSC::Options::enableBytecodeCaching()) {
-        vm->byteCodeProvider().prepareToReadFunction(*vm, executable, kind);
-    }
+    bool byteCodeCacheAvailable = JSC::Options::enableBytecodeCaching() & vm->byteCodeProvider().currentReadStore()->prepareToReadFunction(*vm, executable, kind);
     
     UnlinkedFunctionCodeBlock* unlinkedCodeBlock = 
         executable->m_unlinkedExecutable->unlinkedCodeBlockFor(
             *vm, executable->m_source, kind, debuggerMode, error, 
-            executable->parseMode());
+            executable->parseMode(), byteCodeCacheAvailable);
 
     // dataLogLn("1", static_cast<uint32_t>(gettid()));
     //dataLogLn("1");

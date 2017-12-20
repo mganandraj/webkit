@@ -92,7 +92,7 @@ void ProgramExecutable::save(VM&){
     //vm.byteCodeProvider().outStream << " " << programIndex;
 }
 
-void ProgramExecutable::save2(VM& vm) {
+size_t ProgramExecutable::save2(VM& vm) {
 
     // vm.byteCodeProvider().initForWrite("");
     //dataLogLn("#Saving to :", byteCodeStorePath);        
@@ -116,10 +116,10 @@ void ProgramExecutable::save2(VM& vm) {
         func->save2(vm);
     }
 
-	long programIndex = vm.byteCodeProvider().currentWritePosition();
+	size_t programIndex = vm.byteCodeProvider().currentWriteStore()->currentWritePosition();
      
     const char* programPrelogue = "PPP";
-    vm.byteCodeProvider().writeBytes(programPrelogue, 3);
+    WRITEVECTOR8(programPrelogue, 3);
 
     // Write recordParse
     ScriptExecutable::save(vm);
@@ -127,11 +127,7 @@ void ProgramExecutable::save2(VM& vm) {
     // Write codeblock.
     m_unlinkedProgramCodeBlock.get()->save(vm);
 
-    //dataLogLn("#Writing program index :", programIndex);
-
-    // Put the program code block offset as the last integer token .. This will be read by ByteCodeProvider::getProgramOffset
-    vm.byteCodeProvider().outStream << " " << programIndex;
-
+    return programIndex;
 }
 
 UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm) {
@@ -198,7 +194,7 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock;
     
-    if(vm.byteCodeProvider().isCacheAvailable()) {
+    if(vm.byteCodeProvider().currentReadStore() != nullptr) {
         dataLogLn("Loading byte codes for global program ...");
         unlinkedCodeBlock = load(vm);
     }

@@ -35,6 +35,8 @@
 
 #include <wtf/DataLog.h>
 
+#include "MemoryMappedFileUtils.h"
+
 namespace JSC {
 
     enum class SourceProviderSourceType {
@@ -53,8 +55,8 @@ namespace JSC {
 
         virtual unsigned hash() const = 0;
         virtual StringView source() const = 0;
-		  virtual int length() const = 0;
-		  StringView getRange(int start, int end) const
+		virtual int length() const = 0;
+		virtual StringView getRange(int start, int end) const
         {
             //dataLogLn("StringView::getRange :", sourceOrigin().string(), ":", start, " : ", end );
             return source().substring(start, end - start);
@@ -96,38 +98,66 @@ namespace JSC {
 
     class MemoryMappedFileSourceProvider : public SourceProvider {
     public:
-        // TODO :: Signature ?? FD/FileName ?
-        static Ref<MemoryMappedFileSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+        static Ref<MemoryMappedFileSourceProvider> create(int fd, size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
         {
-            return adoptRef(*new MemoryMappedFileSourceProvider(source, sourceOrigin, url, startPosition, sourceType));
+            return adoptRef(*new MemoryMappedFileSourceProvider(fd, offset, size, sourceOrigin, url, startPosition, sourceType));
+        }
+    
+        static Ref<MemoryMappedFileSourceProvider> create(const String& localPath, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+        {
+            return adoptRef(*new MemoryMappedFileSourceProvider(localPath, sourceOrigin, url, startPosition, sourceType));
         }
         
         unsigned hash() const override
         {
-            // Not Implemented yet.
-            ASSERT(0);
-            return 0;
-            //return m_source.get().hash();
+            // We don't want anyone calling this ..
+            // ASSERT(0);
+            return m_size;
+        }
+
+        StringView getRange(int start, int end) const override
+        {
+            return StringView(m_mappedBuffer + start, end-start);
         }
 
         StringView source() const override
         {
-            // Not Implemented yet.
-            ASSERT(0);
-            return StringView();
-            //return m_source.get();
+            return StringView(m_mappedBuffer, m_size);
         }
 
         int length() const override
         {
-            return -1;
+            // We don't want anyone calling this for now ..
+            // ASSERT(0);
+            return m_size;
         }
 
     private:
-        MemoryMappedFileSourceProvider(const String& , const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
-            : SourceProvider(sourceOrigin, url, startPosition, sourceType){}
+    MemoryMappedFileSourceProvider(int fd , size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        : SourceProvider(sourceOrigin, url, startPosition, sourceType),
+        m_fd (fd),
+        m_size (size),
+        m_startOffset (offset)
+        {
+            bool fileMapped = mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
+            ASSERT(fileMapped);
+        }
+
+    MemoryMappedFileSourceProvider(const String& localPath , const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        : SourceProvider(sourceOrigin, url, startPosition, sourceType),
+        m_localPath(localPath) {
+            bool fileMapped = mapWholeFileForRead(m_localPath, &m_mappedBuffer, &m_size);
+            ASSERT(fileMapped);
+    }
+
+        int m_fd {-1};
+
+        String m_localPath;
         
-        //Ref<StringImpl> m_source;
+        // TODO :: unmap when done.
+        uint8_t* m_mappedBuffer {nullptr};
+        size_t m_size;
+        size_t m_startOffset;
     };
 
 

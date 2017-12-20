@@ -93,11 +93,16 @@ namespace JSC {
         return SourceCode(StringSourceProvider::create(source, sourceOrigin, url, startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
     }
 
-	 inline SourceCode makeMemoryMappedSource(const String& source, const SourceOrigin& sourceOrigin, const String& url = String(), const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
-	 {
-        return SourceCode(MemoryMappedFileSourceProvider::create(source, sourceOrigin, url, startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
-	 }
-    
+	inline SourceCode makeMemoryMappedSource(int fd, size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& url = String(), const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+	{
+        return SourceCode(MemoryMappedFileSourceProvider::create(fd, offset, size, sourceOrigin, url, startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
+	}
+
+    inline SourceCode makeMemoryMappedSource(const String& localPath, const SourceOrigin& sourceOrigin, const String& url = String(), const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+    {
+        return SourceCode(MemoryMappedFileSourceProvider::create(localPath, sourceOrigin, url, startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
+    }
+
     inline SourceCode SourceCode::subExpression(unsigned openBrace, unsigned closeBrace, int firstLine, int startColumn)
     {
         startColumn += 1; // Convert to base 1.

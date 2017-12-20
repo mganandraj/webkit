@@ -221,7 +221,10 @@ void UnlinkedCodeBlock::saveIdentifiers(VM& vm) {
                 WRITEFIELD(identifierType);
                 WRITEFIELD(privateNameIndex);
             } else {
-                ASSERT(0); // Not implemented..
+                identifierType = static_cast<uint8_t>(IdentifierType::PrivateName);
+                WRITEFIELD(identifierType);
+
+                ASSERT(identifier.string().length() == 0); // others are not yet implemented..
             }
         }
         else if(identifier.isSymbol()) {
@@ -232,10 +235,10 @@ void UnlinkedCodeBlock::saveIdentifiers(VM& vm) {
                 WRITEFIELD(symbolIndex);
             }
             else {
-                //identifierType = static_cast<uint8_t>(IdentifierType::Symbol);
-                //WRITEFIELD(identifierType);
+                identifierType = static_cast<uint8_t>(IdentifierType::Symbol);
+                WRITEFIELD(identifierType);
 
-                ASSERT(0); // Not implemented..
+                ASSERT(identifier.string().length() == 0); // other symbols are not yet implemented..
             }
         } else {
             size_t commonIdIndex;
@@ -246,6 +249,7 @@ void UnlinkedCodeBlock::saveIdentifiers(VM& vm) {
             } else {
                 identifierType = static_cast<uint8_t>(IdentifierType::Normal);
                 WRITEFIELD(identifierType);      
+
                 
                 //int identifierLength = identifier.length();
                 //WRITEFIELD(identifierLength);
@@ -280,19 +284,19 @@ void UnlinkedCodeBlock::loadIdentifiers(VM& vm) {
             break;
 
             case IdentifierType::Symbol: {
-                ASSERT(0);
+                //ASSERT(0);
                 //int idlength;
                 //READFIELD(idlength);
                 //ASSERT(idlength == 0);
 
-                //m_identifiers.append(Identifier::fromUid(PrivateName()));
+                m_identifiers.append(Identifier::fromUid(PrivateName()));
             }
             break; 
 
             case IdentifierType::PrivateName: {
-                int idlength;
-                READFIELD(idlength);
-                ASSERT(idlength == 0 );
+                //int idlength;
+                ///READFIELD(idlength);
+                //ASSERT(idlength == 0 );
 
                 m_identifiers.append(Identifier::fromUid(PrivateName()));
             }

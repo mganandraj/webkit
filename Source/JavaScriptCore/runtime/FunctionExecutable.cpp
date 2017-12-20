@@ -138,11 +138,10 @@ void FunctionExecutable::save2(VM& vm) {
 
     // All the descendants are written .. Now write self.
     if(unlinkedCodeBlockForCall) {
-        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
-        
-        WRITEVECTOR8(functionPrelogue, 3);
-        //vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWriteStore()->currentWritePosition());
 
+        WRITEVECTOR8(functionPrelogue, 3);
+        
         // Write recordParse
         ScriptExecutable::save(vm);
         
@@ -151,10 +150,9 @@ void FunctionExecutable::save2(VM& vm) {
     }
 
     if(unlinkedCodeBlockForConstruct) { 
-        this->unlinkedExecutable()->setByteCodeBundleOffsetForConstruct(vm.byteCodeProvider().currentWritePosition());
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForConstruct(vm.byteCodeProvider().currentWriteStore()->currentWritePosition());
         
         WRITEVECTOR8(functionPrelogue, 3);
-        //vm.byteCodeProvider().writeBytes(functionPrelogue, 3);
 
         // Write recordParse
         ScriptExecutable::save(vm);
@@ -184,7 +182,7 @@ void FunctionExecutable::save(VM& vm){
         unlinkedCodeBlockForConstruct = 
             this->m_unlinkedExecutable->unlinkedCodeBlockFor(
                 vm, this->m_source, CodeSpecializationKind::CodeForConstruct , DebuggerMode::DebuggerOff, error, 
-                    parseMode());
+                    parseMode(), false);
 
     }
 
@@ -196,7 +194,7 @@ void FunctionExecutable::save(VM& vm){
         unlinkedCodeBlockForCall = 
             this->m_unlinkedExecutable->unlinkedCodeBlockFor(
                 vm, this->m_source, CodeSpecializationKind::CodeForCall, DebuggerMode::DebuggerOff, error, 
-                    parseMode());
+                    parseMode(), false);
     }
     
     ASSERT(unlinkedCodeBlockForCall || unlinkedCodeBlockForConstruct);
@@ -251,7 +249,7 @@ void FunctionExecutable::save(VM& vm){
 
     if(unlinkedCodeBlockForConstruct != nullptr) {
 
-        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWriteStore()->currentWritePosition());
         
         // Write recordParse
         ScriptExecutable::save(vm);
@@ -262,7 +260,7 @@ void FunctionExecutable::save(VM& vm){
     
     if(unlinkedCodeBlockForCall != nullptr) {
 
-        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWritePosition());
+        this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(vm.byteCodeProvider().currentWriteStore()->currentWritePosition());
         
         // Write recordParse
         ScriptExecutable::save(vm);

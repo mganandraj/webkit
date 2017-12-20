@@ -76,7 +76,7 @@ private:
 
     friend class ByteCodeProvider;
     void save(VM& vm);
-    void save2(VM& vm);
+    size_t save2(VM& vm);
     UnlinkedProgramCodeBlock* load(VM& vm);
 
     ProgramExecutable(ExecState*, const SourceCode&);
