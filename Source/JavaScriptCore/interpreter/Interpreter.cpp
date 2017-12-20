@@ -956,8 +956,6 @@ failedJSONP:
 
 JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args)
 {
-    // dataLogLn("Interpreter::executeCall : ", static_cast<uint16_t>(callType));
-
     VM& vm = callFrame->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 
@@ -1021,7 +1019,11 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
         }
     }
 
-	// dataLogLn("Interpreter::executeCall completed.");
+    //if(JSC::Options::enableBytecodeCaching()) {
+    //    vm.byteCodeProvider().writeProgram(vm, program);
+    //}
+
+    // dataLogLn("Interpreter::executeCall completed.");
 
     return checkedReturn(result);
 }

@@ -417,8 +417,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
     }
     else {
 
-        //dataLogLn("Byte codes are not yet cached .. Loading from source code.");
-
+        // vm.byteCodeProvider().incrementSourceParseCount();
         result = generateUnlinkedFunctionCodeBlock(
             vm, this, source, specializationKind, debuggerMode, 
             isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 

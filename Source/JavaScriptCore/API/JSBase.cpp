@@ -47,6 +47,10 @@
 
 using namespace JSC;
 
+JSValueRef JSCreateByteCodeSnapshot(JSContextRef ctx, JSStringRef sourceURL) {
+
+}
+
 JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) {
     if (!ctx) {
         ASSERT_NOT_REACHED();
@@ -57,8 +61,6 @@ JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjec
 
     JSObject* jsThisObject = toJS(thisObject);
     
-    /// startingLineNumber = std::max(1, startingLineNumber);
-
     // evaluate sets "this" to the global object if it is NULL
     JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
     auto sourceURLString = sourceURL ? sourceURL->string() : String();
