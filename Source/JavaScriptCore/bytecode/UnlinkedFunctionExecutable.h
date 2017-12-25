@@ -36,6 +36,7 @@
 #include "RegExp.h"
 #include "SourceCode.h"
 #include "VariableEnvironment.h"
+#include "ByteCodeReadStore.h"
 
 #include <fstream>
 
@@ -46,6 +47,7 @@ class FunctionExecutable;
 class ParserError;
 class SourceProvider;
 class UnlinkedFunctionCodeBlock;
+class ByteCodeWriteStore;
 
 enum UnlinkedFunctionKind {
     UnlinkedNormalFunction,
@@ -69,19 +71,22 @@ public:
     }
 
 
-    static UnlinkedFunctionExecutable* create(VM* vm)
+    static UnlinkedFunctionExecutable* create(VM* vm, ByteCodeReadStore& byteCodeCache)
     {
         UnlinkedFunctionExecutable* instance = new (NotNull, allocateCell<UnlinkedFunctionExecutable>(vm->heap))
             UnlinkedFunctionExecutable(vm, vm->unlinkedFunctionExecutableStructure.get());
-        instance->finishCreation(*vm);
+        instance->finishCreation(*vm, byteCodeCache);
         return instance;
     }
 
-    void saveNonCode(VM&);
-    void loadNonCode(VM&);
+    void finishCreation(VM& vm);
+    void finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache);
+
+    void saveNonCode(VM&, ByteCodeWriteStore&);
+    void loadNonCode(VM&, ByteCodeReadStore&);
 
     UnlinkedFunctionCodeBlock* loadCode(VM& vm, CodeSpecializationKind specializationKind,
-        DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode);
+        DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode, ByteCodeReadStore&);
 
     const Identifier& name() const { return m_name; }
     const Identifier& ecmaName() const { return m_ecmaName; }
@@ -114,13 +119,14 @@ public:
 
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(
         VM&, const SourceCode&, CodeSpecializationKind, DebuggerMode,
-        ParserError&, SourceParseMode, bool);
+        ParserError&, SourceParseMode, RefPtr<ByteCodeReadStore> byteCodeCache);
 
     static UnlinkedFunctionExecutable* fromGlobalCode(
         const Identifier&, ExecState&, const SourceCode&, JSObject*& exception, 
         int overrideLineNumber);
 
-    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource, std::optional<int> overrideLineNumber = std::nullopt, Intrinsic = NoIntrinsic);
+    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource, const RefPtr<ByteCodeReadStore> byteCodeCache,
+        std::optional<int> overrideLineNumber = std::nullopt, Intrinsic = NoIntrinsic);
 
     void clearCode()
     {
@@ -156,10 +162,10 @@ public:
     void setSourceMappingURLDirective(const String& sourceMappingURL) { m_sourceMappingURLDirective = sourceMappingURL; }
 
     void setByteCodeBundleOffsetForCall(size_t offset) { m_byteCodeBundleOffsetForCall = offset; }
-    void setByteCodeBundleOffsetForConstruct(size_t offset) { m_byteCodeBundleOffsetForConstruct = offset; }
+    // void setByteCodeBundleOffsetForConstruct(size_t offset) { m_byteCodeBundleOffsetForConstruct = offset; }
 
     size_t byteCodeBundleOffsetForCall() const { return m_byteCodeBundleOffsetForCall; }
-    size_t byteCodeBundleOffsetForConstruct() const { return m_byteCodeBundleOffsetForConstruct; }
+    // size_t byteCodeBundleOffsetForConstruct() const { return m_byteCodeBundleOffsetForConstruct; }
 
     WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForCall;
     WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForConstruct;
@@ -169,7 +175,7 @@ private:
     UnlinkedFunctionExecutable(VM*, Structure*);
 
     size_t m_byteCodeBundleOffsetForCall { 0 };
-    size_t m_byteCodeBundleOffsetForConstruct { 0 };
+    // size_t m_byteCodeBundleOffsetForConstruct { 0 };
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;

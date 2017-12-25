@@ -227,11 +227,11 @@ VM::VM(VMType vmType, HeapType heapType)
     , m_controlFlowProfilerEnabledCount(0)
     , m_shadowChicken(std::make_unique<ShadowChicken>())
 {
-    #if OS(WINDOWS)    
-    processConfigFile("C:\\JSC\\jsc_win.cfg", "jsc");
-    #else
-    processConfigFile("/sdcard/jsc/jsc.cfg", "jsc");
-    #endif
+    //#if OS(WINDOWS)
+    //processConfigFile("C:\\JSC\\jsc_win.cfg", "jsc");
+    //#else
+    //processConfigFile("/sdcard/jsc/jsc.cfg", "jsc");
+    //#endif
 
     double vmStart = currentTime();
 

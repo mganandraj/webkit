@@ -39,6 +39,7 @@ namespace JSC {
 
 struct RegExpRepresentation;
 class VM;
+class ByteCodeWriteStore;
 
 JS_EXPORT_PRIVATE RegExpFlags regExpFlags(const String&);
 
@@ -124,7 +125,7 @@ public:
 
     RegExpKey key() { return RegExpKey(m_flags, m_patternString); }
 
-    void save(VM&);
+    void save(VM&, ByteCodeWriteStore& byteCodeCache);
 
 protected:
     void finishCreation(VM&);

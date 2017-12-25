@@ -60,6 +60,8 @@ class UnlinkedFunctionCodeBlock;
 class UnlinkedFunctionExecutable;
 class UnlinkedInstructionStream;
 struct ExecutableInfo;
+class ByteCodeReadStore;
+class ByteCodeWriteStore;
 
 typedef unsigned UnlinkedValueProfile;
 typedef unsigned UnlinkedArrayProfile;
@@ -92,8 +94,8 @@ struct UnlinkedStringJumpTable {
     typedef HashMap<RefPtr<StringImpl>, OffsetLocation> StringOffsetTable;
     StringOffsetTable offsetTable;
 
-    void save(VM& vm);
-    void load(VM& vm);
+    void save(VM& vm, ByteCodeWriteStore& byteCodeCache);
+    void load(VM& vm, ByteCodeReadStore& byteCodeCache);
 
     inline int32_t offsetForValue(StringImpl* value, int32_t defaultOffset)
     {
@@ -132,65 +134,65 @@ struct UnlinkedInstruction {
 class UnlinkedCodeBlock : public JSCell {
 public:
 
-    void save(VM&);
-    void load(VM&);
+    void save(VM&, ByteCodeWriteStore&);
+    void load(VM&, ByteCodeReadStore&);
 
-    void saveInstructions(VM&);
-    void loadInstructions(VM&);
+    void saveInstructions(VM&, ByteCodeWriteStore&);
+    void loadInstructions(VM&, ByteCodeReadStore&);
 
-    void saveVirtualRegisters(VM&);
-    void loadVirtualRegisters(VM&);
+    void saveVirtualRegisters(VM&, ByteCodeWriteStore&);
+    void loadVirtualRegisters(VM&, ByteCodeReadStore&);
 
-    void saveIdentifiers(VM&);
-    void loadIdentifiers(VM&);
+    void saveIdentifiers(VM&, ByteCodeWriteStore&);
+    void loadIdentifiers(VM&, ByteCodeReadStore&);
 
-    void saveBitVectors(VM&);
-    void loadBitVectors(VM&);
+    void saveBitVectors(VM&, ByteCodeWriteStore&);
+    void loadBitVectors(VM&, ByteCodeReadStore&);
 
-    void saveConstants(VM&);
-    void loadConstants(VM&);
+    void saveConstants(VM&, ByteCodeWriteStore&);
+    void loadConstants(VM&, ByteCodeReadStore&);
 
-    void saveConstantIdentifierSets(VM&);
-    void loadConstantIdentifierSets(VM&);
+    void saveConstantIdentifierSets(VM&, ByteCodeWriteStore&);
+    void loadConstantIdentifierSets(VM&, ByteCodeReadStore&);
 
-    void saveLinkTimeConstants(VM&);
-    void loadLinkTimeConstants(VM&);
+    void saveLinkTimeConstants(VM&, ByteCodeWriteStore&);
+    void loadLinkTimeConstants(VM&, ByteCodeReadStore&);
 
-    void saveProfileCounts(VM&);
-    void loadProfileCounts(VM&);
+    void saveProfileCounts(VM&, ByteCodeWriteStore&);
+    void loadProfileCounts(VM&, ByteCodeReadStore&);
 
-    void loadMisc(VM&);
-    void saveMisc(VM&);
+    void loadMisc(VM&, ByteCodeReadStore&);
+    void saveMisc(VM&, ByteCodeWriteStore&);
 
-    void loadFunctionDecls(VM&);
-    void saveFunctionDecls(VM&);
+    void loadFunctionDecls(VM&, ByteCodeReadStore&);
+    void saveFunctionDecls(VM&, ByteCodeWriteStore&);
 
-    void loadFunctionExprs(VM&);
-    void saveFunctionExprs(VM&);
+    void loadFunctionExprs(VM&, ByteCodeReadStore&);
+    void saveFunctionExprs(VM&, ByteCodeWriteStore&);
 
-    void loadSwitchJumpTables(VM&);
-    void saveSwitchJumpTables(VM&);
+    void loadSwitchJumpTables(VM&, ByteCodeReadStore&);
+    void saveSwitchJumpTables(VM&, ByteCodeWriteStore&);
 
-    void loadStringSwitchJumpTables(VM&);
-    void saveStringSwitchJumpTables(VM&);
+    void loadStringSwitchJumpTables(VM&, ByteCodeReadStore&);
+    void saveStringSwitchJumpTables(VM&, ByteCodeWriteStore&);
 
-    void loadExceptionHandlers(VM&);
-    void saveExceptionHandlers(VM&);
+    void loadExceptionHandlers(VM&, ByteCodeReadStore&);
+    void saveExceptionHandlers(VM&, ByteCodeWriteStore&);
 
-    void loadRegexps(VM&);
-    void saveRegexps(VM&);
+    void loadRegexps(VM&, ByteCodeReadStore&);
+    void saveRegexps(VM&, ByteCodeWriteStore&);
 
-    void loadConstantBuffers(VM&);
-    void saveConstantBuffers(VM&);
+    void loadConstantBuffers(VM&, ByteCodeReadStore&);
+    void saveConstantBuffers(VM&, ByteCodeWriteStore&);
 
-    void loadPropertyAccessInstructions(VM&);
-    void savePropertyAccessInstructions(VM&);
+    void loadPropertyAccessInstructions(VM&, ByteCodeReadStore&);
+    void savePropertyAccessInstructions(VM&, ByteCodeWriteStore&);
 
-    void loadJumpTargets(VM&);
-    void saveJumpTargets(VM&);
+    void loadJumpTargets(VM&, ByteCodeReadStore&);
+    void saveJumpTargets(VM&, ByteCodeWriteStore&);
 
-    void loadExpressionRangeInfos(VM&);
-    void saveExpressionRangeInfos(VM&);
+    void loadExpressionRangeInfos(VM&, ByteCodeReadStore&);
+    void saveExpressionRangeInfos(VM&, ByteCodeWriteStore&);
 
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;

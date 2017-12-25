@@ -30,6 +30,8 @@
 
 namespace JSC {
 
+class ByteCodeWriteStore;
+
 const ClassInfo UnlinkedFunctionCodeBlock::s_info = { "UnlinkedFunctionCodeBlock", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedFunctionCodeBlock) };
 
 void UnlinkedFunctionCodeBlock::destroy(JSCell* cell)
@@ -37,12 +39,12 @@ void UnlinkedFunctionCodeBlock::destroy(JSCell* cell)
     static_cast<UnlinkedFunctionCodeBlock*>(cell)->~UnlinkedFunctionCodeBlock();
 }
 
-void UnlinkedFunctionCodeBlock::save(VM&vm) {
-    UnlinkedCodeBlock::save(vm);
+void UnlinkedFunctionCodeBlock::save(VM&vm, ByteCodeWriteStore& byteCodeCache) {
+    UnlinkedCodeBlock::save(vm, byteCodeCache);
 }
 
-void UnlinkedFunctionCodeBlock::load(VM&vm) {
-	UnlinkedCodeBlock::load(vm);
+void UnlinkedFunctionCodeBlock::load(VM&vm, ByteCodeReadStore& byteCodeCache) {
+	UnlinkedCodeBlock::load(vm, byteCodeCache);
 }
 
 

@@ -31,6 +31,8 @@
 
 namespace JSC {
 
+class ByteCodeWriteStore;
+
 class UnlinkedProgramCodeBlock final : public UnlinkedGlobalCodeBlock {
 public:
     typedef UnlinkedGlobalCodeBlock Base;
@@ -51,8 +53,8 @@ public:
     void setLexicalDeclarations(const VariableEnvironment& environment) { m_lexicalDeclarations = environment; }
     const VariableEnvironment& lexicalDeclarations() const { return m_lexicalDeclarations; }
 
-    void save(VM&vm);
-    void load(VM&vm);
+    void save(VM&vm, ByteCodeWriteStore& byteCodeCache);
+    void load(VM&vm, ByteCodeReadStore& byteCodeCache);
 
 private:
     UnlinkedProgramCodeBlock(VM* vm, Structure* structure, const ExecutableInfo& info, DebuggerMode debuggerMode)

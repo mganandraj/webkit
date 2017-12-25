@@ -77,22 +77,19 @@ static UnlinkedFunctionCodeBlock* generateUnlinkedFunctionCodeBlock(
     return result;
 }
 
-UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure)
-    : Base(*vm, structure)
+void UnlinkedFunctionExecutable::finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache)
 {
-    this->loadNonCode(*vm);
-
-    // Make sure these bitfields are adequately wide.
-    //ASSERT(m_constructAbility == static_cast<unsigned>(constructAbility));
-    //ASSERT(m_constructorKind == static_cast<unsigned>(node->constructorKind()));
-    //ASSERT(m_functionMode == static_cast<unsigned>(node->functionMode()));
-    //ASSERT(m_scriptMode == static_cast<unsigned>(scriptMode));
-    //ASSERT(m_superBinding == static_cast<unsigned>(node->superBinding()));
-    //ASSERT(m_derivedContextType == static_cast<unsigned>(derivedContextType));
-
-    // TODO
-    //m_parentScopeTDZVariables.swap(parentScopeTDZVariables);    
+    Base::finishCreation(vm);
+    loadNonCode(vm, byteCodeCache);
 }
+
+void UnlinkedFunctionExecutable::finishCreation(VM& vm)
+{
+    Base::finishCreation(vm);
+}
+
+UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure)
+    : Base(*vm, structure) {}
 
 UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, const SourceCode& parentSource, SourceCode&& parentSourceOverride, FunctionMetadataNode* node, UnlinkedFunctionKind kind, ConstructAbility constructAbility, JSParserScriptMode scriptMode, VariableEnvironment& parentScopeTDZVariables, DerivedContextType derivedContextType)
     : Base(*vm, structure)
@@ -136,7 +133,7 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
 }
 
 
-void UnlinkedFunctionExecutable::saveNonCode(VM&vm) {
+void UnlinkedFunctionExecutable::saveNonCode(VM&vm, ByteCodeWriteStore& byteCodeCache) {
     
     WRITEMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
 
@@ -171,7 +168,7 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm) {
     //ofstream << " ";
 
     WRITEFIELD(m_byteCodeBundleOffsetForCall);
-    WRITEFIELD(m_byteCodeBundleOffsetForConstruct);
+    //WRITEFIELD(m_byteCodeBundleOffsetForConstruct);
     
     WRITEFIELD(m_firstLineOffset);
     WRITEFIELD(m_lineCount);
@@ -209,7 +206,7 @@ void UnlinkedFunctionExecutable::saveNonCode(VM&vm) {
     // m_parentScopeTDZVariables->;
 }
 
-void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
+void UnlinkedFunctionExecutable::loadNonCode(VM&vm, ByteCodeReadStore& byteCodeCache){
 
     VERIFYMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
     
@@ -241,7 +238,7 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
     }
 
     READFIELD(m_byteCodeBundleOffsetForCall);
-    READFIELD(m_byteCodeBundleOffsetForConstruct);
+    //READFIELD(m_byteCodeBundleOffsetForConstruct);
 
     READFIELD(m_firstLineOffset);
     READFIELD(m_lineCount);
@@ -279,7 +276,7 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm){
 }
 
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpecializationKind specializationKind,
-    DebuggerMode debuggerMode, bool , ParserError& , SourceParseMode parseMode)
+    DebuggerMode debuggerMode, bool , ParserError& , SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
 {
     CodeFeatures features;
     bool hasCapturedVariables;
@@ -312,7 +309,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
         EvalContextType::None), 
         debuggerMode);
 
-    unlinkedCodeblock->load(vm);
+    unlinkedCodeblock->load(vm, byteCodeCache);
 
     return unlinkedCodeblock;
 }   
@@ -331,7 +328,8 @@ void UnlinkedFunctionExecutable::visitChildren(JSCell* cell, SlotVisitor& visito
     visitor.append(thisObject->m_unlinkedCodeBlockForConstruct);
 }
 
-FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, std::optional<int> overrideLineNumber, Intrinsic intrinsic)
+FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, const RefPtr<ByteCodeReadStore> byteCodeCache, 
+    std::optional<int> overrideLineNumber, Intrinsic intrinsic)
 {
     const SourceCode& parentSource = m_parentSourceOverride.isNull() ? passedParentSource : m_parentSourceOverride;
     unsigned firstLine = parentSource.firstLine().oneBasedInt() + m_firstLineOffset;
@@ -356,7 +354,7 @@ FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& p
         }
     }
 
-    FunctionExecutable* result = FunctionExecutable::create(vm, source, this, firstLine + lineCount, endColumn, intrinsic);
+    FunctionExecutable* result = FunctionExecutable::create(vm, source, this, byteCodeCache, firstLine + lineCount, endColumn, intrinsic);
     if (overrideLineNumber)
         result->setOverrideLineNumber(*overrideLineNumber);
 
@@ -394,7 +392,7 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
 
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
     VM& vm, const SourceCode& source, CodeSpecializationKind specializationKind, 
-    DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode, bool byteCodeCacheAvailable)
+    DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode, RefPtr<ByteCodeReadStore> byteCodeCache)
 {
     switch (specializationKind) {
     case CodeForCall:
@@ -409,11 +407,11 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
 
     UnlinkedFunctionCodeBlock* result = nullptr;
 
-    if(byteCodeCacheAvailable) {
+    if(specializationKind == CodeForCall && ( byteCodeCache != nullptr ) ) {
 
         result = this->loadCode(vm, specializationKind, debuggerMode, 
             UnlinkedNormalFunction,
-            error, parseMode); 
+            error, parseMode, *byteCodeCache); 
     }
     else {
 

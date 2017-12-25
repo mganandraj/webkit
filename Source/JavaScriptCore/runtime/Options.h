@@ -475,9 +475,7 @@ typedef const char* optionString;
     v(bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.")\
     v(bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.")\
     v(bool, enableBytecodeCaching, false, Normal, "") \
-    v(optionString, byteCodeStore, "c:\\tmp\\jsc\\script\\", Normal, "The path to the directory where the bytecodes will be saved.") \
-    v(optionString, programIdForBytecodeCaching, "myprogram", Normal, "Program Cache ID") \
-
+    v(optionString, jscLocalStore, "c:\\tmp\\jsc\\script\\", Normal, "The path on local files sytem where JSC can store some stuff.") \
 
 enum OptionEquivalence {
     SameOption,

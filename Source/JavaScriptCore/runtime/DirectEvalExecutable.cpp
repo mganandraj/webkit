@@ -47,7 +47,7 @@ DirectEvalExecutable* DirectEvalExecutable::create(ExecState* exec, const Source
     }
 
     auto* executable = new (NotNull, allocateCell<DirectEvalExecutable>(vm.heap)) DirectEvalExecutable(exec, source, isInStrictContext, derivedContextType, isArrowFunctionContext, evalContextType);
-    executable->finishCreation(vm);
+    executable->finishCreation(vm, nullptr);
 
     ParserError error;
     JSParserStrictMode strictMode = executable->isStrictMode() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;

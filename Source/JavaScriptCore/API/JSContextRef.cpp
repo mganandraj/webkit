@@ -41,6 +41,8 @@
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/StringHash.h>
 
+#include "ConfigFile.h"
+
 #if ENABLE(REMOTE_INSPECTOR)
 #include "JSGlobalObjectDebuggable.h"
 #include "JSGlobalObjectInspectorController.h"
@@ -59,6 +61,56 @@ static const int32_t webkitFirstVersionWithConcurrentGlobalContexts = 0x2100500;
 
 using namespace JSC;
 
+#if !OS(WINDOWS)
+
+#include <android/log.h>
+
+#define  LOG_TAG    "JSCCONFIG"
+
+#define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
+#define  LOGW(...)  __android_log_print(ANDROID_LOG_WARN,LOG_TAG,__VA_ARGS__)
+#define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,LOG_TAG,__VA_ARGS__)
+#define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+
+#else
+#define  LOGE(...)
+#define  LOGW(...)
+#define  LOGD(...)
+#define  LOGI(...)
+
+#endif
+
+void tryProcessConfigFile()
+{
+
+    char* pPath;
+    pPath = getenv ("JSCFILESPATH");
+    if(!pPath)
+    {
+        LOGE("JSCFILESPATH is null !!");
+        return;
+    }
+
+    LOGE("JSCFILESPATH : %s", pPath);
+    
+    std::string jscLocalStorePath(pPath);
+	std::string configFilePath(pPath);
+
+    #if OS(WINDOWS)
+	 configFilePath.append("\\jsc.cfg");
+    #else
+	 configFilePath.append("/jsc.cfg");
+    #endif
+
+    JSC::processConfigFile(configFilePath.c_str(), "jsc");
+    
+    std::string jscLocalStoreOption("jscLocalStore=");
+    jscLocalStoreOption.append(jscLocalStorePath.c_str());
+    dataLogLn(jscLocalStoreOption.c_str());
+
+    Options::setOption(jscLocalStoreOption.c_str());
+}
+
 // From the API's perspective, a context group remains alive iff
 //     (a) it has been JSContextGroupRetained
 //     OR
@@ -66,7 +118,9 @@ using namespace JSC;
 
 JSContextGroupRef JSContextGroupCreate()
 {
-    initializeThreading();
+    JSC::initializeThreading();
+    tryProcessConfigFile();
+
     return toRef(&VM::createContextGroup().leakRef());
 }
 
@@ -116,7 +170,8 @@ void JSContextGroupClearExecutionTimeLimit(JSContextGroupRef group)
 
 JSGlobalContextRef JSGlobalContextCreate(JSClassRef globalObjectClass)
 {
-    initializeThreading();
+    JSC::initializeThreading();
+    tryProcessConfigFile();
 
 #if OS(DARWIN)
     // If the application was linked before JSGlobalContextCreate was changed to use a unique VM,
@@ -131,7 +186,8 @@ JSGlobalContextRef JSGlobalContextCreate(JSClassRef globalObjectClass)
 
 JSGlobalContextRef JSGlobalContextCreateInGroup(JSContextGroupRef group, JSClassRef globalObjectClass)
 {
-    initializeThreading();
+    JSC::initializeThreading();
+    tryProcessConfigFile();
 
     Ref<VM> vm = group ? Ref<VM>(*toJS(group)) : VM::createContextGroup();
 

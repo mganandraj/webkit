@@ -29,6 +29,8 @@
 
 namespace JSC {
 
+class ByteCodeWriteStore;
+
 class UnlinkedFunctionCodeBlock final : public UnlinkedCodeBlock {
 public:
     typedef UnlinkedCodeBlock Base;
@@ -43,8 +45,8 @@ public:
 
     static void destroy(JSCell*);
 
-    void save(VM&vm);
-    void load(VM&vm);
+    void save(VM&vm, ByteCodeWriteStore& byteCodeCache);
+    void load(VM&vm, ByteCodeReadStore& byteCodeCache);
 
 private:
     UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)

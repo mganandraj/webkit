@@ -67,7 +67,33 @@ ScriptExecutable::ScriptExecutable(Structure* structure, VM& vm, const SourceCod
 {
 }
 
-void ScriptExecutable::save(VM&vm){
+void ScriptExecutable::finishCreation(VM& vm, RefPtr<ByteCodeReadStore> parentByteCodeStore)
+{
+    Base::finishCreation(vm);
+    vm.heap.addExecutable(this); // Balanced by Heap::deleteUnmarkedCompiledCode().
+
+#if ENABLE(CODEBLOCK_SAMPLING)
+    if (SamplingTool* sampler = vm.interpreter->sampler())
+        sampler->notifyOfScope(vm, this);
+#endif
+
+    if(JSC::Options::enableBytecodeCaching()) {   
+        if (classInfo(vm) == ProgramExecutable::info()) {
+            ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
+            ByteCodeReadStore::tryCreateForProgram(*executable);
+        } else if (classInfo(vm) == FunctionExecutable::info()) {
+            FunctionExecutable* executable = jsCast<FunctionExecutable*>(this);
+            if(parentByteCodeStore != nullptr) {
+                m_byteCodeCache = parentByteCodeStore;
+            }
+        }
+    } else {
+        dataLogLn("Not creating byte code store as caching is disabled.");
+    }
+}
+
+
+void ScriptExecutable::save(VM&vm, ByteCodeWriteStore& byteCodeCache){
     // Save everything that is recorded after parsting through recordParse
 
     WRITEMAGIC(MAGIC_SCRIPT);
@@ -94,14 +120,18 @@ std::string nexttoken(std::string text, size_t& next, size_t& last, char delimit
     return token;
 }
 
-/*static */void ScriptExecutable::load(VM&vm, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn){
+void ScriptExecutable::load(VM&vm){
     
+    ByteCodeReadStore& byteCodeCache = *getByteCodeCache();
+
     VERIFYMAGIC(MAGIC_SCRIPT);
 
-    READFIELD(features);
+    READFIELD(m_features);
+    bool hasCapturedVariables;
     READFIELD(hasCapturedVariables);
-    READFIELD(lastLine);
-    READFIELD(endColumn);
+    m_hasCapturedVariables = hasCapturedVariables;
+    READFIELD(m_lastLine);
+    READFIELD(m_endColumn);
 }
 
 void ScriptExecutable::destroy(JSCell* cell)
@@ -282,12 +312,11 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
     ParserError error;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
     
-    bool byteCodeCacheAvailable = JSC::Options::enableBytecodeCaching() & vm->byteCodeProvider().currentReadStore()->prepareToReadFunction(*vm, executable, kind);
-    
     UnlinkedFunctionCodeBlock* unlinkedCodeBlock = 
         executable->m_unlinkedExecutable->unlinkedCodeBlockFor(
             *vm, executable->m_source, kind, debuggerMode, error, 
-            executable->parseMode(), byteCodeCacheAvailable);
+            executable->parseMode(), 
+            (getByteCodeCache() && getByteCodeCache()->prepareForFunction(*vm, executable, kind)) ? getByteCodeCache() : nullptr);
 
     // dataLogLn("1", static_cast<uint32_t>(gettid()));
     //dataLogLn("1");

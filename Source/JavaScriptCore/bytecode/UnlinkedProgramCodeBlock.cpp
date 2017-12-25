@@ -35,18 +35,18 @@ namespace JSC {
 
 const ClassInfo UnlinkedProgramCodeBlock::s_info = { "UnlinkedProgramCodeBlock", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedProgramCodeBlock) };
 
-void UnlinkedProgramCodeBlock::save(VM&vm){
-	UnlinkedCodeBlock::save(vm);
+void UnlinkedProgramCodeBlock::save(VM&vm, ByteCodeWriteStore& byteCodeCache){
+	UnlinkedCodeBlock::save(vm, byteCodeCache);
 
-    m_varDeclarations.save(vm, identifiers());
-    m_lexicalDeclarations.save(vm, identifiers());
+    m_varDeclarations.save(vm, identifiers(), byteCodeCache);
+    m_lexicalDeclarations.save(vm, identifiers(), byteCodeCache);
 }
 
-void UnlinkedProgramCodeBlock::load(VM&vm){
-    UnlinkedCodeBlock::load(vm);
+void UnlinkedProgramCodeBlock::load(VM&vm, ByteCodeReadStore& byteCodeCache){
+    UnlinkedCodeBlock::load(vm, byteCodeCache);
 
-    m_varDeclarations.load(vm, identifiers());
-    m_lexicalDeclarations.load(vm, identifiers());
+    m_varDeclarations.load(vm, identifiers(), byteCodeCache);
+    m_lexicalDeclarations.load(vm, identifiers(), byteCodeCache);
 }
 
 void UnlinkedProgramCodeBlock::destroy(JSCell* cell)

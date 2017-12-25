@@ -779,8 +779,6 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     VM& vm = *scope->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 
-    // bool isProgramBytecodes = source.provider()->sourceType() == SourceProviderSourceType::ProgramBytecodes;
-
     ProgramExecutable* program = ProgramExecutable::create(callFrame, source);
     EXCEPTION_ASSERT(throwScope.exception() || program);
     RETURN_IF_EXCEPTION(throwScope, { });
@@ -798,7 +796,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     // we'll handle the JSON object here. Else, we'll handle real JS code
     // below at failedJSONP.
 
-	 if (false) { // This defeats the purpose of memory mapping the source...
+	if (false) { // This defeats the purpose of memory mapping the source...
 
 
     Vector<JSONPData> JSONPData;
@@ -902,10 +900,6 @@ failedJSONP:
     // object.
 
     VMEntryScope entryScope(vm, scope->globalObject());
-
-    if(JSC::Options::enableBytecodeCaching()) {
-        vm.byteCodeProvider().prepareToReadProgram(vm, program);
-    }
 
     // Compile source to bytecode if necessary:
     JSObject* error = program->initializeGlobalProperties(vm, callFrame, scope);

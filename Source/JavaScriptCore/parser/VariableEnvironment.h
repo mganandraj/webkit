@@ -32,6 +32,9 @@
 
 namespace JSC {
 
+class ByteCodeWriteStore;
+class ByteCodeReadStore;
+
 struct VariableEnvironmentEntry {
 public:
     ALWAYS_INLINE bool isCaptured() const { return m_bits & IsCaptured; }
@@ -92,8 +95,8 @@ public:
     VariableEnvironment(const VariableEnvironment&) = default;
     VariableEnvironment& operator=(const VariableEnvironment&) = default;
 
-    void save(VM&, const Vector<Identifier>& identifiers);
-    void load(VM&, const Vector<Identifier>& identifiers);
+    void save(VM&, const Vector<Identifier>& identifiers, ByteCodeWriteStore& byteCodeCache);
+    void load(VM&, const Vector<Identifier>& identifiers, ByteCodeReadStore& byteCodeCache);
 
     ALWAYS_INLINE Map::AddResult add(const RefPtr<UniquedStringImpl>& identifier, VariableEnvironmentEntry entry) { return m_map.add(identifier, entry); }
 

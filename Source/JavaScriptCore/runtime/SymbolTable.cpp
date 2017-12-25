@@ -52,7 +52,7 @@ enum class SymbolSaveType {
     Raw
 };
 
-void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers)
+void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers, ByteCodeWriteStore& byteCodeCache)
 {
 	uint8_t flags = 0;
     flags |= m_usesNonStrictEval;
@@ -113,7 +113,7 @@ void SymbolTable::save(VM& vm, const Vector<Identifier>& codeblockIdentifiers)
     }
 }
 
-void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers) {
+void SymbolTable::load(VM& vm, const Vector<Identifier>& codeblockIdentifiers, ByteCodeReadStore& byteCodeCache) {
     uint8_t flags;
     READFIELD(flags);
     

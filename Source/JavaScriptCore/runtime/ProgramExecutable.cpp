@@ -57,6 +57,10 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
         exec->vm().functionHasExecutedCache()->insertUnexecutedRange(sourceID(), m_typeProfilingStartOffset, m_typeProfilingEndOffset);
 }
 
+void ProgramExecutable::finishCreation(VM& vm, const SourceCode& source, RefPtr<ByteCodeReadStore> parentByteCodeStore) {
+    Base::finishCreation(vm, parentByteCodeStore);
+}
+
 void ProgramExecutable::save(VM&){
 
     //vm.byteCodeProvider().initForWrite("");
@@ -92,7 +96,7 @@ void ProgramExecutable::save(VM&){
     //vm.byteCodeProvider().outStream << " " << programIndex;
 }
 
-size_t ProgramExecutable::save2(VM& vm) {
+size_t ProgramExecutable::save2(VM& vm, ByteCodeWriteStore& byteCodeCache) {
 
     // vm.byteCodeProvider().initForWrite("");
     //dataLogLn("#Saving to :", byteCodeStorePath);        
@@ -105,46 +109,49 @@ size_t ProgramExecutable::save2(VM& vm) {
     // Write functions.
     for(size_t i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save2(vm);
+        FunctionExecutable* func = ufunc->link(vm, this->source(), nullptr);
+        func->save2(vm, byteCodeCache);
     }
 
     // Write function expressions.
     for(size_t i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save2(vm);
+        FunctionExecutable* func = ufunc->link(vm, this->source(), nullptr);
+        func->save2(vm, byteCodeCache);
     }
 
-	size_t programIndex = vm.byteCodeProvider().currentWriteStore()->currentWritePosition();
+	size_t programIndex = byteCodeCache.currentWritePosition();
      
     const char* programPrelogue = "PPP";
     WRITEVECTOR8(programPrelogue, 3);
 
     // Write recordParse
-    ScriptExecutable::save(vm);
+    ScriptExecutable::save(vm, byteCodeCache);
     
     // Write codeblock.
-    m_unlinkedProgramCodeBlock.get()->save(vm);
+    m_unlinkedProgramCodeBlock.get()->save(vm, byteCodeCache);
 
     return programIndex;
 }
 
-UnlinkedProgramCodeBlock* ProgramExecutable::load(VM& vm) {
-    CodeFeatures features;
-    bool hasCapturedVariables;
-    int lastLine;
-    unsigned endColumn;
+UnlinkedProgramCodeBlock* ProgramExecutable::loadFromByteCodeCache(VM& vm) {
+    //CodeFeatures features;
+    //bool hasCapturedVariables;
+    //int lastLine;
+    //unsigned endColumn;
     
-    ScriptExecutable::load(vm, features, hasCapturedVariables, lastLine, endColumn);
-    recordParse(features, hasCapturedVariables, lastLine, endColumn);
+    ByteCodeReadStore& byteCodeCache = *getByteCodeCache();
+
+    ScriptExecutable::load(vm);
+    // recordParse(features, hasCapturedVariables, lastLine, endColumn);
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock = UnlinkedProgramCodeBlock::create(&vm, executableInfo(), DebuggerMode::DebuggerOff);
-    unlinkedCodeBlock->recordParse(features, hasCapturedVariables, lastLine, endColumn);
+    unlinkedCodeBlock->recordParse(this->features(), false, this->lastLine(), this->endColumn());
+    //unlinkedCodeBlock->recordParse(features, hasCapturedVariables, lastLine, endColumn);
     //unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURL());
     //unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
 
-    unlinkedCodeBlock->load(vm);
+    unlinkedCodeBlock->load(vm, byteCodeCache);
 
     return unlinkedCodeBlock;
 }
@@ -194,9 +201,9 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock;
     
-    if(vm.byteCodeProvider().currentReadStore() != nullptr) {
+    if(getByteCodeCache() != nullptr) {
         dataLogLn("Loading byte codes for global program ...");
-        unlinkedCodeBlock = load(vm);
+        unlinkedCodeBlock = loadFromByteCodeCache(vm);
     }
     else {
         unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(

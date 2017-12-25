@@ -31,6 +31,8 @@
 
 namespace JSC {
 
+class ByteCodeWriteStore;
+
 class ProgramExecutable final : public ScriptExecutable {
     friend class LLIntOffsetsExtractor;
 public:
@@ -41,9 +43,12 @@ public:
     {
         VM& vm = exec->vm();
         ProgramExecutable* executable = new (NotNull, allocateCell<ProgramExecutable>(vm.heap)) ProgramExecutable(exec, source);
-        executable->finishCreation(vm);
+        
+        executable->finishCreation(vm, source, nullptr);
         return executable;
     }
+
+    void finishCreation(VM& vm, const SourceCode& source, RefPtr<ByteCodeReadStore> parentByteCodeStore);  
 
     JSObject* initializeGlobalProperties(VM&, CallFrame*, JSScope*);
 
@@ -75,9 +80,9 @@ private:
     friend class ScriptExecutable;
 
     friend class ByteCodeProvider;
-    void save(VM& vm);
-    size_t save2(VM& vm);
-    UnlinkedProgramCodeBlock* load(VM& vm);
+    void save(VM&);
+    size_t save2(VM&, ByteCodeWriteStore&);
+    UnlinkedProgramCodeBlock* loadFromByteCodeCache(VM& vm);
 
     ProgramExecutable(ExecState*, const SourceCode&);
 

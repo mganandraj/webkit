@@ -47,10 +47,6 @@
 
 using namespace JSC;
 
-JSValueRef JSCreateByteCodeSnapshot(JSContextRef ctx, JSStringRef sourceURL) {
-
-}
-
 JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) {
     if (!ctx) {
         ASSERT_NOT_REACHED();

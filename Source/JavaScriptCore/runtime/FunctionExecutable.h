@@ -33,6 +33,8 @@
 
 namespace JSC {
 
+class ByteCodeWriteStore;
+
 class FunctionExecutable final : public ScriptExecutable {
     friend class JIT;
     friend class LLIntOffsetsExtractor;
@@ -40,15 +42,15 @@ public:
     typedef ScriptExecutable Base;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
-    void save(VM& vm);
-    void save2(VM& vm);
+    void save(VM&);
+    void save2(VM&, ByteCodeWriteStore&);
 
     static FunctionExecutable* create(
-        VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, 
+        VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, const RefPtr<ByteCodeReadStore>& byteCodeCache,
         unsigned lastLine, unsigned endColumn, Intrinsic intrinsic)
     {
         FunctionExecutable* executable = new (NotNull, allocateCell<FunctionExecutable>(vm.heap)) FunctionExecutable(vm, source, unlinkedExecutable, lastLine, endColumn, intrinsic);
-        executable->finishCreation(vm);
+        executable->finishCreation(vm, byteCodeCache);
         return executable;
     }
     static FunctionExecutable* fromGlobalCode(
@@ -197,7 +199,7 @@ private:
         VM&, const SourceCode&, UnlinkedFunctionExecutable*,
         unsigned lastLine, unsigned endColumn, Intrinsic);
     
-    void finishCreation(VM&);
+    void finishCreation(VM&, const RefPtr<ByteCodeReadStore>&);
 
     friend class ScriptExecutable;
     

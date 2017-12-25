@@ -27,7 +27,11 @@
 
 #include "ExecutableBase.h"
 
+#include "ByteCodeReadStore.h"
+
 namespace JSC {
+
+class ByteCodeWriteStore;
 
 class ScriptExecutable : public ExecutableBase {
 public:
@@ -36,8 +40,11 @@ public:
 
     static void destroy(JSCell*);
 
-    void save(VM&);
-    static void load(VM&, CodeFeatures& features, bool& hasCapturedVariables, int& lastLine, unsigned& endColumn);
+    RefPtr<ByteCodeReadStore> getByteCodeCache() { return m_byteCodeCache; };
+    void setByteCodeCache(ByteCodeReadStore& byteCodeCache) { m_byteCodeCache = WTF::adoptRef(&byteCodeCache); }
+    
+    void save(VM&, ByteCodeWriteStore&);
+    void load(VM&);
 
     CodeBlockHash hashFor(CodeSpecializationKind) const;
 
@@ -113,16 +120,7 @@ private:
 protected:
     ScriptExecutable(Structure*, VM&, const SourceCode&, bool isInStrictContext, DerivedContextType, bool isInArrowFunctionContext, EvalContextType, Intrinsic);
 
-    void finishCreation(VM& vm)
-    {
-        Base::finishCreation(vm);
-        vm.heap.addExecutable(this); // Balanced by Heap::deleteUnmarkedCompiledCode().
-
-#if ENABLE(CODEBLOCK_SAMPLING)
-        if (SamplingTool* sampler = vm.interpreter->sampler())
-            sampler->notifyOfScope(vm, this);
-#endif
-    }
+    void finishCreation(VM& vm, const RefPtr<ByteCodeReadStore> byteCodeStore);
 
     CodeFeatures m_features;
     bool m_didTryToEnterInLoop;
@@ -141,6 +139,8 @@ protected:
     unsigned m_typeProfilingStartOffset;
     unsigned m_typeProfilingEndOffset;
     SourceCode m_source;
+
+    RefPtr<ByteCodeReadStore> m_byteCodeCache;
 };
 
 } // namespace JSC

@@ -39,9 +39,11 @@
 #include <memory>
 #include <wtf/HashTraits.h>
 #include <wtf/text/UniquedStringImpl.h>
+#include "ByteCodeReadStore.h"
 
 namespace JSC {
 
+class ByteCodeWriteStore;    
 class SymbolTable;
 
 static ALWAYS_INLINE int missingSymbolMarker() { return std::numeric_limits<int>::max(); }
@@ -461,8 +463,8 @@ public:
         return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
     }
 
-    void save(VM& vm, const Vector<Identifier>&);
-    void load(VM& vm, const Vector<Identifier>&);
+    void save(VM& vm, const Vector<Identifier>&, ByteCodeWriteStore& byteCodeCache);
+    void load(VM& vm, const Vector<Identifier>&, ByteCodeReadStore& byteCodeCache);
 
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJSLocker&, UniquedStringImpl* key)
