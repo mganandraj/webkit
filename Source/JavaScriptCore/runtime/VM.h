@@ -89,7 +89,6 @@ namespace JSC {
 class BuiltinExecutables;
 class BytecodeIntrinsicRegistry;
 class CodeBlock;
-class ByteCodeProvider;
 class CodeCache;
 class CommonIdentifiers;
 class CustomGetterSetter;
@@ -639,8 +638,6 @@ public:
     JSLock& apiLock() { return *m_apiLock; }
     CodeCache* codeCache() { return m_codeCache.get(); }
 
-    ByteCodeProvider& byteCodeProvider() { return *m_byteCodeProvider.get(); }
-
     JS_EXPORT_PRIVATE void whenIdle(std::function<void()>);
 
     JS_EXPORT_PRIVATE void deleteAllCode(DeleteAllCodeEffort);
@@ -802,7 +799,6 @@ private:
     bool m_globalConstRedeclarationShouldThrow { true };
     bool m_shouldBuildPCToCodeOriginMapping { false };
     std::unique_ptr<CodeCache> m_codeCache;
-    std::unique_ptr<ByteCodeProvider> m_byteCodeProvider;    
     std::unique_ptr<BuiltinExecutables> m_builtinExecutables;
     HashMap<String, RefPtr<WatchpointSet>> m_impurePropertyWatchpointSets;
     std::unique_ptr<TypeProfiler> m_typeProfiler;

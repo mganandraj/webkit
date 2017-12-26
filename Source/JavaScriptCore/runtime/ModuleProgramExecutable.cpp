@@ -59,7 +59,7 @@ ModuleProgramExecutable* ModuleProgramExecutable::create(ExecState* exec, const 
 
     JSGlobalObject* globalObject = exec->lexicalGlobalObject();
     ModuleProgramExecutable* executable = new (NotNull, allocateCell<ModuleProgramExecutable>(vm.heap)) ModuleProgramExecutable(exec, source);
-    executable->finishCreation(exec->vm(), nullptr);
+    executable->finishCreation(exec->vm());
 
     ParserError error;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;

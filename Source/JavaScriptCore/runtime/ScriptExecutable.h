@@ -26,7 +26,6 @@
 #pragma once
 
 #include "ExecutableBase.h"
-
 #include "ByteCodeReadStore.h"
 
 namespace JSC {
@@ -40,8 +39,11 @@ public:
 
     static void destroy(JSCell*);
 
-    RefPtr<ByteCodeReadStore> getByteCodeCache() { return m_byteCodeCache; };
-    void setByteCodeCache(ByteCodeReadStore& byteCodeCache) { m_byteCodeCache = WTF::adoptRef(&byteCodeCache); }
+    void writeByteCodeCache(VM&);
+
+    bool hasByteCodeCache();
+    ByteCodeReadStore& getByteCodeCache();
+    void setByteCodeCache(ByteCodeReadStore& byteCodeCache);
     
     void save(VM&, ByteCodeWriteStore&);
     void load(VM&);
@@ -120,7 +122,7 @@ private:
 protected:
     ScriptExecutable(Structure*, VM&, const SourceCode&, bool isInStrictContext, DerivedContextType, bool isInArrowFunctionContext, EvalContextType, Intrinsic);
 
-    void finishCreation(VM& vm, const RefPtr<ByteCodeReadStore> byteCodeStore);
+    void finishCreation(VM& vm);
 
     CodeFeatures m_features;
     bool m_didTryToEnterInLoop;

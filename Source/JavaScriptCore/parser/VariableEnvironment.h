@@ -28,8 +28,6 @@
 #include "Identifier.h"
 #include <wtf/HashMap.h>
 
-#include <fstream>
-
 namespace JSC {
 
 class ByteCodeWriteStore;

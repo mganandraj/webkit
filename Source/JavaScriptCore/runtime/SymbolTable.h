@@ -39,11 +39,11 @@
 #include <memory>
 #include <wtf/HashTraits.h>
 #include <wtf/text/UniquedStringImpl.h>
-#include "ByteCodeReadStore.h"
 
 namespace JSC {
 
 class ByteCodeWriteStore;    
+class ByteCodeReadStore;
 class SymbolTable;
 
 static ALWAYS_INLINE int missingSymbolMarker() { return std::numeric_limits<int>::max(); }

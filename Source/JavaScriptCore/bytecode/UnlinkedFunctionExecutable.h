@@ -36,9 +36,6 @@
 #include "RegExp.h"
 #include "SourceCode.h"
 #include "VariableEnvironment.h"
-#include "ByteCodeReadStore.h"
-
-#include <fstream>
 
 namespace JSC {
 
@@ -48,6 +45,7 @@ class ParserError;
 class SourceProvider;
 class UnlinkedFunctionCodeBlock;
 class ByteCodeWriteStore;
+class ByteCodeReadStore;
 
 enum UnlinkedFunctionKind {
     UnlinkedNormalFunction,
@@ -85,8 +83,7 @@ public:
     void saveNonCode(VM&, ByteCodeWriteStore&);
     void loadNonCode(VM&, ByteCodeReadStore&);
 
-    UnlinkedFunctionCodeBlock* loadCode(VM& vm, CodeSpecializationKind specializationKind,
-        DebuggerMode debuggerMode, bool isBuiltin, ParserError& error, SourceParseMode parseMode, ByteCodeReadStore&);
+    UnlinkedFunctionCodeBlock* loadCode(VM& vm, SourceParseMode parseMode, ByteCodeReadStore&);
 
     const Identifier& name() const { return m_name; }
     const Identifier& ecmaName() const { return m_ecmaName; }
@@ -117,15 +114,17 @@ public:
     unsigned typeProfilingEndOffset() const { return m_typeProfilingEndOffset; }
     void setInvalidTypeProfilingOffsets();
 
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCallFromByteCodeCache(VM&, CodeSpecializationKind, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache);
+
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(
         VM&, const SourceCode&, CodeSpecializationKind, DebuggerMode,
-        ParserError&, SourceParseMode, RefPtr<ByteCodeReadStore> byteCodeCache);
+        ParserError&, SourceParseMode);
 
     static UnlinkedFunctionExecutable* fromGlobalCode(
         const Identifier&, ExecState&, const SourceCode&, JSObject*& exception, 
         int overrideLineNumber);
 
-    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource, const RefPtr<ByteCodeReadStore> byteCodeCache,
+    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource,
         std::optional<int> overrideLineNumber = std::nullopt, Intrinsic = NoIntrinsic);
 
     void clearCode()

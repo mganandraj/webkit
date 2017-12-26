@@ -85,7 +85,7 @@ ${macroPrefix}_FOREACH_${objectMacro}_BUILTIN_CODE(DECLARE_BUILTIN_GENERATOR)
 #define DEFINE_BUILTIN_GENERATOR(codeName, functionName, overriddenName, argumentCount) \\
 JSC::FunctionExecutable* codeName##Generator(JSC::VM& vm) \\
 {\\
-    return vm.builtinExecutables()->codeName##Executable()->link(vm, vm.builtinExecutables()->codeName##Source(), nullptr, std::nullopt, s_##codeName##Intrinsic); \
+    return vm.builtinExecutables()->codeName##Executable()->link(vm, vm.builtinExecutables()->codeName##Source(), std::nullopt, s_##codeName##Intrinsic); \
 }
 ${macroPrefix}_FOREACH_BUILTIN_CODE(DEFINE_BUILTIN_GENERATOR)
 #undef DEFINE_BUILTIN_GENERATOR
@@ -96,7 +96,7 @@ ${macroPrefix}_FOREACH_BUILTIN_CODE(DEFINE_BUILTIN_GENERATOR)
 #define DEFINE_BUILTIN_GENERATOR(codeName, functionName, overriddenName, argumentCount) \\
 JSC::FunctionExecutable* codeName##Generator(JSC::VM& vm) \\
 {\\
-    return vm.builtinExecutables()->codeName##Executable()->link(vm, vm.builtinExecutables()->codeName##Source(), nullptr, std::nullopt, s_##codeName##Intrinsic); \
+    return vm.builtinExecutables()->codeName##Executable()->link(vm, vm.builtinExecutables()->codeName##Source(), std::nullopt, s_##codeName##Intrinsic); \
 }
 ${macroPrefix}_FOREACH_${objectMacro}_BUILTIN_CODE(DEFINE_BUILTIN_GENERATOR)
 #undef DEFINE_BUILTIN_GENERATOR

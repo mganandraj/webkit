@@ -38,7 +38,9 @@
 #include "Structure.h"
 #include "UnlinkedFunctionCodeBlock.h"
 
-#include "ByteCodeProvider.h"
+#include "ByteCodeStoreMacros.h"
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
 
 namespace JSC {
 
@@ -275,8 +277,7 @@ void UnlinkedFunctionExecutable::loadNonCode(VM&vm, ByteCodeReadStore& byteCodeC
     m_derivedContextType = (funcMetadata & 0x0400) >> 10;
 }
 
-UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpecializationKind specializationKind,
-    DebuggerMode debuggerMode, bool , ParserError& , SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
 {
     CodeFeatures features;
     bool hasCapturedVariables;
@@ -303,11 +304,11 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, CodeSpec
 
     UnlinkedFunctionCodeBlock* unlinkedCodeblock = UnlinkedFunctionCodeBlock::create(&vm, FunctionCode, 
         ExecutableInfo(usesEval, isStrictMode, 
-        specializationKind == CodeForConstruct, false /* !UnlinkedBuiltinFunction*/, 
+        /*specializationKind == CodeForConstruct*/false, false /* !UnlinkedBuiltinFunction*/, 
         this->constructorKind(), _scriptMode, this->superBinding(),
         parseMode, this->derivedContextType(), false, isClassContext, 
         EvalContextType::None), 
-        debuggerMode);
+        DebuggerOff);
 
     unlinkedCodeblock->load(vm, byteCodeCache);
 
@@ -328,7 +329,7 @@ void UnlinkedFunctionExecutable::visitChildren(JSCell* cell, SlotVisitor& visito
     visitor.append(thisObject->m_unlinkedCodeBlockForConstruct);
 }
 
-FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, const RefPtr<ByteCodeReadStore> byteCodeCache, 
+FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, 
     std::optional<int> overrideLineNumber, Intrinsic intrinsic)
 {
     const SourceCode& parentSource = m_parentSourceOverride.isNull() ? passedParentSource : m_parentSourceOverride;
@@ -354,7 +355,7 @@ FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& p
         }
     }
 
-    FunctionExecutable* result = FunctionExecutable::create(vm, source, this, byteCodeCache, firstLine + lineCount, endColumn, intrinsic);
+    FunctionExecutable* result = FunctionExecutable::create(vm, source, this, firstLine + lineCount, endColumn, intrinsic);
     if (overrideLineNumber)
         result->setOverrideLineNumber(*overrideLineNumber);
 
@@ -390,9 +391,20 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
     return executable;
 }
 
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockForCallFromByteCodeCache(VM& vm, CodeSpecializationKind specializationKind, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
+{
+    ASSERT(specializationKind == CodeForCall);
+
+    if (UnlinkedFunctionCodeBlock* codeBlock = m_unlinkedCodeBlockForCall.get())
+        return codeBlock;
+
+    UnlinkedFunctionCodeBlock* result = this->loadCode(vm, parseMode, byteCodeCache); 
+    return result;
+}
+
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
     VM& vm, const SourceCode& source, CodeSpecializationKind specializationKind, 
-    DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode, RefPtr<ByteCodeReadStore> byteCodeCache)
+    DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode)
 {
     switch (specializationKind) {
     case CodeForCall:
@@ -405,22 +417,10 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
         break;
     }
 
-    UnlinkedFunctionCodeBlock* result = nullptr;
-
-    if(specializationKind == CodeForCall && ( byteCodeCache != nullptr ) ) {
-
-        result = this->loadCode(vm, specializationKind, debuggerMode, 
-            UnlinkedNormalFunction,
-            error, parseMode, *byteCodeCache); 
-    }
-    else {
-
-        // vm.byteCodeProvider().incrementSourceParseCount();
-        result = generateUnlinkedFunctionCodeBlock(
+    UnlinkedFunctionCodeBlock* result = generateUnlinkedFunctionCodeBlock(
             vm, this, source, specializationKind, debuggerMode, 
             isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
             error, parseMode);
-    }
 
     if (error.isValid())
         return nullptr;

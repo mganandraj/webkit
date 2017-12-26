@@ -44,8 +44,6 @@
 #include <wtf/Vector.h>
 #include <wtf/text/UniquedStringImpl.h>
 
-#include<fstream>
-
 namespace JSC {
 
 class BytecodeRewriter;

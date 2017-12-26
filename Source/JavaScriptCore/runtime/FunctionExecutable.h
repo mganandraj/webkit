@@ -42,15 +42,14 @@ public:
     typedef ScriptExecutable Base;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
-    void save(VM&);
     void save2(VM&, ByteCodeWriteStore&);
 
     static FunctionExecutable* create(
-        VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, const RefPtr<ByteCodeReadStore>& byteCodeCache,
+        VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable,
         unsigned lastLine, unsigned endColumn, Intrinsic intrinsic)
     {
         FunctionExecutable* executable = new (NotNull, allocateCell<FunctionExecutable>(vm.heap)) FunctionExecutable(vm, source, unlinkedExecutable, lastLine, endColumn, intrinsic);
-        executable->finishCreation(vm, byteCodeCache);
+        executable->finishCreation(vm);
         return executable;
     }
     static FunctionExecutable* fromGlobalCode(
@@ -199,7 +198,7 @@ private:
         VM&, const SourceCode&, UnlinkedFunctionExecutable*,
         unsigned lastLine, unsigned endColumn, Intrinsic);
     
-    void finishCreation(VM&, const RefPtr<ByteCodeReadStore>&);
+    void finishCreation(VM&);
 
     friend class ScriptExecutable;
     

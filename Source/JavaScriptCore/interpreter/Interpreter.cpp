@@ -85,8 +85,6 @@
 #include <wtf/Threading.h>
 #include <wtf/text/StringBuilder.h>
 
-#include "ByteCodeProvider.h"
-
 #if ENABLE(JIT)
 #include "JIT.h"
 #endif
@@ -942,7 +940,7 @@ failedJSONP:
     dataLogLn("#XP:", currentTime() - start);    
     
     if(JSC::Options::enableBytecodeCaching()) {
-        vm.byteCodeProvider().writeProgram(vm, program);
+        program->writeByteCodeCache(vm);
     }
 
     return checkedReturn(result);
@@ -1012,12 +1010,6 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
             RETURN_IF_EXCEPTION(throwScope, JSValue());
         }
     }
-
-    //if(JSC::Options::enableBytecodeCaching()) {
-    //    vm.byteCodeProvider().writeProgram(vm, program);
-    //}
-
-    // dataLogLn("Interpreter::executeCall completed.");
 
     return checkedReturn(result);
 }

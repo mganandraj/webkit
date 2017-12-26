@@ -31,7 +31,8 @@
 #include "YarrJIT.h"
 #include <wtf/Assertions.h>
 
-#include "ByteCodeProvider.h"
+#include "ByteCodeStoreMacros.h"
+#include "ByteCodeWriteStore.h"
 
 namespace JSC {
 

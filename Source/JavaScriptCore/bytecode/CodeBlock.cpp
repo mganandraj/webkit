@@ -438,7 +438,14 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
         UnlinkedFunctionExecutable* unlinkedExecutable = unlinkedCodeBlock->functionDecl(i);
         if (shouldUpdateFunctionHasExecutedCache)
             vm.functionHasExecutedCache()->insertUnexecutedRange(ownerExecutable->sourceID(), unlinkedExecutable->typeProfilingStartOffset(), unlinkedExecutable->typeProfilingEndOffset());
-        m_functionDecls[i].set(*m_vm, this, unlinkedExecutable->link(*m_vm, ownerExecutable->source(), ownerScriptExecutable()->getByteCodeCache()));
+        
+        FunctionExecutable* executable = unlinkedExecutable->link(*m_vm, ownerExecutable->source());
+        if(ownerScriptExecutable()->hasByteCodeCache()) {
+            executable->setByteCodeCache(ownerScriptExecutable()->getByteCodeCache());
+        }
+
+        m_functionDecls[i].set(*m_vm, this, executable);
+    
     }
 
     m_functionExprs = RefCountedArray<WriteBarrier<FunctionExecutable>>(unlinkedCodeBlock->numberOfFunctionExprs());
@@ -446,7 +453,13 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
         UnlinkedFunctionExecutable* unlinkedExecutable = unlinkedCodeBlock->functionExpr(i);
         if (shouldUpdateFunctionHasExecutedCache)
             vm.functionHasExecutedCache()->insertUnexecutedRange(ownerExecutable->sourceID(), unlinkedExecutable->typeProfilingStartOffset(), unlinkedExecutable->typeProfilingEndOffset());
-        m_functionExprs[i].set(*m_vm, this, unlinkedExecutable->link(*m_vm, ownerExecutable->source(), ownerScriptExecutable()->getByteCodeCache()));
+        
+        FunctionExecutable* executable = unlinkedExecutable->link(*m_vm, ownerExecutable->source());
+        if(ownerScriptExecutable()->hasByteCodeCache()) {
+            executable->setByteCodeCache(ownerScriptExecutable()->getByteCodeCache());
+        }
+
+        m_functionExprs[i].set(*m_vm, this, executable);
     }
 
     if (unlinkedCodeBlock->hasRareData()) {

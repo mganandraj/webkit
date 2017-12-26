@@ -924,8 +924,8 @@ runtime/WeakMapPrototype.cpp
 runtime/WeakSetConstructor.cpp
 runtime/WeakSetPrototype.cpp
 runtime/ByteCodeStoreUtils.cpp
-runtime/ByteCodeProvider.cpp
 runtime/ByteCodeReadStore.cpp
+runtime/ByteCodeWriteStore.cpp
 
 # Derived Sources
 # FIXME: We should move this to runtime but it kept breaking the Windows build in weird ways... https://bugs.webkit.org/show_bug.cgi?id=177486

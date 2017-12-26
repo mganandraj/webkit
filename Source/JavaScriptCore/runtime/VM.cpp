@@ -125,8 +125,6 @@
 
 #include "HeapSnapshotBuilder.h"
 
-#include "ByteCodeProvider.h"
-
 #include "ConfigFile.h"
 #if !ENABLE(JIT)
 #include "CLoopStack.h"
@@ -220,7 +218,6 @@ VM::VM(VMType vmType, HeapType heapType)
 #endif
     , m_stackPointerAtVMEntry(0)
     , m_codeCache(std::make_unique<CodeCache>())
-    , m_byteCodeProvider(std::make_unique<ByteCodeProvider>())  
     , m_builtinExecutables(std::make_unique<BuiltinExecutables>(*this))
     , m_typeProfilerEnabledCount(0)
     , m_primitiveGigacageEnabled(IsWatched)

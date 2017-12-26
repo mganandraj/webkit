@@ -29,8 +29,6 @@
 #include <wtf/Forward.h>
 #include <wtf/text/WTFString.h>
 
-#include <fstream>
-
 #if ENABLE(YARR_JIT)
 #include "yarr/YarrJIT.h"
 #endif

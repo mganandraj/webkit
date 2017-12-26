@@ -37,7 +37,9 @@
 
 #include "BuiltinNames.h"
 
-#include "ByteCodeProvider.h"
+#include "ByteCodeStoreMacros.h"
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
 
 namespace JSC {
 

@@ -44,11 +44,9 @@ public:
         VM& vm = exec->vm();
         ProgramExecutable* executable = new (NotNull, allocateCell<ProgramExecutable>(vm.heap)) ProgramExecutable(exec, source);
         
-        executable->finishCreation(vm, source, nullptr);
+        executable->finishCreation(vm);
         return executable;
-    }
-
-    void finishCreation(VM& vm, const SourceCode& source, RefPtr<ByteCodeReadStore> parentByteCodeStore);  
+    }  
 
     JSObject* initializeGlobalProperties(VM&, CallFrame*, JSScope*);
 
@@ -79,8 +77,6 @@ private:
     friend class ExecutableBase;
     friend class ScriptExecutable;
 
-    friend class ByteCodeProvider;
-    void save(VM&);
     size_t save2(VM&, ByteCodeWriteStore&);
     UnlinkedProgramCodeBlock* loadFromByteCodeCache(VM& vm);
 

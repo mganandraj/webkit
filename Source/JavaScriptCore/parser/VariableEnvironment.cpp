@@ -27,7 +27,9 @@
 #include "VariableEnvironment.h"
 #include <wtf/text/UniquedStringImpl.h>
 
-#include "ByteCodeProvider.h"
+#include "ByteCodeStoreMacros.h"
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
 
 namespace JSC {
 

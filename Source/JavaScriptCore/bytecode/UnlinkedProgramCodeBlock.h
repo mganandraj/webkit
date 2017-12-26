@@ -27,11 +27,10 @@
 
 #include "UnlinkedGlobalCodeBlock.h"
 
-#include <fstream>
-
 namespace JSC {
 
 class ByteCodeWriteStore;
+class ByteCodeReadStore;
 
 class UnlinkedProgramCodeBlock final : public UnlinkedGlobalCodeBlock {
 public:

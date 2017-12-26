@@ -39,8 +39,8 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
-#include <sstream>
-#include "ByteCodeProvider.h"
+#include "ByteCodeStoreMacros.h"
+#include "ByteCodeWriteStore.h"
 
 namespace JSC {
 
@@ -57,66 +57,23 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
         exec->vm().functionHasExecutedCache()->insertUnexecutedRange(sourceID(), m_typeProfilingStartOffset, m_typeProfilingEndOffset);
 }
 
-void ProgramExecutable::finishCreation(VM& vm, const SourceCode& source, RefPtr<ByteCodeReadStore> parentByteCodeStore) {
-    Base::finishCreation(vm, parentByteCodeStore);
-}
-
-void ProgramExecutable::save(VM&){
-
-    //vm.byteCodeProvider().initForWrite("");
-    // dataLogLn("#Saving to :", byteCodeStorePath);        
-
-    // Start with a magic .. It serves some purpose !!
-    //std::string magic("MSOJSC");
-    //vm.byteCodeProvider().writeBytes(magic.c_str(), magic.length());
-
-    // Write functions.
-    //for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
-   //     UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
-      //  FunctionExecutable* func = ufunc->link(vm, this->source());
-    //    func->save(vm);
-  //  }
-
-    // Write function expressions.
-    //for(int i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
-  //      UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
-        //FunctionExecutable* func = ufunc->link(vm, this->source());
-      //  func->save(vm);
-    //}
-
-	//long programIndex = vm.byteCodeProvider().currentWritePosition();
-	 
-    // Write recordParse
-    //ScriptExecutable::save(vm);
-    
-    // Write codeblock.
-    //m_unlinkedProgramCodeBlock.get()->save(vm);
-
-    // Put the program code block offset as the last integer token .. This will be read by ByteCodeProvider::getProgramOffset
-    //vm.byteCodeProvider().outStream << " " << programIndex;
-}
-
 size_t ProgramExecutable::save2(VM& vm, ByteCodeWriteStore& byteCodeCache) {
-
-    // vm.byteCodeProvider().initForWrite("");
-    //dataLogLn("#Saving to :", byteCodeStorePath);        
 
     // Start with a magic .. It serves some purpose !!
     const char* magic = "MSOJSC";
     WRITEVECTOR8(magic, 6);
-    // vm.byteCodeProvider().writeBytes(magic, 6);
-
+ 
     // Write functions.
     for(size_t i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionDecl(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source(), nullptr);
+        FunctionExecutable* func = ufunc->link(vm, this->source());
         func->save2(vm, byteCodeCache);
     }
 
     // Write function expressions.
     for(size_t i=0; i<m_unlinkedProgramCodeBlock.get()->numberOfFunctionExprs(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_unlinkedProgramCodeBlock.get()->functionExpr(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source(), nullptr);
+        FunctionExecutable* func = ufunc->link(vm, this->source());
         func->save2(vm, byteCodeCache);
     }
 
@@ -140,7 +97,7 @@ UnlinkedProgramCodeBlock* ProgramExecutable::loadFromByteCodeCache(VM& vm) {
     //int lastLine;
     //unsigned endColumn;
     
-    ByteCodeReadStore& byteCodeCache = *getByteCodeCache();
+    ByteCodeReadStore& byteCodeCache = getByteCodeCache();
 
     ScriptExecutable::load(vm);
     // recordParse(features, hasCapturedVariables, lastLine, endColumn);
@@ -201,7 +158,7 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock;
     
-    if(getByteCodeCache() != nullptr) {
+    if(hasByteCodeCache()) {
         dataLogLn("Loading byte codes for global program ...");
         unlinkedCodeBlock = loadFromByteCodeCache(vm);
     }
