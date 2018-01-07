@@ -33,14 +33,14 @@
 
 namespace JSC {
 
-void VariableEnvironment::save(VM& vm, const Vector<Identifier>& identifiers, ByteCodeWriteStore& byteCodeCache) {
+void VariableEnvironment::save(VM&, const Vector<Identifier>& identifiers, ByteCodeWriteStore& byteCodeCache) {
     
     WRITEMAGIC(MAGIC_VARIABLEENVIRONMENT);
 
     unsigned mapSize = m_map.size();
     WRITEFIELD(mapSize);
 
-    for_each (m_map.begin(), m_map.end(), [this, &vm, &identifiers, &byteCodeCache](auto keyvaluepair){
+    for_each (m_map.begin(), m_map.end(), [&identifiers, &byteCodeCache](auto keyvaluepair){
         
         WTF::RefPtr<WTF::UniquedStringImpl> key = keyvaluepair.key;
         JSC::VariableEnvironmentEntry entry = keyvaluepair.value;
@@ -59,7 +59,7 @@ void VariableEnvironment::save(VM& vm, const Vector<Identifier>& identifiers, By
     });
 }
 
-void VariableEnvironment::load(VM& vm, const Vector<Identifier>& identifiers, ByteCodeReadStore& byteCodeCache) {
+void VariableEnvironment::load(VM&, const Vector<Identifier>& identifiers, ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_VARIABLEENVIRONMENT);
     
     unsigned mapSize;

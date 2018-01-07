@@ -83,16 +83,7 @@ void ScriptExecutable::finishCreation(VM& vm)
         if (classInfo(vm) == ProgramExecutable::info()) {
             ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
             ByteCodeReadStore::tryCreateForProgram(*executable);
-        } 
-        
-        //else if (classInfo(vm) == FunctionExecutable::info()) {
-        //    FunctionExecutable* executable = jsCast<FunctionExecutable*>(this);
-        //    if(parentByteCodeStore != nullptr) {
-        //        m_byteCodeCache = parentByteCodeStore;
-        //    }
-        //}
-    } else {
-        dataLogLn("Not creating byte code store as caching is disabled.");
+        }
     }
 }
 
@@ -100,27 +91,30 @@ bool ScriptExecutable::hasByteCodeCache() { return m_byteCodeCache!= nullptr; }
 ByteCodeReadStore& ScriptExecutable::getByteCodeCache() { ASSERT(m_byteCodeCache); return *m_byteCodeCache; };
 void ScriptExecutable::setByteCodeCache(ByteCodeReadStore& byteCodeCache) { m_byteCodeCache = &byteCodeCache; }
 
-void ScriptExecutable::writeByteCodeCache(VM& vm) {
+void ScriptExecutable::writeByteCodeCache(VM& vm) 
+{
     ASSERT(classInfo(vm) == ProgramExecutable::info());
-	 if (!this->hasByteCodeCache()) {
 
-		 ProgramExecutable* program = jsCast<ProgramExecutable*>(this);
+	if(!this->hasByteCodeCache()) {
+        ProgramExecutable* program = jsCast<ProgramExecutable*>(this);
 
-		 RefPtr<ByteCodeWriteStore> currentWriteStore = ByteCodeWriteStore::createForProgram(*program);
-		 ASSERT(currentWriteStore);
+        RefPtr<ByteCodeWriteStore> currentWriteStore = ByteCodeWriteStore::createForProgram(*program);
+        ASSERT(currentWriteStore);
 
-		 size_t programOffset = program->save2(vm, *currentWriteStore);
-		 currentWriteStore->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
-
-		 dataLogLn("Writing completed.");
-	 }
-	 else {
-		 dataLogLn("Skip writing as byte code cache already present for this executable.");
-	 }
+        size_t programOffset = program->save2(vm, *currentWriteStore);
+        currentWriteStore->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
+#ifndef NDEBUG
+        dataLogLn("Writing completed.");
+#endif
+    } else {
+#ifndef NDEBUG
+        dataLogLn("Skip writing as byte codes are already cached.");
+#endif
+    }
 }
 
-void ScriptExecutable::save(VM&vm, ByteCodeWriteStore& byteCodeCache){
-    // Save everything that is recorded after parsting through recordParse
+void ScriptExecutable::save(VM&, ByteCodeWriteStore& byteCodeCache){
+    // Save everything that is recorded after parsing through recordParse
 
     WRITEMAGIC(MAGIC_SCRIPT);
 
@@ -146,7 +140,7 @@ std::string nexttoken(std::string text, size_t& next, size_t& last, char delimit
     return token;
 }
 
-void ScriptExecutable::load(VM&vm){
+void ScriptExecutable::load(VM&){
     
     ByteCodeReadStore& byteCodeCache = getByteCodeCache();
 
@@ -339,8 +333,8 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
     
     UnlinkedFunctionCodeBlock* unlinkedCodeBlock = nullptr;
-    if(hasByteCodeCache() && getByteCodeCache().prepareForFunction(*vm, executable, kind)) {
-        unlinkedCodeBlock = executable->m_unlinkedExecutable->unlinkedCodeBlockForCallFromByteCodeCache(*vm, kind, executable->parseMode(), getByteCodeCache());
+    if(hasByteCodeCache() && kind == CodeForCall && getByteCodeCache().prepareForFunction(*vm, executable, kind)) {
+        unlinkedCodeBlock = executable->m_unlinkedExecutable->unlinkedCodeBlockForCallFromByteCodeCache(*vm, executable->parseMode(), getByteCodeCache());
     } else {
         unlinkedCodeBlock = executable->m_unlinkedExecutable->unlinkedCodeBlockFor(
             *vm, executable->m_source, kind, debuggerMode, error, 

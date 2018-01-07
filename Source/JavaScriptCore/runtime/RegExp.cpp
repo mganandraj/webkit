@@ -230,7 +230,7 @@ RegExp::RegExp(VM& vm, const String& patternString, RegExpFlags flags)
 {
 }
 
-void RegExp::save(VM& vm, ByteCodeWriteStore& byteCodeCache) 
+void RegExp::save(VM&, ByteCodeWriteStore& byteCodeCache) 
 {   
     WRITESTRING(m_patternString.impl());
     

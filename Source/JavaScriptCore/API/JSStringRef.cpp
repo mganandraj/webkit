@@ -59,6 +59,15 @@ JSStringRef JSStringCreateWithUTF8CString(const char* string)
     return &OpaqueJSString::create().leakRef();
 }
 
+JSStringRef JSStringCreateWithUTF8CStringExpectAscii(const char* string, size_t numChars)
+{
+    JSC::initializeThreading();
+    if (string)
+        return &OpaqueJSString::create(reinterpret_cast<const LChar*>(string), numChars).leakRef();
+
+    return &OpaqueJSString::create().leakRef();
+}
+
 JSStringRef JSStringCreateWithCharactersNoCopy(const JSChar* chars, size_t numChars)
 {
     JSC::initializeThreading();

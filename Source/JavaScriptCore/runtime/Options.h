@@ -474,7 +474,9 @@ typedef const char* optionString;
     v(bool, useObjectRestSpread, true, Normal, "If true, we will enable Object Rest/Spread feature.") \
     v(bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.")\
     v(bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.")\
+    v(bool, enableMemoryMappedSource, false, Normal, "") \
     v(bool, enableBytecodeCaching, false, Normal, "") \
+    v(bool, enableBytecodeGenerationWhileCaching, false, Normal, "") \
     v(optionString, jscLocalStore, "c:\\tmp\\jsc\\script\\", Normal, "The path on local files sytem where JSC can store some stuff.") \
 
 enum OptionEquivalence {

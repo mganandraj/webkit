@@ -140,14 +140,14 @@ namespace JSC {
         m_startOffset (offset)
         {
             bool fileMapped = mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
-            ASSERT(fileMapped);
+            dataLogLnIf(!fileMapped, "Memory mapping failed.");
         }
 
     MemoryMappedFileSourceProvider(const String& localPath , const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
         : SourceProvider(sourceOrigin, url, startPosition, sourceType),
         m_localPath(localPath) {
             bool fileMapped = mapWholeFileForRead(m_localPath, &m_mappedBuffer, &m_size);
-            ASSERT(fileMapped);
+            dataLogLnIf(!fileMapped, "Memory mapping failed.");
     }
 
         int m_fd {-1};

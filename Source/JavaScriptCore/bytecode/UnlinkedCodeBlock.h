@@ -192,6 +192,9 @@ public:
     void loadExpressionRangeInfos(VM&, ByteCodeReadStore&);
     void saveExpressionRangeInfos(VM&, ByteCodeWriteStore&);
 
+    void loadExpressionInfoFatPositions(VM&, ByteCodeReadStore&);
+    void saveExpressionInfoFatPositions(VM&, ByteCodeWriteStore&);
+
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;
 

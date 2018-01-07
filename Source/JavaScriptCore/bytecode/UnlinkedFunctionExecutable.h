@@ -114,7 +114,7 @@ public:
     unsigned typeProfilingEndOffset() const { return m_typeProfilingEndOffset; }
     void setInvalidTypeProfilingOffsets();
 
-    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCallFromByteCodeCache(VM&, CodeSpecializationKind, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache);
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCallFromByteCodeCache(VM&, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache);
 
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(
         VM&, const SourceCode&, CodeSpecializationKind, DebuggerMode,

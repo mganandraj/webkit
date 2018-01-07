@@ -99,18 +99,16 @@ JSValueRef JSEvaluateScriptFD(JSContextRef ctx, int sourceFD, unsigned int offse
 
     JSObject* jsThisObject = toJS(thisObject);
     
-    /// startingLineNumber = std::max(1, startingLineNumber);
-
     // evaluate sets "this" to the global object if it is NULL
     JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
     auto sourceURLString = sourceURL ? sourceURL->string() : String();
+
     SourceCode source = makeMemoryMappedSource(sourceFD, static_cast<size_t>(offset), static_cast<size_t>(size), SourceOrigin { sourceURLString }, sourceURLString );
 
     NakedPtr<Exception> evaluationException;
     JSValue returnValue = profiledEvaluate(globalObject->globalExec(), ProfilingReason::API, source, jsThisObject, evaluationException);
 
     if (evaluationException) {
-        dataLogLn("JSEvaluateScriptFD evaluationException ...");
         if (exception)
             *exception = toRef(exec, evaluationException->value());
 #if ENABLE(REMOTE_INSPECTOR)
@@ -148,6 +146,7 @@ JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef th
     // evaluate sets "this" to the global object if it is NULL
     JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
     auto sourceURLString = sourceURL ? sourceURL->string() : String();
+    
     SourceCode source = makeSource(script->string(), SourceOrigin { sourceURLString }, sourceURLString, TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
 
     NakedPtr<Exception> evaluationException;

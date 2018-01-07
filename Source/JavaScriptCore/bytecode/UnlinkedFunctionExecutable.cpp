@@ -135,7 +135,7 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
 }
 
 
-void UnlinkedFunctionExecutable::saveNonCode(VM&vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedFunctionExecutable::saveNonCode(VM&, ByteCodeWriteStore& byteCodeCache) {
     
     WRITEMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
 
@@ -391,10 +391,8 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
     return executable;
 }
 
-UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockForCallFromByteCodeCache(VM& vm, CodeSpecializationKind specializationKind, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockForCallFromByteCodeCache(VM& vm, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
 {
-    ASSERT(specializationKind == CodeForCall);
-
     if (UnlinkedFunctionCodeBlock* codeBlock = m_unlinkedCodeBlockForCall.get())
         return codeBlock;
 
