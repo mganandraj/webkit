@@ -1,0 +1,6 @@
+#pragma once 
+
+enum class STOREIMPLEMENTATIONTYPE {
+    FILESTREAM,
+    MEMORYMAPPEDFILE
+};
