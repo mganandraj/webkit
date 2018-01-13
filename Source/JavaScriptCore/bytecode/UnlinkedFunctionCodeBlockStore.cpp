@@ -24,18 +24,24 @@
  */
 
 #include "config.h"
-#include "UnlinkedProgramCodeBlock.h"
 
-#include "HeapInlines.h"
-#include "JSCellInlines.h"
+#include "UnlinkedFunctionCodeBlockStore.h"
+#include "UnlinkedCodeBlockStore.h"
 
 namespace JSC {
 
-const ClassInfo UnlinkedProgramCodeBlock::s_info = { "UnlinkedProgramCodeBlock", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedProgramCodeBlock) };
-
-void UnlinkedProgramCodeBlock::destroy(JSCell* cell)
-{
-    static_cast<UnlinkedProgramCodeBlock*>(cell)->~UnlinkedProgramCodeBlock();
+Ref<UnlinkedFunctionCodeBlockStore> UnlinkedFunctionCodeBlockStore::create(UnlinkedFunctionCodeBlock& UnlinkedFunctionCodeBlock) {
+    return WTF::adoptRef(*new UnlinkedFunctionCodeBlockStore(UnlinkedFunctionCodeBlock));
 }
+
+void UnlinkedFunctionCodeBlockStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+    Ref<UnlinkedCodeBlockStore> codeBlockStore = UnlinkedCodeBlockStore::create(m_unlinkedFunctionCodeBlock);
+    codeBlockStore->load(vm, byteCodeCache);
+}
+
+void UnlinkedFunctionCodeBlockStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+    Ref<UnlinkedCodeBlockStore> codeBlockStore = UnlinkedCodeBlockStore::create(m_unlinkedFunctionCodeBlock);
+    codeBlockStore->save(vm, byteCodeCache);
+}    
 
 }

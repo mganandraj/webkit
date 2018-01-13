@@ -42,6 +42,8 @@
 #include "ByteCodeStoreMacros.h"
 #include "ByteCodeWriteStore.h"
 
+#include "UnlinkedProgramCodeBlockStore.h"
+
 namespace JSC {
 
 const ClassInfo ProgramExecutable::s_info = { "ProgramExecutable", &ScriptExecutable::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(ProgramExecutable) };
@@ -86,7 +88,8 @@ size_t ProgramExecutable::save2(VM& vm, ByteCodeWriteStore& byteCodeCache) {
     ScriptExecutable::save(vm, byteCodeCache);
     
     // Write codeblock.
-    m_unlinkedProgramCodeBlock.get()->save(vm, byteCodeCache);
+    Ref<UnlinkedProgramCodeBlockStore> programCodeBlockStore = UnlinkedProgramCodeBlockStore::create(*m_unlinkedProgramCodeBlock.get());
+    programCodeBlockStore->save(vm, byteCodeCache);
 
     return programIndex;
 }
@@ -108,7 +111,10 @@ UnlinkedProgramCodeBlock* ProgramExecutable::loadFromByteCodeCache(VM& vm) {
     //unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURL());
     //unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
 
-    unlinkedCodeBlock->load(vm, byteCodeCache);
+    Ref<UnlinkedProgramCodeBlockStore> programCodeBlockStore = UnlinkedProgramCodeBlockStore::create(*unlinkedCodeBlock);
+    programCodeBlockStore->load(vm, byteCodeCache);
+
+    //unlinkedCodeBlock->load(vm, byteCodeCache);
 
     return unlinkedCodeBlock;
 }

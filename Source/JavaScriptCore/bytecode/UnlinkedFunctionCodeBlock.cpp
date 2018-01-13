@@ -37,13 +37,4 @@ void UnlinkedFunctionCodeBlock::destroy(JSCell* cell)
     static_cast<UnlinkedFunctionCodeBlock*>(cell)->~UnlinkedFunctionCodeBlock();
 }
 
-void UnlinkedFunctionCodeBlock::save(VM&vm, ByteCodeWriteStore& byteCodeCache) {
-    UnlinkedCodeBlock::save(vm, byteCodeCache);
-}
-
-void UnlinkedFunctionCodeBlock::load(VM&vm, ByteCodeReadStore& byteCodeCache) {
-	UnlinkedCodeBlock::load(vm, byteCodeCache);
-}
-
-
 }

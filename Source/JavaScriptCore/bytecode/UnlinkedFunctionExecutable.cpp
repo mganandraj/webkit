@@ -41,6 +41,7 @@
 #include "ByteCodeStoreMacros.h"
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
+#include "UnlinkedFunctionCodeBlockStore.h"
 
 namespace JSC {
 
@@ -310,7 +311,9 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, SourcePa
         EvalContextType::None), 
         DebuggerOff);
 
-    unlinkedCodeblock->load(vm, byteCodeCache);
+    Ref<UnlinkedFunctionCodeBlockStore> functionCodeBlockStore = UnlinkedFunctionCodeBlockStore::create(*unlinkedCodeblock);
+    functionCodeBlockStore->load(vm, byteCodeCache);
+    // unlinkedCodeblock->load(vm, byteCodeCache);
 
     return unlinkedCodeblock;
 }   

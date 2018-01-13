@@ -39,6 +39,7 @@
 
 #include "ByteCodeWriteStore.h"
 #include "ByteCodeStoreMacros.h"
+#include "UnlinkedFunctionCodeBlockStore.h"
 
 namespace JSC {
 
@@ -115,7 +116,9 @@ void FunctionExecutable::save2(VM& vm, ByteCodeWriteStore& byteCodeCache) {
     ScriptExecutable::save(vm, byteCodeCache);
     
     // Write codeblock.
-    unlinkedCodeBlockForCall->save(vm, byteCodeCache);
+    //unlinkedCodeBlockForCall->save(vm, byteCodeCache);
+    Ref<UnlinkedFunctionCodeBlockStore> functionCodeBlockStore = UnlinkedFunctionCodeBlockStore::create(*unlinkedCodeBlockForCall);
+    functionCodeBlockStore->save(vm, byteCodeCache);
 }
 
 void FunctionExecutable::finishCreation(VM& vm)

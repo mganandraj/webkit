@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,19 +23,44 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "UnlinkedProgramCodeBlock.h"
+#pragma once
 
-#include "HeapInlines.h"
-#include "JSCellInlines.h"
+#include "BytecodeConventions.h"
+#include "CodeType.h"
+#include "ExpressionRangeInfo.h"
+#include "HandlerInfo.h"
+#include "Identifier.h"
+#include "JSCell.h"
+#include "LockDuringMarking.h"
+#include "ParserModes.h"
+#include "RegExp.h"
+#include "SpecialPointer.h"
+#include "UnlinkedFunctionExecutable.h"
+#include "VirtualRegister.h"
+#include <algorithm>
+#include <wtf/BitVector.h>
+#include <wtf/HashSet.h>
+#include <wtf/TriState.h>
+#include <wtf/Vector.h>
+#include <wtf/text/UniquedStringImpl.h>
+
+#include "UnlinkedFunctionCodeBlock.h"
 
 namespace JSC {
 
-const ClassInfo UnlinkedProgramCodeBlock::s_info = { "UnlinkedProgramCodeBlock", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedProgramCodeBlock) };
+class UnlinkedFunctionCodeBlockStore  : public RefCounted<UnlinkedFunctionCodeBlockStore> {
+public:
+    static Ref<UnlinkedFunctionCodeBlockStore> create(UnlinkedFunctionCodeBlock&);
 
-void UnlinkedProgramCodeBlock::destroy(JSCell* cell)
-{
-    static_cast<UnlinkedProgramCodeBlock*>(cell)->~UnlinkedProgramCodeBlock();
-}
+    void save(VM&, ByteCodeWriteStore&);
+    void load(VM&, ByteCodeReadStore&);
+
+private:
+    UnlinkedFunctionCodeBlockStore(UnlinkedFunctionCodeBlock& unlinkedFunctionCodeBlock)
+        : m_unlinkedFunctionCodeBlock(unlinkedFunctionCodeBlock)
+    {}
+
+    UnlinkedFunctionCodeBlock& m_unlinkedFunctionCodeBlock;
+};
 
 }

@@ -52,10 +52,9 @@ public:
     void setLexicalDeclarations(const VariableEnvironment& environment) { m_lexicalDeclarations = environment; }
     const VariableEnvironment& lexicalDeclarations() const { return m_lexicalDeclarations; }
 
-    void save(VM&vm, ByteCodeWriteStore& byteCodeCache);
-    void load(VM&vm, ByteCodeReadStore& byteCodeCache);
-
 private:
+    friend class UnlinkedProgramCodeBlockStore;
+
     UnlinkedProgramCodeBlock(VM* vm, Structure* structure, const ExecutableInfo& info, DebuggerMode debuggerMode)
         : Base(vm, structure, GlobalCode, info, debuggerMode)
     {

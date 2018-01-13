@@ -132,69 +132,6 @@ struct UnlinkedInstruction {
 class UnlinkedCodeBlock : public JSCell {
 public:
 
-    void save(VM&, ByteCodeWriteStore&);
-    void load(VM&, ByteCodeReadStore&);
-
-    void saveInstructions(VM&, ByteCodeWriteStore&);
-    void loadInstructions(VM&, ByteCodeReadStore&);
-
-    void saveVirtualRegisters(VM&, ByteCodeWriteStore&);
-    void loadVirtualRegisters(VM&, ByteCodeReadStore&);
-
-    void saveIdentifiers(VM&, ByteCodeWriteStore&);
-    void loadIdentifiers(VM&, ByteCodeReadStore&);
-
-    void saveBitVectors(VM&, ByteCodeWriteStore&);
-    void loadBitVectors(VM&, ByteCodeReadStore&);
-
-    void saveConstants(VM&, ByteCodeWriteStore&);
-    void loadConstants(VM&, ByteCodeReadStore&);
-
-    void saveConstantIdentifierSets(VM&, ByteCodeWriteStore&);
-    void loadConstantIdentifierSets(VM&, ByteCodeReadStore&);
-
-    void saveLinkTimeConstants(VM&, ByteCodeWriteStore&);
-    void loadLinkTimeConstants(VM&, ByteCodeReadStore&);
-
-    void saveProfileCounts(VM&, ByteCodeWriteStore&);
-    void loadProfileCounts(VM&, ByteCodeReadStore&);
-
-    void loadMisc(VM&, ByteCodeReadStore&);
-    void saveMisc(VM&, ByteCodeWriteStore&);
-
-    void loadFunctionDecls(VM&, ByteCodeReadStore&);
-    void saveFunctionDecls(VM&, ByteCodeWriteStore&);
-
-    void loadFunctionExprs(VM&, ByteCodeReadStore&);
-    void saveFunctionExprs(VM&, ByteCodeWriteStore&);
-
-    void loadSwitchJumpTables(VM&, ByteCodeReadStore&);
-    void saveSwitchJumpTables(VM&, ByteCodeWriteStore&);
-
-    void loadStringSwitchJumpTables(VM&, ByteCodeReadStore&);
-    void saveStringSwitchJumpTables(VM&, ByteCodeWriteStore&);
-
-    void loadExceptionHandlers(VM&, ByteCodeReadStore&);
-    void saveExceptionHandlers(VM&, ByteCodeWriteStore&);
-
-    void loadRegexps(VM&, ByteCodeReadStore&);
-    void saveRegexps(VM&, ByteCodeWriteStore&);
-
-    void loadConstantBuffers(VM&, ByteCodeReadStore&);
-    void saveConstantBuffers(VM&, ByteCodeWriteStore&);
-
-    void loadPropertyAccessInstructions(VM&, ByteCodeReadStore&);
-    void savePropertyAccessInstructions(VM&, ByteCodeWriteStore&);
-
-    void loadJumpTargets(VM&, ByteCodeReadStore&);
-    void saveJumpTargets(VM&, ByteCodeWriteStore&);
-
-    void loadExpressionRangeInfos(VM&, ByteCodeReadStore&);
-    void saveExpressionRangeInfos(VM&, ByteCodeWriteStore&);
-
-    void loadExpressionInfoFatPositions(VM&, ByteCodeReadStore&);
-    void saveExpressionInfoFatPositions(VM&, ByteCodeWriteStore&);
-
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;
 
@@ -490,6 +427,8 @@ protected:
     }
 
 private:
+    friend class UnlinkedCodeBlockStore;
+
     friend class BytecodeRewriter;
     void applyModification(BytecodeRewriter&);
 

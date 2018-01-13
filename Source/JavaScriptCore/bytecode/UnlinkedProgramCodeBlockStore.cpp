@@ -24,18 +24,30 @@
  */
 
 #include "config.h"
-#include "UnlinkedProgramCodeBlock.h"
 
-#include "HeapInlines.h"
-#include "JSCellInlines.h"
+#include "UnlinkedProgramCodeBlockStore.h"
+#include "UnlinkedCodeBlockStore.h"
 
 namespace JSC {
 
-const ClassInfo UnlinkedProgramCodeBlock::s_info = { "UnlinkedProgramCodeBlock", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedProgramCodeBlock) };
-
-void UnlinkedProgramCodeBlock::destroy(JSCell* cell)
-{
-    static_cast<UnlinkedProgramCodeBlock*>(cell)->~UnlinkedProgramCodeBlock();
+Ref<UnlinkedProgramCodeBlockStore> UnlinkedProgramCodeBlockStore::create(UnlinkedProgramCodeBlock& UnlinkedProgramCodeBlock) {
+    return WTF::adoptRef(*new UnlinkedProgramCodeBlockStore(UnlinkedProgramCodeBlock));
 }
+
+void UnlinkedProgramCodeBlockStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+    Ref<UnlinkedCodeBlockStore> codeBlockStore = UnlinkedCodeBlockStore::create(m_unlinkedProgramCodeBlock);
+    codeBlockStore->load(vm, byteCodeCache);
+
+    m_unlinkedProgramCodeBlock.m_varDeclarations.load(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+    m_unlinkedProgramCodeBlock.m_lexicalDeclarations.load(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+}
+
+void UnlinkedProgramCodeBlockStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+    Ref<UnlinkedCodeBlockStore> codeBlockStore = UnlinkedCodeBlockStore::create(m_unlinkedProgramCodeBlock);
+    codeBlockStore->save(vm, byteCodeCache);
+
+    m_unlinkedProgramCodeBlock.m_varDeclarations.save(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+    m_unlinkedProgramCodeBlock.m_lexicalDeclarations.save(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+}    
 
 }
