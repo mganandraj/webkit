@@ -68,22 +68,6 @@ typedef unsigned UnlinkedObjectAllocationProfile;
 typedef unsigned UnlinkedLLIntCallLinkInfo;
 using ConstantIndentifierSetEntry = std::pair<IdentifierSet, unsigned>;
 
-enum class ConstantType {
-    Empty = 0,
-    String,
-    SymbolTable,
-    NonCellValue
-};
-
-enum class IdentifierType {
-    CommonIdentifier = 0, // Look at CommonIdentifier.h
-    WellKnownSymbol,
-    Symbol,
-    BuiltinPrivateName,
-    PrivateName,
-    Normal
-};
-
 struct UnlinkedStringJumpTable {
     struct OffsetLocation {
         int32_t branchOffset;

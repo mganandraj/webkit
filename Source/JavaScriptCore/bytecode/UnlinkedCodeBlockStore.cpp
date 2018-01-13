@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include "UnlinkedCodeBlockStore.h"
+#include "UnlinkedFunctionExecutableStore.h"
 
 namespace JSC {
 
@@ -541,7 +542,9 @@ void UnlinkedCodeBlockStore::saveFunctionDecls(VM& vm, ByteCodeWriteStore& byteC
 
     for(WriteBarrier<UnlinkedFunctionExecutable> f : m_unlinkedCodeBlock.m_functionDecls) {
         UnlinkedFunctionExecutable* ufexe = f.get();
-        ufexe->saveNonCode(vm, byteCodeCache);
+        
+        Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*ufexe);
+        unlinkedFunctionExecutableStore->saveHeader(vm, byteCodeCache);
     }
 }
 
@@ -566,7 +569,10 @@ void UnlinkedCodeBlockStore::saveFunctionExprs(VM& vm, ByteCodeWriteStore& byteC
 
     for(WriteBarrier<UnlinkedFunctionExecutable> f : m_unlinkedCodeBlock.m_functionExprs) {
         UnlinkedFunctionExecutable* ufexe = f.get();
-        ufexe->saveNonCode(vm, byteCodeCache);
+        //ufexe->saveNonCode(vm, byteCodeCache);
+
+        Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*ufexe);
+        unlinkedFunctionExecutableStore->saveHeader(vm, byteCodeCache);
     }
 }
 

@@ -45,10 +45,11 @@
 #include <wtf/text/UniquedStringImpl.h>
 
 #include "UnlinkedFunctionCodeBlock.h"
+#include "UnlinkedCodeBlockStore.h"
 
 namespace JSC {
 
-class UnlinkedFunctionCodeBlockStore  : public RefCounted<UnlinkedFunctionCodeBlockStore> {
+class UnlinkedFunctionCodeBlockStore  : public UnlinkedCodeBlockStore {
 public:
     static Ref<UnlinkedFunctionCodeBlockStore> create(UnlinkedFunctionCodeBlock&);
 
@@ -57,7 +58,8 @@ public:
 
 private:
     UnlinkedFunctionCodeBlockStore(UnlinkedFunctionCodeBlock& unlinkedFunctionCodeBlock)
-        : m_unlinkedFunctionCodeBlock(unlinkedFunctionCodeBlock)
+        : UnlinkedCodeBlockStore(unlinkedFunctionCodeBlock),
+        m_unlinkedFunctionCodeBlock(unlinkedFunctionCodeBlock)
     {}
 
     UnlinkedFunctionCodeBlock& m_unlinkedFunctionCodeBlock;

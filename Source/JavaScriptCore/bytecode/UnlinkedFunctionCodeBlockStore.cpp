@@ -35,13 +35,11 @@ Ref<UnlinkedFunctionCodeBlockStore> UnlinkedFunctionCodeBlockStore::create(Unlin
 }
 
 void UnlinkedFunctionCodeBlockStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
-    Ref<UnlinkedCodeBlockStore> codeBlockStore = UnlinkedCodeBlockStore::create(m_unlinkedFunctionCodeBlock);
-    codeBlockStore->load(vm, byteCodeCache);
+    UnlinkedCodeBlockStore::load(vm, byteCodeCache);
 }
 
 void UnlinkedFunctionCodeBlockStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
-    Ref<UnlinkedCodeBlockStore> codeBlockStore = UnlinkedCodeBlockStore::create(m_unlinkedFunctionCodeBlock);
-    codeBlockStore->save(vm, byteCodeCache);
+    UnlinkedCodeBlockStore::save(vm, byteCodeCache);
 }    
 
 }

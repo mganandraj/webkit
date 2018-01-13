@@ -54,6 +54,7 @@ enum UnlinkedFunctionKind {
 
 class UnlinkedFunctionExecutable final : public JSCell {
 public:
+    friend class UnlinkedFunctionExecutableStore;
     friend class CodeCache;
     friend class VM;
 
@@ -79,11 +80,6 @@ public:
 
     void finishCreation(VM& vm);
     void finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache);
-
-    void saveNonCode(VM&, ByteCodeWriteStore&);
-    void loadNonCode(VM&, ByteCodeReadStore&);
-
-    UnlinkedFunctionCodeBlock* loadCode(VM& vm, SourceParseMode parseMode, ByteCodeReadStore&);
 
     const Identifier& name() const { return m_name; }
     const Identifier& ecmaName() const { return m_ecmaName; }

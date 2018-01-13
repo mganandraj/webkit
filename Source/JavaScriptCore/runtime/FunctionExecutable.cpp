@@ -59,68 +59,6 @@ FunctionExecutable::FunctionExecutable(VM& vm, const SourceCode& source, Unlinke
     m_typeProfilingEndOffset = unlinkedExecutable->typeProfilingEndOffset();
 }
 
-void FunctionExecutable::save2(VM& vm, ByteCodeWriteStore& byteCodeCache) {
-
-    ParserError error;
-    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall = nullptr;
-
-    //dataLogLn("Saving function : ", this->unlinkedExecutable()->name().string(), " : ",
-    //  this->unlinkedExecutable()->ecmaName().string(),  " : ",
-    //    this->unlinkedExecutable()->inferredName().string(), " : ",
-    //    this->source().firstLine().oneBasedInt(),  " : ",
-    //    this->source().startColumn().oneBasedInt()
-    //);
-
-    unlinkedCodeBlockForCall = this->m_unlinkedExecutable->m_unlinkedCodeBlockForCall.get();
-    if(unlinkedCodeBlockForCall == nullptr && JSC::Options::enableBytecodeGenerationWhileCaching()) { // generate for calls if not avaiable and configured to generate ..
-        // Class constructor can't be called ...
-        if(!isClassConstructorFunction()) {
-            //dataLogLn("Generating .. ");
-            unlinkedCodeBlockForCall = 
-                this->m_unlinkedExecutable->unlinkedCodeBlockFor(
-                    vm, this->m_source, CodeSpecializationKind::CodeForCall, DebuggerMode::DebuggerOff, error, 
-                        parseMode());
-        } 
-        //else {
-        //    dataLogLn("Skipping class constructor .. ");
-        //}
-    }
-
-    if(!unlinkedCodeBlockForCall) {
-        // dataLogLn("Skip writing as no codeblock for call.. ");
-        return;
-    }
-
-    // Write functions.
-    for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
-        UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save2(vm, byteCodeCache);
-    }
-
-    // Write functions expressions.
-    for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
-        UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
-        FunctionExecutable* func = ufunc->link(vm, this->source());
-        func->save2(vm, byteCodeCache);
-    }
-    
-    const char* functionPrelogue = "FFF";
-
-    // All the descendants are written .. Now write self.
-    this->unlinkedExecutable()->setByteCodeBundleOffsetForCall(byteCodeCache.currentWritePosition());
-
-    WRITEVECTOR8(functionPrelogue, 3);
-    
-    // Write recordParse
-    ScriptExecutable::save(vm, byteCodeCache);
-    
-    // Write codeblock.
-    //unlinkedCodeBlockForCall->save(vm, byteCodeCache);
-    Ref<UnlinkedFunctionCodeBlockStore> functionCodeBlockStore = UnlinkedFunctionCodeBlockStore::create(*unlinkedCodeBlockForCall);
-    functionCodeBlockStore->save(vm, byteCodeCache);
-}
-
 void FunctionExecutable::finishCreation(VM& vm)
 {
     Base::finishCreation(vm);

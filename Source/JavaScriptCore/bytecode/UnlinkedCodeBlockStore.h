@@ -46,6 +46,22 @@
 
 namespace JSC {
 
+enum class ConstantType {
+    Empty = 0,
+    String,
+    SymbolTable,
+    NonCellValue
+};
+
+enum class IdentifierType {
+    CommonIdentifier = 0, // Look at CommonIdentifier.h
+    WellKnownSymbol,
+    Symbol,
+    BuiltinPrivateName,
+    PrivateName,
+    Normal
+};
+
 class UnlinkedCodeBlockStore  : public RefCounted<UnlinkedCodeBlockStore> {
 public:
     static Ref<UnlinkedCodeBlockStore> create(UnlinkedCodeBlock&);
@@ -53,11 +69,12 @@ public:
     void save(VM&, ByteCodeWriteStore&);
     void load(VM&, ByteCodeReadStore&);
 
-private:
+protected:
     UnlinkedCodeBlockStore(UnlinkedCodeBlock& unlinkedCodeBlock)
         : m_unlinkedCodeBlock(unlinkedCodeBlock)
     {}
 
+private:
     void saveInstructions(VM&, ByteCodeWriteStore&);
     void loadInstructions(VM&, ByteCodeReadStore&);
 

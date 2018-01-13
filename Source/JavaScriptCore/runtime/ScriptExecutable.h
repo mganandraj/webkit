@@ -44,9 +44,6 @@ public:
     bool hasByteCodeCache();
     ByteCodeReadStore& getByteCodeCache();
     void setByteCodeCache(ByteCodeReadStore& byteCodeCache);
-    
-    void save(VM&, ByteCodeWriteStore&);
-    void load(VM&);
 
     CodeBlockHash hashFor(CodeSpecializationKind) const;
 
@@ -116,6 +113,7 @@ public:
     JSObject* prepareForExecution(VM&, JSFunction*, JSScope*, CodeSpecializationKind, CodeBlock*& resultCodeBlock);
 
 private:
+    friend class ScriptExecutableStore;
     friend class ExecutableBase;
     JSObject* prepareForExecutionImpl(VM&, JSFunction*, JSScope*, CodeSpecializationKind, CodeBlock*&);
 

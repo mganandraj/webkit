@@ -256,6 +256,7 @@ bytecode/UnlinkedEvalCodeBlock.cpp
 bytecode/UnlinkedFunctionCodeBlock.cpp
 bytecode/UnlinkedFunctionCodeBlockStore.cpp
 bytecode/UnlinkedFunctionExecutable.cpp
+bytecode/UnlinkedFunctionExecutableStore.cpp
 bytecode/UnlinkedInstructionStream.cpp
 bytecode/UnlinkedModuleProgramCodeBlock.cpp
 bytecode/UnlinkedProgramCodeBlock.cpp
@@ -732,6 +733,7 @@ runtime/ExceptionScope.cpp
 runtime/ExecutableBase.cpp
 runtime/FunctionConstructor.cpp
 runtime/FunctionExecutable.cpp
+runtime/FunctionExecutableStore.cpp
 runtime/FunctionExecutableDump.cpp
 runtime/FunctionHasExecutedCache.cpp
 runtime/FunctionPrototype.cpp
@@ -859,6 +861,7 @@ runtime/ObjectPrototype.cpp
 runtime/Operations.cpp
 runtime/Options.cpp
 runtime/ProgramExecutable.cpp
+runtime/ProgramExecutableStore.cpp
 runtime/PromiseDeferredTimer.cpp
 runtime/PropertyDescriptor.cpp
 runtime/PropertySlot.cpp
@@ -882,6 +885,7 @@ runtime/ScopeOffset.cpp
 runtime/ScopedArguments.cpp
 runtime/ScopedArgumentsTable.cpp
 runtime/ScriptExecutable.cpp
+runtime/ScriptExecutableStore.cpp
 runtime/SetConstructor.cpp
 runtime/SetIteratorPrototype.cpp
 runtime/SetPrototype.cpp

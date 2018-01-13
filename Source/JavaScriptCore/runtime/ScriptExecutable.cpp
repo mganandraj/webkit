@@ -44,6 +44,9 @@
 #include "ByteCodeWriteStore.h"
 #include "ByteCodeReadStore.h"
 
+#include "UnlinkedFunctionExecutableStore.h"
+#include "ProgramExecutableStore.h"
+
 namespace JSC {
 
 const ClassInfo ScriptExecutable::s_info = { "ScriptExecutable", &ExecutableBase::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(ScriptExecutable) };
@@ -93,6 +96,7 @@ void ScriptExecutable::setByteCodeCache(ByteCodeReadStore& byteCodeCache) { m_by
 
 void ScriptExecutable::writeByteCodeCache(VM& vm) 
 {
+    // We support writing only program executable at root as of now.
     ASSERT(classInfo(vm) == ProgramExecutable::info());
 
 	if(!this->hasByteCodeCache()) {
@@ -101,7 +105,9 @@ void ScriptExecutable::writeByteCodeCache(VM& vm)
         RefPtr<ByteCodeWriteStore> currentWriteStore = ByteCodeWriteStore::createForProgram(*program);
         ASSERT(currentWriteStore);
 
-        size_t programOffset = program->save2(vm, *currentWriteStore);
+        ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
+        Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*executable);
+        size_t programOffset = programExecutableStore->save(vm, *currentWriteStore);
         currentWriteStore->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
 #ifndef NDEBUG
         dataLogLn("Writing completed.");
@@ -111,20 +117,6 @@ void ScriptExecutable::writeByteCodeCache(VM& vm)
         dataLogLn("Skip writing as byte codes are already cached.");
 #endif
     }
-}
-
-void ScriptExecutable::save(VM&, ByteCodeWriteStore& byteCodeCache){
-    // Save everything that is recorded after parsing through recordParse
-
-    WRITEMAGIC(MAGIC_SCRIPT);
-
-    WRITEFIELD(m_features);
-
-    bool hasCapturedVariables = m_hasCapturedVariables;
-    WRITEFIELD(hasCapturedVariables);
-
-    WRITEFIELD(m_lastLine);
-    WRITEFIELD(m_endColumn);
 }
 
 // Caller should know how many times to call this.
@@ -138,20 +130,6 @@ std::string nexttoken(std::string text, size_t& next, size_t& last, char delimit
     }
 
     return token;
-}
-
-void ScriptExecutable::load(VM&){
-    
-    ByteCodeReadStore& byteCodeCache = getByteCodeCache();
-
-    VERIFYMAGIC(MAGIC_SCRIPT);
-
-    READFIELD(m_features);
-    bool hasCapturedVariables;
-    READFIELD(hasCapturedVariables);
-    m_hasCapturedVariables = hasCapturedVariables;
-    READFIELD(m_lastLine);
-    READFIELD(m_endColumn);
 }
 
 void ScriptExecutable::destroy(JSCell* cell)

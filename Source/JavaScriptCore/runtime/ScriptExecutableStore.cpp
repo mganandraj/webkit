@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2017 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,45 +23,46 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#include "config.h"
 
-#include "BytecodeConventions.h"
-#include "CodeType.h"
-#include "ExpressionRangeInfo.h"
-#include "HandlerInfo.h"
-#include "Identifier.h"
-#include "JSCell.h"
-#include "LockDuringMarking.h"
-#include "ParserModes.h"
-#include "RegExp.h"
-#include "SpecialPointer.h"
-#include "VirtualRegister.h"
-#include <algorithm>
-#include <wtf/BitVector.h>
-#include <wtf/HashSet.h>
-#include <wtf/TriState.h>
-#include <wtf/Vector.h>
-#include <wtf/text/UniquedStringImpl.h>
-
-#include "UnlinkedProgramCodeBlock.h"
-#include "UnlinkedCodeBlockStore.h"
+#include "ScriptExecutableStore.h"
 
 namespace JSC {
 
-class UnlinkedProgramCodeBlockStore  : public UnlinkedCodeBlockStore {
-public:
-    static Ref<UnlinkedProgramCodeBlockStore> create(UnlinkedProgramCodeBlock&);
+Ref<ScriptExecutableStore> ScriptExecutableStore::create(ScriptExecutable& scriptExecutable) {
+    return WTF::adoptRef(*new ScriptExecutableStore(scriptExecutable));
+}
 
-    void save(VM&, ByteCodeWriteStore&);
-    void load(VM&, ByteCodeReadStore&);
+void ScriptExecutableStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+    VERIFYMAGIC(MAGIC_SCRIPT);
 
-private:
-    UnlinkedProgramCodeBlockStore(UnlinkedProgramCodeBlock& unlinkedProgramCodeBlock)
-        : UnlinkedCodeBlockStore(unlinkedProgramCodeBlock),
-        m_unlinkedProgramCodeBlock(unlinkedProgramCodeBlock)
-    {}
+    uint16_t codeFeaturesVal;
+    READFIELD(codeFeaturesVal);
+    CodeFeatures codeFeatures = static_cast<CodeFeatures>(codeFeaturesVal);
 
-    UnlinkedProgramCodeBlock& m_unlinkedProgramCodeBlock;
-};
+    bool hasCapturedVariables;
+    READFIELD(hasCapturedVariables);
+    
+    int lastLine;
+    unsigned endColumn;
+
+    READFIELD(lastLine);
+    READFIELD(endColumn);
+
+    m_scriptExecutable.recordParse(codeFeatures, hasCapturedVariables, lastLine, endColumn);
+}
+
+void ScriptExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+    
+    WRITEMAGIC(MAGIC_SCRIPT);
+
+    WRITEFIELD(m_scriptExecutable.m_features);
+
+    bool hasCapturedVariables = m_scriptExecutable.m_hasCapturedVariables;
+    WRITEFIELD(hasCapturedVariables);
+
+    WRITEFIELD(m_scriptExecutable.m_lastLine);
+    WRITEFIELD(m_scriptExecutable.m_endColumn);
+}
 
 }

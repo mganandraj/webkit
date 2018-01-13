@@ -35,6 +35,7 @@
 #include "ParserModes.h"
 #include "RegExp.h"
 #include "SpecialPointer.h"
+#include "UnlinkedFunctionExecutable.h"
 #include "VirtualRegister.h"
 #include <algorithm>
 #include <wtf/BitVector.h>
@@ -43,25 +44,26 @@
 #include <wtf/Vector.h>
 #include <wtf/text/UniquedStringImpl.h>
 
-#include "UnlinkedProgramCodeBlock.h"
-#include "UnlinkedCodeBlockStore.h"
+#include "ScriptExecutableStore.h"
+#include "UnlinkedFunctionExecutable.h"
 
 namespace JSC {
 
-class UnlinkedProgramCodeBlockStore  : public UnlinkedCodeBlockStore {
+class UnlinkedFunctionExecutableStore  : public RefCounted<UnlinkedFunctionExecutableStore> {
 public:
-    static Ref<UnlinkedProgramCodeBlockStore> create(UnlinkedProgramCodeBlock&);
+    static Ref<UnlinkedFunctionExecutableStore> create(UnlinkedFunctionExecutable&);
 
-    void save(VM&, ByteCodeWriteStore&);
-    void load(VM&, ByteCodeReadStore&);
+    void saveHeader(VM&, ByteCodeWriteStore&);
+    void loadHeader(VM&, ByteCodeReadStore&);
+
+    UnlinkedFunctionCodeBlock* loadCodeblock(VM&, SourceParseMode parseMode, ByteCodeReadStore&);
 
 private:
-    UnlinkedProgramCodeBlockStore(UnlinkedProgramCodeBlock& unlinkedProgramCodeBlock)
-        : UnlinkedCodeBlockStore(unlinkedProgramCodeBlock),
-        m_unlinkedProgramCodeBlock(unlinkedProgramCodeBlock)
+    UnlinkedFunctionExecutableStore(UnlinkedFunctionExecutable& unlinkedFunctionExecutable)
+        : m_unlinkedFunctionExecutable(unlinkedFunctionExecutable)
     {}
 
-    UnlinkedProgramCodeBlock& m_unlinkedProgramCodeBlock;
+    UnlinkedFunctionExecutable& m_unlinkedFunctionExecutable;
 };
 
 }

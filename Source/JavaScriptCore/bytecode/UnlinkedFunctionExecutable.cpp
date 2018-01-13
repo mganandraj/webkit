@@ -42,6 +42,7 @@
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
 #include "UnlinkedFunctionCodeBlockStore.h"
+#include "UnlinkedFunctionExecutableStore.h"
 
 namespace JSC {
 
@@ -83,7 +84,9 @@ static UnlinkedFunctionCodeBlock* generateUnlinkedFunctionCodeBlock(
 void UnlinkedFunctionExecutable::finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache)
 {
     Base::finishCreation(vm);
-    loadNonCode(vm, byteCodeCache);
+    //loadNonCode(vm, byteCodeCache);
+    Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*this);
+    unlinkedFunctionExecutableStore->loadHeader(vm, byteCodeCache);
 }
 
 void UnlinkedFunctionExecutable::finishCreation(VM& vm)
@@ -133,189 +136,6 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     ASSERT(m_derivedContextType == static_cast<unsigned>(derivedContextType));
 
     m_parentScopeTDZVariables.swap(parentScopeTDZVariables);
-}
-
-
-void UnlinkedFunctionExecutable::saveNonCode(VM&, ByteCodeWriteStore& byteCodeCache) {
-    
-    WRITEMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
-
-    WRITEATOMICIDENTIFIER(m_name);
-
-    WRITEATOMICIDENTIFIER(m_ecmaName);
-
-    WRITEATOMICIDENTIFIER(m_inferredName);
-
-    if(!m_parentSourceOverride.isNull()) {
-        StringView source = m_parentSourceOverride.provider()->source();
-        
-        unsigned length = source.length();
-        WRITEFIELD(length);
-
-        bool is8Bit = source.is8Bit();
-        WRITEFIELD(is8Bit);
-
-        if(source.is8Bit()) {
-            WRITEVECTOR8(source.characters8(), length);
-        } else {
-            WRITEVECTOR8(source.characters16(), length);
-        }
-    } else {
-        unsigned sourceLength = 0;
-        WRITEFIELD(sourceLength);
-    }
-
-    //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceURLDirective.characters8()), m_sourceURLDirective.length());
-    //ofstream << " ";
-    //ofstream<<std::string(reinterpret_cast<const char* >(m_sourceMappingURLDirective.characters8()), m_sourceMappingURLDirective.length());
-    //ofstream << " ";
-
-    WRITEFIELD(m_byteCodeBundleOffsetForCall);
-    //WRITEFIELD(m_byteCodeBundleOffsetForConstruct);
-    
-    WRITEFIELD(m_firstLineOffset);
-    WRITEFIELD(m_lineCount);
-    WRITEFIELD(m_unlinkedFunctionNameStart);
-    WRITEFIELD(m_unlinkedBodyStartColumn);
-    WRITEFIELD(m_unlinkedBodyEndColumn);
-    WRITEFIELD(m_startOffset);
-    WRITEFIELD(m_sourceLength);
-   
-    WRITEFIELD(m_parametersStartOffset);
-    WRITEFIELD(m_typeProfilingStartOffset);
-    WRITEFIELD(m_typeProfilingEndOffset);
-    WRITEFIELD(m_parameterCount);
-    
-    uint16_t codeFeatures = static_cast<uint16_t>(m_features);
-    WRITEFIELD(codeFeatures);
-    
-    uint32_t parseMode = static_cast<uint32_t>(m_sourceParseMode);
-    WRITEFIELD(parseMode);
-    
-    uint16_t funcMetadata = 0;
-    funcMetadata |= m_isInStrictContext;
-    funcMetadata |= m_hasCapturedVariables << 1;
-    funcMetadata |= m_isBuiltinFunction << 2;
-    funcMetadata |= m_constructAbility << 3;
-    funcMetadata |= m_constructorKind << 4;
-    funcMetadata |= m_functionMode << 6;
-    funcMetadata |= m_scriptMode << 8;
-    funcMetadata |= m_superBinding << 9;
-    funcMetadata |= m_derivedContextType << 10;
-
-    WRITEFIELD(funcMetadata);
-
-    // TODO Parent Scope TDZ
-    // m_parentScopeTDZVariables->;
-}
-
-void UnlinkedFunctionExecutable::loadNonCode(VM&vm, ByteCodeReadStore& byteCodeCache){
-
-    VERIFYMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
-    
-    READATOMICIDENTIFIER(m_name);
-
-    READATOMICIDENTIFIER(m_ecmaName);
-
-    READATOMICIDENTIFIER(m_inferredName);
-    
-    {
-        unsigned sourceLength;
-        READFIELD(sourceLength);
-
-        if(sourceLength > 0) {
-
-            bool isSource8bit;
-            READFIELD(isSource8bit);
-
-            if(isSource8bit) {
-                char* _data;
-                READVECTOR8(&_data, sourceLength);
-                m_parentSourceOverride = makeSource(StringImpl::create(reinterpret_cast<const LChar*>(_data), sourceLength), { });
-            } else {
-                char* _data;
-                READVECTOR16(&_data, sourceLength);
-                m_parentSourceOverride = makeSource(StringImpl::create(reinterpret_cast<const UChar*>(_data), sourceLength), { });
-            }
-        }
-    }
-
-    READFIELD(m_byteCodeBundleOffsetForCall);
-    //READFIELD(m_byteCodeBundleOffsetForConstruct);
-
-    READFIELD(m_firstLineOffset);
-    READFIELD(m_lineCount);
-    READFIELD(m_unlinkedFunctionNameStart);
-    READFIELD(m_unlinkedBodyStartColumn);
-    READFIELD(m_unlinkedBodyEndColumn);
-    READFIELD(m_startOffset);
-    READFIELD(m_sourceLength);
-    
-    READFIELD(m_parametersStartOffset);
-    READFIELD(m_typeProfilingStartOffset);
-    READFIELD(m_typeProfilingEndOffset);
-    READFIELD(m_parameterCount);
-    
-    uint16_t codeFeatures;
-    READFIELD(codeFeatures);
-    m_features = static_cast<CodeFeatures>(codeFeatures);
-    
-    uint32_t parseMode;
-    READFIELD(parseMode);
-    m_sourceParseMode = static_cast<SourceParseMode>(parseMode);
-
-    uint16_t funcMetadata;
-    READFIELD(funcMetadata);
-
-    m_isInStrictContext = funcMetadata & 0x0001;
-    m_hasCapturedVariables = (funcMetadata & 0x0002) >> 1;
-    m_isBuiltinFunction = (funcMetadata & 0x0004) >> 2;
-    m_constructAbility = (funcMetadata & 0x0008) >> 3;
-    m_constructorKind = (funcMetadata & 0x0030) >> 4;
-    m_functionMode = (funcMetadata & 0x00C0) >> 6;
-    m_scriptMode = (funcMetadata & 0x0100) >> 8;
-    m_superBinding = (funcMetadata & 0x0200) >> 9;
-    m_derivedContextType = (funcMetadata & 0x0400) >> 10;
-}
-
-UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::loadCode(VM& vm, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
-{
-    CodeFeatures features;
-    bool hasCapturedVariables;
-    int lastLine;
-    unsigned endColumn;
-
-    VERIFYMAGIC(MAGIC_SCRIPT);
-    
-    READFIELD(features);
-    READFIELD(hasCapturedVariables);
-    READFIELD(lastLine);
-    READFIELD(endColumn);
-
-    this->recordParse(features, hasCapturedVariables);
-
-    bool usesEval = features & EvalFeature;
-    bool isStrictMode = features & StrictModeFeature;
-
-    //JSParserBuiltinMode builtinMode = isBuiltinFunction() ? JSParserBuiltinMode::Builtin : JSParserBuiltinMode::NotBuiltin;
-    // JSParserStrictMode strictMode = isInStrictContext() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;
-    JSParserScriptMode _scriptMode = scriptMode();
-
-    bool isClassContext = superBinding() == SuperBinding::Needed;
-
-    UnlinkedFunctionCodeBlock* unlinkedCodeblock = UnlinkedFunctionCodeBlock::create(&vm, FunctionCode, 
-        ExecutableInfo(usesEval, isStrictMode, 
-        /*specializationKind == CodeForConstruct*/false, false /* !UnlinkedBuiltinFunction*/, 
-        this->constructorKind(), _scriptMode, this->superBinding(),
-        parseMode, this->derivedContextType(), false, isClassContext, 
-        EvalContextType::None), 
-        DebuggerOff);
-
-    Ref<UnlinkedFunctionCodeBlockStore> functionCodeBlockStore = UnlinkedFunctionCodeBlockStore::create(*unlinkedCodeblock);
-    functionCodeBlockStore->load(vm, byteCodeCache);
-    // unlinkedCodeblock->load(vm, byteCodeCache);
-
-    return unlinkedCodeblock;
 }   
 
 void UnlinkedFunctionExecutable::destroy(JSCell* cell)
@@ -396,10 +216,15 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
 
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockForCallFromByteCodeCache(VM& vm, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
 {
-    if (UnlinkedFunctionCodeBlock* codeBlock = m_unlinkedCodeBlockForCall.get())
-        return codeBlock;
+    ASSERT(m_unlinkedCodeBlockForCall.get() == nullptr);
+    //if (UnlinkedFunctionCodeBlock* codeBlock = m_unlinkedCodeBlockForCall.get())
+    //    return codeBlock;
 
-    UnlinkedFunctionCodeBlock* result = this->loadCode(vm, parseMode, byteCodeCache); 
+    //UnlinkedFunctionCodeBlock* result = this->loadCode(vm, parseMode, byteCodeCache); 
+    
+    Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*this);
+    UnlinkedFunctionCodeBlock* result = unlinkedFunctionExecutableStore->loadCodeblock(vm, parseMode, byteCodeCache);
+    
     return result;
 }
 
