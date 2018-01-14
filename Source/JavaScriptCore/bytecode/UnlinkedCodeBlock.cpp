@@ -47,12 +47,6 @@
 #include "UnlinkedProgramCodeBlock.h"
 #include <wtf/DataLog.h>
 
-#include "BuiltinNames.h"
-
-#include "ByteCodeStoreMacros.h"
-#include "ByteCodeReadStore.h"
-#include "ByteCodeWriteStore.h"
-
 namespace JSC {
 
 const ClassInfo UnlinkedCodeBlock::s_info = { "UnlinkedCodeBlock", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(UnlinkedCodeBlock) };
@@ -91,38 +85,6 @@ UnlinkedCodeBlock::UnlinkedCodeBlock(VM* vm, Structure* structure, CodeType code
     for (auto& constantRegisterIndex : m_linkTimeConstants)
         constantRegisterIndex = 0;
     ASSERT(m_constructorKind == static_cast<unsigned>(info.constructorKind()));
-}
-
-void UnlinkedStringJumpTable::save(VM&, ByteCodeWriteStore& byteCodeCache) {
-    size_t offsetTableSize = offsetTable.size();
-    WRITEFIELD(offsetTableSize);
-
-    for( auto& entry : offsetTable) {
-        RefPtr<StringImpl> key = entry.key;
-        int32_t value = entry.value.branchOffset;
-        
-        WRITESTRING(key);
-        WRITEFIELD(value);
-    }
-}
-
-void UnlinkedStringJumpTable::load(VM&, ByteCodeReadStore& byteCodeCache) {
-    int32_t offsetTableSize;
-    READFIELD(offsetTableSize);
-
-    for(int i=0; i < offsetTableSize; i++) {
-
-        RefPtr<StringImpl> key;
-        READSTRING(key);
-
-        int32_t value;
-        READFIELD(value);
-
-        struct OffsetLocation location;
-        location.branchOffset = value;
-
-        offsetTable.add(key, location);
-    }
 }
 
 void UnlinkedCodeBlock::visitChildren(JSCell* cell, SlotVisitor& visitor)

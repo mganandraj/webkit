@@ -908,6 +908,7 @@ runtime/SymbolConstructor.cpp
 runtime/SymbolObject.cpp
 runtime/SymbolPrototype.cpp
 runtime/SymbolTable.cpp
+runtime/SymbolTableStore.cpp
 runtime/TemplateRegistry.cpp
 runtime/TemplateRegistryKey.cpp
 runtime/TemplateRegistryKeyTable.cpp

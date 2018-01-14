@@ -35,14 +35,14 @@ Ref<UnlinkedProgramCodeBlockStore> UnlinkedProgramCodeBlockStore::create(Unlinke
 }
 
 void UnlinkedProgramCodeBlockStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
-    UnlinkedCodeBlockStore::load(vm, byteCodeCache);
+    UnlinkedCodeBlockStore::load(byteCodeCache);
 
     m_unlinkedProgramCodeBlock.m_varDeclarations.load(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
     m_unlinkedProgramCodeBlock.m_lexicalDeclarations.load(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
 }
 
 void UnlinkedProgramCodeBlockStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
-    UnlinkedCodeBlockStore::save(vm, byteCodeCache);
+    UnlinkedCodeBlockStore::save(byteCodeCache);
 
     m_unlinkedProgramCodeBlock.m_varDeclarations.save(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
     m_unlinkedProgramCodeBlock.m_lexicalDeclarations.save(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);

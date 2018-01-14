@@ -33,7 +33,7 @@ Ref<UnlinkedFunctionExecutableStore> UnlinkedFunctionExecutableStore::create(Unl
     return WTF::adoptRef(*new UnlinkedFunctionExecutableStore(unlinkedFunctionExecutable));
 }
 
-void UnlinkedFunctionExecutableStore::saveHeader(VM&vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedFunctionExecutableStore::saveHeader(VM&, ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_UNLINKEDFUNCTIONEXECUTABLE);
 
     WRITEATOMICIDENTIFIER(m_unlinkedFunctionExecutable.m_name);

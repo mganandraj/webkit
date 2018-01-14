@@ -29,8 +29,6 @@
 
 #if ENABLE(ASSEMBLER) && CPU(ARM_TRADITIONAL)
 
-blahs
-
 #include "MacroAssembler.h"
 
 #include "ProbeContext.h"

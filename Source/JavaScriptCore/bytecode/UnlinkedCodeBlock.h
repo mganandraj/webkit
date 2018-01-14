@@ -58,8 +58,6 @@ class UnlinkedFunctionCodeBlock;
 class UnlinkedFunctionExecutable;
 class UnlinkedInstructionStream;
 struct ExecutableInfo;
-class ByteCodeReadStore;
-class ByteCodeWriteStore;
 
 typedef unsigned UnlinkedValueProfile;
 typedef unsigned UnlinkedArrayProfile;
@@ -75,9 +73,6 @@ struct UnlinkedStringJumpTable {
 
     typedef HashMap<RefPtr<StringImpl>, OffsetLocation> StringOffsetTable;
     StringOffsetTable offsetTable;
-
-    void save(VM& vm, ByteCodeWriteStore& byteCodeCache);
-    void load(VM& vm, ByteCodeReadStore& byteCodeCache);
 
     inline int32_t offsetForValue(StringImpl* value, int32_t defaultOffset)
     {

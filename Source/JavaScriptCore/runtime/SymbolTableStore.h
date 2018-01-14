@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +23,45 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#pragma once
 
-#include "UnlinkedFunctionCodeBlockStore.h"
-#include "UnlinkedCodeBlockStore.h"
+#include "BytecodeConventions.h"
+#include "CodeType.h"
+#include "ExpressionRangeInfo.h"
+#include "HandlerInfo.h"
+#include "Identifier.h"
+#include "JSCell.h"
+#include "LockDuringMarking.h"
+#include "ParserModes.h"
+#include "RegExp.h"
+#include "SpecialPointer.h"
+#include "UnlinkedFunctionExecutable.h"
+#include "VirtualRegister.h"
+#include <algorithm>
+#include <wtf/BitVector.h>
+#include <wtf/HashSet.h>
+#include <wtf/TriState.h>
+#include <wtf/Vector.h>
+#include <wtf/text/UniquedStringImpl.h>
+
+#include "SymbolTable.h"
 
 namespace JSC {
 
-Ref<UnlinkedFunctionCodeBlockStore> UnlinkedFunctionCodeBlockStore::create(UnlinkedFunctionCodeBlock& UnlinkedFunctionCodeBlock) {
-    return WTF::adoptRef(*new UnlinkedFunctionCodeBlockStore(UnlinkedFunctionCodeBlock));
-}
+class SymbolTableStore  : public RefCounted<SymbolTableStore> {
+public:
+    static Ref<SymbolTableStore> create(SymbolTable&);
 
-void UnlinkedFunctionCodeBlockStore::load(VM&, ByteCodeReadStore& byteCodeCache) {
-    UnlinkedCodeBlockStore::load(byteCodeCache);
-}
+    void save(VM&, const Vector<Identifier>& codeblockIdentifiers, ByteCodeWriteStore&);
+    void load(VM&, const Vector<Identifier>& codeblockIdentifiers, ByteCodeReadStore&);
 
-void UnlinkedFunctionCodeBlockStore::save(VM&, ByteCodeWriteStore& byteCodeCache) {
-    UnlinkedCodeBlockStore::save(byteCodeCache);
-}    
+protected:
+    SymbolTableStore(SymbolTable& symbolTable)
+        : m_symbolTable(symbolTable)
+    {}
+
+private:
+    SymbolTable& m_symbolTable;
+};
 
 }

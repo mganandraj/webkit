@@ -145,8 +145,7 @@ JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef th
 
     // evaluate sets "this" to the global object if it is NULL
     JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
-    auto sourceURLString = sourceURL ? sourceURL->string() : String();
-    
+    auto sourceURLString = sourceURL ? sourceURL->string() : String();    
     SourceCode source = makeSource(script->string(), SourceOrigin { sourceURLString }, sourceURLString, TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
 
     NakedPtr<Exception> evaluationException;

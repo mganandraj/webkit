@@ -29,9 +29,6 @@
 
 namespace JSC {
 
-class ByteCodeWriteStore;
-class ByteCodeReadStore;
-
 class UnlinkedFunctionCodeBlock final : public UnlinkedCodeBlock {
 public:
     typedef UnlinkedCodeBlock Base;

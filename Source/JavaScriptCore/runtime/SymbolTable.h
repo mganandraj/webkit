@@ -463,9 +463,6 @@ public:
         return Structure::create(vm, globalObject, prototype, TypeInfo(CellType, StructureFlags), info());
     }
 
-    void save(VM& vm, const Vector<Identifier>&, ByteCodeWriteStore& byteCodeCache);
-    void load(VM& vm, const Vector<Identifier>&, ByteCodeReadStore& byteCodeCache);
-
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJSLocker&, UniquedStringImpl* key)
     {
@@ -694,6 +691,8 @@ public:
     DECLARE_EXPORT_INFO;
 
 private:
+    friend class SymbolTableStore;
+
     JS_EXPORT_PRIVATE SymbolTable(VM&);
     ~SymbolTable();
     

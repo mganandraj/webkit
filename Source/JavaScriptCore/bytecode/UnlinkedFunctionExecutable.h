@@ -44,8 +44,6 @@ class FunctionExecutable;
 class ParserError;
 class SourceProvider;
 class UnlinkedFunctionCodeBlock;
-class ByteCodeWriteStore;
-class ByteCodeReadStore;
 
 enum UnlinkedFunctionKind {
     UnlinkedNormalFunction,

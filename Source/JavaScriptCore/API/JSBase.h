@@ -92,8 +92,6 @@ extern "C" {
 
 /* Script Evaluation */
 
-//JS_EXPORT JSValueRef JSEvaluateScriptFile(JSContextRef ctx, int sourceFD, JSObjectRef thisObject, JSStringRef jsSourceURL, JSValueRef* exception);
-
 JS_EXPORT JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef jsSourceURL, JSValueRef* exception);
 
 JS_EXPORT JSValueRef JSEvaluateScriptFD(JSContextRef ctx, int sourceFD, unsigned int offset, unsigned int size, JSObjectRef thisObject, JSStringRef jsSourceURL, JSValueRef* exception);

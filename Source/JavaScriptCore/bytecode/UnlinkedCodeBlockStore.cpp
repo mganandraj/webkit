@@ -27,6 +27,9 @@
 
 #include "UnlinkedCodeBlockStore.h"
 #include "UnlinkedFunctionExecutableStore.h"
+#include "SymbolTableStore.h"
+
+#include "BuiltinNames.h"
 
 namespace JSC {
 
@@ -34,67 +37,67 @@ Ref<UnlinkedCodeBlockStore> UnlinkedCodeBlockStore::create(UnlinkedCodeBlock& Un
     return WTF::adoptRef(*new UnlinkedCodeBlockStore(UnlinkedCodeBlock));
 }
 
-void UnlinkedCodeBlockStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::load(ByteCodeReadStore& byteCodeCache) {
 
     VERIFYMAGIC(MAGIC_CODEBLOCK);
     READFIELD(m_unlinkedCodeBlock.m_numParameters);
     
-    loadInstructions(vm, byteCodeCache);
-    loadVirtualRegisters(vm, byteCodeCache);
-    loadIdentifiers(vm, byteCodeCache);
-    loadBitVectors(vm, byteCodeCache);
-    loadConstants(vm, byteCodeCache);
-    loadConstantIdentifierSets(vm, byteCodeCache);
-    loadLinkTimeConstants(vm, byteCodeCache);
-    loadProfileCounts(vm, byteCodeCache);
-    loadMisc(vm, byteCodeCache);
-    loadFunctionDecls(vm, byteCodeCache);
-    loadFunctionExprs(vm, byteCodeCache);
-    loadSwitchJumpTables(vm, byteCodeCache);
-    loadStringSwitchJumpTables(vm, byteCodeCache);
-    loadExceptionHandlers(vm, byteCodeCache);
-    loadRegexps(vm, byteCodeCache);
-    loadConstantBuffers(vm, byteCodeCache);
-    loadPropertyAccessInstructions(vm, byteCodeCache);
-    loadJumpTargets(vm, byteCodeCache);
-    loadExpressionRangeInfos(vm, byteCodeCache);   
-    loadExpressionInfoFatPositions(vm, byteCodeCache);
+    loadInstructions(byteCodeCache);
+    loadVirtualRegisters(byteCodeCache);
+    loadIdentifiers(byteCodeCache);
+    loadBitVectors(byteCodeCache);
+    loadConstants(byteCodeCache);
+    loadConstantIdentifierSets(byteCodeCache);
+    loadLinkTimeConstants(byteCodeCache);
+    loadProfileCounts(byteCodeCache);
+    loadMisc(byteCodeCache);
+    loadFunctionDecls(byteCodeCache);
+    loadFunctionExprs(byteCodeCache);
+    loadSwitchJumpTables(byteCodeCache);
+    loadStringSwitchJumpTables(byteCodeCache);
+    loadExceptionHandlers(byteCodeCache);
+    loadRegexps(byteCodeCache);
+    loadConstantBuffers(byteCodeCache);
+    loadPropertyAccessInstructions(byteCodeCache);
+    loadJumpTargets(byteCodeCache);
+    loadExpressionRangeInfos(byteCodeCache);   
+    loadExpressionInfoFatPositions(byteCodeCache);
 
     VERIFYMAGIC(MAGIC_CODEBLOCK_END);
 }
 
-void UnlinkedCodeBlockStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::save(ByteCodeWriteStore& byteCodeCache) {
 
     WRITEMAGIC(MAGIC_CODEBLOCK);
     WRITEFIELD(m_unlinkedCodeBlock.m_numParameters);
     
     // instructions
 
-    saveInstructions(vm, byteCodeCache);
-    saveVirtualRegisters(vm, byteCodeCache);
-    saveIdentifiers(vm, byteCodeCache);
-    saveBitVectors(vm, byteCodeCache);
-    saveConstants(vm, byteCodeCache);
-    saveConstantIdentifierSets(vm, byteCodeCache);
-    saveLinkTimeConstants(vm, byteCodeCache);
-    saveProfileCounts(vm, byteCodeCache);
-    saveMisc(vm, byteCodeCache);
-    saveFunctionDecls(vm, byteCodeCache);
-    saveFunctionExprs(vm, byteCodeCache);
-    saveSwitchJumpTables(vm, byteCodeCache);
-    saveStringSwitchJumpTables(vm, byteCodeCache);
-    saveExceptionHandlers(vm, byteCodeCache);
-    saveRegexps(vm, byteCodeCache);
-    saveConstantBuffers(vm, byteCodeCache);
-    savePropertyAccessInstructions(vm, byteCodeCache);
-    saveJumpTargets(vm, byteCodeCache);
-    saveExpressionRangeInfos(vm, byteCodeCache);
-    saveExpressionInfoFatPositions(vm, byteCodeCache);
+    saveInstructions(byteCodeCache);
+    saveVirtualRegisters(byteCodeCache);
+    saveIdentifiers(byteCodeCache);
+    saveBitVectors(byteCodeCache);
+    saveConstants(byteCodeCache);
+    saveConstantIdentifierSets(byteCodeCache);
+    saveLinkTimeConstants(byteCodeCache);
+    saveProfileCounts(byteCodeCache);
+    saveMisc(byteCodeCache);
+    saveFunctionDecls(byteCodeCache);
+    saveFunctionExprs(byteCodeCache);
+    saveSwitchJumpTables(byteCodeCache);
+    saveStringSwitchJumpTables(byteCodeCache);
+    saveExceptionHandlers(byteCodeCache);
+    saveRegexps(byteCodeCache);
+    saveConstantBuffers(byteCodeCache);
+    savePropertyAccessInstructions(byteCodeCache);
+    saveJumpTargets(byteCodeCache);
+    saveExpressionRangeInfos(byteCodeCache);
+    saveExpressionInfoFatPositions(byteCodeCache);
 
     WRITEMAGIC(MAGIC_CODEBLOCK_END);
 }    
 
-void UnlinkedCodeBlockStore::saveInstructions(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveInstructions(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_INSTRUCTIONS);
     
     unsigned instructionCount = m_unlinkedCodeBlock.m_unlinkedInstructions->m_instructionCount;
@@ -106,7 +109,7 @@ void UnlinkedCodeBlockStore::saveInstructions(VM&, ByteCodeWriteStore& byteCodeC
     WRITEVECTOR8(m_unlinkedCodeBlock.m_unlinkedInstructions->m_data.data(), instructionStreamSize);
 }
 
-void UnlinkedCodeBlockStore::loadInstructions(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadInstructions(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_INSTRUCTIONS);
 
     unsigned instructioncount;
@@ -121,7 +124,7 @@ void UnlinkedCodeBlockStore::loadInstructions(VM&, ByteCodeReadStore& byteCodeCa
     m_unlinkedCodeBlock.m_unlinkedInstructions = std::make_unique<UnlinkedInstructionStream>(instrArray, instructioncount);
 }
 
-void UnlinkedCodeBlockStore::saveVirtualRegisters(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveVirtualRegisters(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_VIRTUALREGISTERS);
     
     int registerOffset = m_unlinkedCodeBlock.m_thisRegister.offset();
@@ -135,8 +138,7 @@ void UnlinkedCodeBlockStore::saveVirtualRegisters(VM&, ByteCodeWriteStore& byteC
 
 }
 
-void UnlinkedCodeBlockStore::loadVirtualRegisters(VM&, ByteCodeReadStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::loadVirtualRegisters(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_VIRTUALREGISTERS);
     
     int regoffset;
@@ -148,8 +150,7 @@ void UnlinkedCodeBlockStore::loadVirtualRegisters(VM&, ByteCodeReadStore& byteCo
     m_unlinkedCodeBlock.m_globalObjectRegister=VirtualRegister(regoffset);
 }
 
-void UnlinkedCodeBlockStore::saveIdentifiers(VM& vm, ByteCodeWriteStore& byteCodeCache) {
-
+void UnlinkedCodeBlockStore::saveIdentifiers(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_IDENTIFIERS);
     
     size_t numIdentifiers = m_unlinkedCodeBlock.m_identifiers.size();
@@ -159,7 +160,7 @@ void UnlinkedCodeBlockStore::saveIdentifiers(VM& vm, ByteCodeWriteStore& byteCod
     for (auto &identifier : m_unlinkedCodeBlock.m_identifiers) {
         if (identifier.isPrivateName()) {
             size_t privateNameIndex;
-            if(vm.propertyNames->builtinNames().findPrivateNameIndex(identifier, privateNameIndex)) {
+            if(m_unlinkedCodeBlock.vm()->propertyNames->builtinNames().findPrivateNameIndex(identifier, privateNameIndex)) {
                 identifierType = static_cast<uint8_t>(IdentifierType::BuiltinPrivateName);
                 WRITEFIELD(identifierType);
                 WRITEFIELD(privateNameIndex);
@@ -172,7 +173,7 @@ void UnlinkedCodeBlockStore::saveIdentifiers(VM& vm, ByteCodeWriteStore& byteCod
         }
         else if(identifier.isSymbol()) {
             size_t symbolIndex;
-            if (vm.propertyNames->findCommonSymbol(identifier, symbolIndex)) {
+            if (m_unlinkedCodeBlock.vm()->propertyNames->findCommonSymbol(identifier, symbolIndex)) {
                 identifierType = static_cast<uint8_t>(IdentifierType::WellKnownSymbol);
                 WRITEFIELD(identifierType);
                 WRITEFIELD(symbolIndex);
@@ -185,7 +186,7 @@ void UnlinkedCodeBlockStore::saveIdentifiers(VM& vm, ByteCodeWriteStore& byteCod
             }
         } else {
             size_t commonIdIndex;
-            if(vm.propertyNames->findCommonPropName(identifier, commonIdIndex)) {
+            if(m_unlinkedCodeBlock.vm()->propertyNames->findCommonPropName(identifier, commonIdIndex)) {
                 identifierType = static_cast<uint8_t>(IdentifierType::CommonIdentifier);
                 WRITEFIELD(identifierType);
                 WRITEFIELD(commonIdIndex);
@@ -203,7 +204,8 @@ void UnlinkedCodeBlockStore::saveIdentifiers(VM& vm, ByteCodeWriteStore& byteCod
     }   
 }
 
-void UnlinkedCodeBlockStore::loadIdentifiers(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadIdentifiers(ByteCodeReadStore& byteCodeCache) {
+    VM& vm = *m_unlinkedCodeBlock.vm();
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_IDENTIFIERS);
 
@@ -216,13 +218,13 @@ void UnlinkedCodeBlockStore::loadIdentifiers(VM& vm, ByteCodeReadStore& byteCode
         switch(static_cast<IdentifierType>(identifierType)) {
             case IdentifierType::CommonIdentifier:{
                 READFIELD(identifierIndex);
-                m_unlinkedCodeBlock.m_identifiers.append(vm.propertyNames->lookupCommonPropNameIdenfier(identifierIndex));
+                m_unlinkedCodeBlock.m_identifiers.append(m_unlinkedCodeBlock.vm()->propertyNames->lookupCommonPropNameIdenfier(identifierIndex));
             }
             break;
 
             case IdentifierType::WellKnownSymbol: {
                 READFIELD(identifierIndex);
-                m_unlinkedCodeBlock.m_identifiers.append(vm.propertyNames->lookupCommonSymbolIdenfier(identifierIndex));
+                m_unlinkedCodeBlock.m_identifiers.append(m_unlinkedCodeBlock.vm()->propertyNames->lookupCommonSymbolIdenfier(identifierIndex));
             }
             break;
 
@@ -249,7 +251,7 @@ void UnlinkedCodeBlockStore::loadIdentifiers(VM& vm, ByteCodeReadStore& byteCode
                 READFIELD(identifierIndex);
                 ASSERT(identifierIndex >= 0);
 
-                m_unlinkedCodeBlock.m_identifiers.append(vm.propertyNames->builtinNames().lookupPrivateNameIdentifier(identifierIndex));
+                m_unlinkedCodeBlock.m_identifiers.append(m_unlinkedCodeBlock.vm()->propertyNames->builtinNames().lookupPrivateNameIdentifier(identifierIndex));
             }
             break;
 
@@ -269,7 +271,9 @@ void UnlinkedCodeBlockStore::loadIdentifiers(VM& vm, ByteCodeReadStore& byteCode
     }
 }
 
-void UnlinkedCodeBlockStore::saveBitVectors(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveBitVectors(ByteCodeWriteStore& byteCodeCache) {
+
+    
     WRITEMAGIC(MAGIC_CODEBLOCK_BITVECTORS);
     
     size_t bitVectorSize = m_unlinkedCodeBlock.m_bitVectors.size();
@@ -280,7 +284,8 @@ void UnlinkedCodeBlockStore::saveBitVectors(VM&, ByteCodeWriteStore& byteCodeCac
     }
 }
 
-void UnlinkedCodeBlockStore::loadBitVectors(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadBitVectors(ByteCodeReadStore& byteCodeCache) {
+
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_BITVECTORS);
 
@@ -296,7 +301,9 @@ void UnlinkedCodeBlockStore::loadBitVectors(VM&, ByteCodeReadStore& byteCodeCach
     }
 }
 
-void UnlinkedCodeBlockStore::saveConstants(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveConstants(ByteCodeWriteStore& byteCodeCache) {
+    VM& vm = *m_unlinkedCodeBlock.vm();
+    
     WRITEMAGIC(MAGIC_CODEBLOCK_CONSTANTS);
     
     size_t constantRegistersSize = m_unlinkedCodeBlock.constantRegisters().size();
@@ -330,7 +337,8 @@ void UnlinkedCodeBlockStore::saveConstants(VM& vm, ByteCodeWriteStore& byteCodeC
                     WRITEFIELD(constantType);
 
                     SymbolTable* symbolTable = jsCast<SymbolTable*>(value);
-                    symbolTable->save(vm, m_unlinkedCodeBlock.identifiers(), byteCodeCache);
+                    Ref<SymbolTableStore> symbolTableStore = SymbolTableStore::create(*symbolTable);
+                    symbolTableStore->save(*m_unlinkedCodeBlock.vm(), m_unlinkedCodeBlock.identifiers(), byteCodeCache);
 
                     int32_t sourceCodeRepresentation = static_cast<int32_t>(m_unlinkedCodeBlock.constantsSourceCodeRepresentation()[i]);
                     WRITEFIELD(sourceCodeRepresentation);
@@ -356,7 +364,8 @@ void UnlinkedCodeBlockStore::saveConstants(VM& vm, ByteCodeWriteStore& byteCodeC
     }
 }
 
-void UnlinkedCodeBlockStore::loadConstants(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadConstants(ByteCodeReadStore& byteCodeCache) {
+    VM& vm = *m_unlinkedCodeBlock.vm();
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_CONSTANTS);
 
@@ -401,9 +410,9 @@ void UnlinkedCodeBlockStore::loadConstants(VM& vm, ByteCodeReadStore& byteCodeCa
                 READSTRING(constStringImpl);
     
                 if(constStringImpl) {
-                    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(&vm, String(constStringImpl.get()))));  
+                    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(m_unlinkedCodeBlock.vm(), String(constStringImpl.get()))));  
                 } else {
-                    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(&vm, String())));  
+                    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(m_unlinkedCodeBlock.vm(), String())));  
                 }
 
                 uint32_t constRepresentation;
@@ -416,10 +425,12 @@ void UnlinkedCodeBlockStore::loadConstants(VM& vm, ByteCodeReadStore& byteCodeCa
             case ConstantType::SymbolTable:
             {
                 SymbolTable* functionSymbolTable = SymbolTable::create(vm);
-                functionSymbolTable->load(vm, m_unlinkedCodeBlock.identifiers(), byteCodeCache);
+                Ref<SymbolTableStore> symbolTableStore = SymbolTableStore::create(*functionSymbolTable);
+                symbolTableStore->load(*m_unlinkedCodeBlock.vm(), m_unlinkedCodeBlock.identifiers(), byteCodeCache);
+                
 
                 JSValue jsValue(functionSymbolTable);
-                m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, jsValue);
+                m_unlinkedCodeBlock.m_constantRegisters.last().set(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, jsValue);
 
                 uint32_t constRepresentation;
                 READFIELD(constRepresentation);
@@ -433,7 +444,8 @@ void UnlinkedCodeBlockStore::loadConstants(VM& vm, ByteCodeReadStore& byteCodeCa
     }
 }
 
-void UnlinkedCodeBlockStore::saveConstantIdentifierSets(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveConstantIdentifierSets(ByteCodeWriteStore& byteCodeCache) {
+
     
     WRITEMAGIC(MAGIC_CODEBLOCK_CONSTANTIDENTIFIERSETS);
 
@@ -441,7 +453,9 @@ void UnlinkedCodeBlockStore::saveConstantIdentifierSets(VM&, ByteCodeWriteStore&
     WRITEFIELD(numConstantIdentiferSets);
 }
 
-void UnlinkedCodeBlockStore::loadConstantIdentifierSets(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadConstantIdentifierSets(ByteCodeReadStore& byteCodeCache) {
+
+    
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_CONSTANTIDENTIFIERSETS);
 
@@ -452,7 +466,9 @@ void UnlinkedCodeBlockStore::loadConstantIdentifierSets(VM&, ByteCodeReadStore& 
     ASSERT(numConstantIdentiferSets == 0);
 }
 
-void UnlinkedCodeBlockStore::saveLinkTimeConstants(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveLinkTimeConstants(ByteCodeWriteStore& byteCodeCache) {
+
+    
     WRITEMAGIC(MAGIC_CODEBLOCK_LINKTIMECONSTANTS);
 
     size_t numLinktimeConstants = m_unlinkedCodeBlock.m_linkTimeConstants.size();
@@ -463,7 +479,9 @@ void UnlinkedCodeBlockStore::saveLinkTimeConstants(VM&, ByteCodeWriteStore& byte
     }
 }
 
-void UnlinkedCodeBlockStore::loadLinkTimeConstants(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadLinkTimeConstants(ByteCodeReadStore& byteCodeCache) {
+
+    
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_LINKTIMECONSTANTS);
 
@@ -476,7 +494,9 @@ void UnlinkedCodeBlockStore::loadLinkTimeConstants(VM&, ByteCodeReadStore& byteC
     }
 }
 
-void UnlinkedCodeBlockStore::saveProfileCounts(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveProfileCounts(ByteCodeWriteStore& byteCodeCache) {
+
+    
 
     WRITEMAGIC(MAGIC_CODEBLOCK_PROFILECOUNTS);
 
@@ -488,7 +508,9 @@ void UnlinkedCodeBlockStore::saveProfileCounts(VM&, ByteCodeWriteStore& byteCode
 
 }
 
-void UnlinkedCodeBlockStore::loadProfileCounts(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadProfileCounts(ByteCodeReadStore& byteCodeCache) {
+
+    
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_PROFILECOUNTS);
 
@@ -500,7 +522,9 @@ void UnlinkedCodeBlockStore::loadProfileCounts(VM&, ByteCodeReadStore& byteCodeC
 
 }
 
-void UnlinkedCodeBlockStore::loadMisc(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadMisc(ByteCodeReadStore& byteCodeCache) {
+
+    
     
     VERIFYMAGIC(MAGIC_CODEBLOCK_MISC);
 
@@ -510,8 +534,7 @@ void UnlinkedCodeBlockStore::loadMisc(VM&, ByteCodeReadStore& byteCodeCache) {
 
 }
 
-void UnlinkedCodeBlockStore::saveMisc(VM&, ByteCodeWriteStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::saveMisc(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_MISC);
 
     WRITEFIELD(m_unlinkedCodeBlock.m_numVars);
@@ -520,8 +543,7 @@ void UnlinkedCodeBlockStore::saveMisc(VM&, ByteCodeWriteStore& byteCodeCache) {
 }
 
 
-void UnlinkedCodeBlockStore::loadFunctionDecls(VM& vm, ByteCodeReadStore& byteCodeCache) {
-
+void UnlinkedCodeBlockStore::loadFunctionDecls(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_FUNCTIONDECLS);
 
     size_t numFuncDecls;
@@ -529,12 +551,12 @@ void UnlinkedCodeBlockStore::loadFunctionDecls(VM& vm, ByteCodeReadStore& byteCo
 
     for(size_t i=0; i<numFuncDecls; i++) {
         m_unlinkedCodeBlock.m_functionDecls.append(WriteBarrier<UnlinkedFunctionExecutable>());
-        m_unlinkedCodeBlock.m_functionDecls.last().set(vm, &m_unlinkedCodeBlock, UnlinkedFunctionExecutable::create(&vm, byteCodeCache));
+        m_unlinkedCodeBlock.m_functionDecls.last().set(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, UnlinkedFunctionExecutable::create(m_unlinkedCodeBlock.vm(), byteCodeCache));
     }
     
 }
 
-void UnlinkedCodeBlockStore::saveFunctionDecls(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveFunctionDecls(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_FUNCTIONDECLS);
 
     size_t numFunctionDecls = m_unlinkedCodeBlock.m_functionDecls.size();
@@ -544,12 +566,11 @@ void UnlinkedCodeBlockStore::saveFunctionDecls(VM& vm, ByteCodeWriteStore& byteC
         UnlinkedFunctionExecutable* ufexe = f.get();
         
         Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*ufexe);
-        unlinkedFunctionExecutableStore->saveHeader(vm, byteCodeCache);
+        unlinkedFunctionExecutableStore->saveHeader(*m_unlinkedCodeBlock.vm(), byteCodeCache);
     }
 }
 
-void UnlinkedCodeBlockStore::loadFunctionExprs(VM& vm, ByteCodeReadStore& byteCodeCache) {
-
+void UnlinkedCodeBlockStore::loadFunctionExprs(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_FUNCTIONEXPRS);
 
     size_t numFuncExprs;
@@ -557,11 +578,11 @@ void UnlinkedCodeBlockStore::loadFunctionExprs(VM& vm, ByteCodeReadStore& byteCo
 
     for(size_t i=0; i<numFuncExprs; i++) {
         m_unlinkedCodeBlock.m_functionExprs.append(WriteBarrier<UnlinkedFunctionExecutable>());
-        m_unlinkedCodeBlock.m_functionExprs.last().set(vm, &m_unlinkedCodeBlock, UnlinkedFunctionExecutable::create(&vm, byteCodeCache));
+        m_unlinkedCodeBlock.m_functionExprs.last().set(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, UnlinkedFunctionExecutable::create(m_unlinkedCodeBlock.vm(), byteCodeCache));
     }    
 }
 
-void UnlinkedCodeBlockStore::saveFunctionExprs(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveFunctionExprs(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_FUNCTIONEXPRS);
 
     size_t numFunctionExprs = m_unlinkedCodeBlock.m_functionExprs.size();
@@ -569,15 +590,13 @@ void UnlinkedCodeBlockStore::saveFunctionExprs(VM& vm, ByteCodeWriteStore& byteC
 
     for(WriteBarrier<UnlinkedFunctionExecutable> f : m_unlinkedCodeBlock.m_functionExprs) {
         UnlinkedFunctionExecutable* ufexe = f.get();
-        //ufexe->saveNonCode(vm, byteCodeCache);
-
+        
         Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*ufexe);
-        unlinkedFunctionExecutableStore->saveHeader(vm, byteCodeCache);
+        unlinkedFunctionExecutableStore->saveHeader(*m_unlinkedCodeBlock.vm(), byteCodeCache);
     }
 }
 
-void UnlinkedCodeBlockStore::loadSwitchJumpTables(VM&, ByteCodeReadStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::loadSwitchJumpTables(ByteCodeReadStore& byteCodeCache) {    
     VERIFYMAGIC(MAGIC_CODEBLOCK_SWITCHJUMPTABLES);
 
     size_t numSwitchTables;
@@ -606,7 +625,7 @@ void UnlinkedCodeBlockStore::loadSwitchJumpTables(VM&, ByteCodeReadStore& byteCo
 
 }
 
-void UnlinkedCodeBlockStore::saveSwitchJumpTables(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveSwitchJumpTables(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_SWITCHJUMPTABLES);
 
     size_t numSwitchJumpTables = m_unlinkedCodeBlock.numberOfSwitchJumpTables();
@@ -626,8 +645,7 @@ void UnlinkedCodeBlockStore::saveSwitchJumpTables(VM&, ByteCodeWriteStore& byteC
     
 }
 
-void UnlinkedCodeBlockStore::loadStringSwitchJumpTables(VM& vm, ByteCodeReadStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::loadStringSwitchJumpTables(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_STRINGSWITCHJUMPTABLES);
 
     size_t numStringSwitchTables;
@@ -638,24 +656,52 @@ void UnlinkedCodeBlockStore::loadStringSwitchJumpTables(VM& vm, ByteCodeReadStor
 	 }
 
     for(size_t i=0; i<numStringSwitchTables; i++) {
-        m_unlinkedCodeBlock.m_rareData->m_stringSwitchJumpTables.append(UnlinkedStringJumpTable());
-        m_unlinkedCodeBlock.m_rareData->m_stringSwitchJumpTables.last().load(vm, byteCodeCache);
+        UnlinkedStringJumpTable stringJumpTable;
+
+        size_t offsetTableSize;
+        READFIELD(offsetTableSize);
+
+        for(size_t i=0; i < offsetTableSize; i++) {
+
+            RefPtr<StringImpl> key;
+            READSTRING(key);
+
+            int32_t value;
+            READFIELD(value);
+
+            struct UnlinkedStringJumpTable::OffsetLocation location;
+            location.branchOffset = value;
+
+            stringJumpTable.offsetTable.add(key, location);
+        }
+
+        m_unlinkedCodeBlock.m_rareData->m_stringSwitchJumpTables.append(stringJumpTable);
     }
 }
 
-void UnlinkedCodeBlockStore::saveStringSwitchJumpTables(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveStringSwitchJumpTables(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_STRINGSWITCHJUMPTABLES);
 
     size_t numStringSwitchTables = m_unlinkedCodeBlock.numberOfStringSwitchJumpTables();
     WRITEFIELD(numStringSwitchTables);
     
     for(size_t i=0; i<m_unlinkedCodeBlock.numberOfStringSwitchJumpTables(); i++) {
-        m_unlinkedCodeBlock.stringSwitchJumpTable(i).save(vm, byteCodeCache);
+        UnlinkedStringJumpTable::StringOffsetTable offsetTable = m_unlinkedCodeBlock.stringSwitchJumpTable(i).offsetTable;
+
+        size_t offsetTableSize = offsetTable.size();
+        WRITEFIELD(offsetTableSize);
+
+        for( auto& entry : offsetTable) {
+            RefPtr<StringImpl> key = entry.key;
+            int32_t value = entry.value.branchOffset;
+            
+            WRITESTRING(key);
+            WRITEFIELD(value);
+        }
     }
 }
 
-void UnlinkedCodeBlockStore::loadExceptionHandlers(VM&, ByteCodeReadStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::loadExceptionHandlers(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_HANDLERS);    
 
     size_t numberOfExceptionHandlers;
@@ -681,7 +727,7 @@ void UnlinkedCodeBlockStore::loadExceptionHandlers(VM&, ByteCodeReadStore& byteC
     }
 }
 
-void UnlinkedCodeBlockStore::saveExceptionHandlers(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveExceptionHandlers(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_HANDLERS);
 
     size_t numHandlers = m_unlinkedCodeBlock.numberOfExceptionHandlers();
@@ -702,8 +748,7 @@ void UnlinkedCodeBlockStore::saveExceptionHandlers(VM&, ByteCodeWriteStore& byte
     }
 }
 
-void UnlinkedCodeBlockStore::loadRegexps(VM& vm, ByteCodeReadStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::loadRegexps(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_REGEXP);    
 
     size_t numbRegexps;
@@ -727,14 +772,14 @@ void UnlinkedCodeBlockStore::loadRegexps(VM& vm, ByteCodeReadStore& byteCodeCach
         READFIELD(flagsVal);
         READFIELD(stateVal);
 
-        m_unlinkedCodeBlock.m_rareData->m_regexps.append(WriteBarrier<RegExp>(vm, &m_unlinkedCodeBlock, 
-            RegExp::create(vm, pattern, static_cast<RegExpFlags>(flagsVal))));
+        m_unlinkedCodeBlock.m_rareData->m_regexps.append(WriteBarrier<RegExp>(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, 
+            RegExp::create(*m_unlinkedCodeBlock.vm(), pattern, static_cast<RegExpFlags>(flagsVal))));
         
         // TODO :: SHould we reset the state 
     }
 }
 
-void UnlinkedCodeBlockStore::saveRegexps(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveRegexps(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_REGEXP);
 
     size_t numRegexes = m_unlinkedCodeBlock.numberOfRegExps();
@@ -742,11 +787,11 @@ void UnlinkedCodeBlockStore::saveRegexps(VM& vm, ByteCodeWriteStore& byteCodeCac
 
     for(size_t i=0; i<m_unlinkedCodeBlock.numberOfRegExps(); i++) {
         RegExp* reg = m_unlinkedCodeBlock.regexp(i);
-        reg->save(vm, byteCodeCache);
+        reg->save(*m_unlinkedCodeBlock.vm(), byteCodeCache);
     }
 }
 
-void UnlinkedCodeBlockStore::loadConstantBuffers(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadConstantBuffers(ByteCodeReadStore& byteCodeCache) {
         
     VERIFYMAGIC(MAGIC_CODEBLOCK_CONSTANTBUFFERS);    
 
@@ -805,7 +850,7 @@ void UnlinkedCodeBlockStore::loadConstantBuffers(VM&, ByteCodeReadStore& byteCod
 
 typedef Vector<JSValue> ConstantBuffer;
 
-void UnlinkedCodeBlockStore::saveConstantBuffers(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveConstantBuffers(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_CONSTANTBUFFERS);
 
     size_t _constantBufferCount = m_unlinkedCodeBlock.hasRareData() ? m_unlinkedCodeBlock.constantBufferCount() : 0;
@@ -874,8 +919,7 @@ void UnlinkedCodeBlockStore::saveConstantBuffers(VM&, ByteCodeWriteStore& byteCo
     }
 }
 
-void UnlinkedCodeBlockStore::loadPropertyAccessInstructions(VM&, ByteCodeReadStore& byteCodeCache) {
-    
+void UnlinkedCodeBlockStore::loadPropertyAccessInstructions(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_PROPACCESSINSTRUCTIONS);    
 
     size_t numberOfPropertyAccessInstructions;
@@ -888,7 +932,7 @@ void UnlinkedCodeBlockStore::loadPropertyAccessInstructions(VM&, ByteCodeReadSto
     }
 }
 
-void UnlinkedCodeBlockStore::savePropertyAccessInstructions(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::savePropertyAccessInstructions(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_PROPACCESSINSTRUCTIONS);
 
     size_t numberOfPropertyAccessInstructions = m_unlinkedCodeBlock.numberOfPropertyAccessInstructions();
@@ -899,7 +943,7 @@ void UnlinkedCodeBlockStore::savePropertyAccessInstructions(VM&, ByteCodeWriteSt
     }
 }
 
-void UnlinkedCodeBlockStore::loadJumpTargets(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadJumpTargets(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_JUMPTARGETS);    
 
     size_t numberOfJumpTargets;
@@ -912,7 +956,7 @@ void UnlinkedCodeBlockStore::loadJumpTargets(VM&, ByteCodeReadStore& byteCodeCac
     }
 }
 
-void UnlinkedCodeBlockStore::saveJumpTargets(VM&, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveJumpTargets(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_JUMPTARGETS);
 
     size_t numJumpTargets = m_unlinkedCodeBlock.m_jumpTargets.size();
@@ -923,7 +967,7 @@ void UnlinkedCodeBlockStore::saveJumpTargets(VM&, ByteCodeWriteStore& byteCodeCa
     }
 }
 
-void UnlinkedCodeBlockStore::loadExpressionRangeInfos(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadExpressionRangeInfos(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_EXPRESSIONRANGEINFOS);    
     
     size_t expressionInfoSize;
@@ -932,12 +976,12 @@ void UnlinkedCodeBlockStore::loadExpressionRangeInfos(VM& vm, ByteCodeReadStore&
     for (size_t i = 0; i < expressionInfoSize; i++) {
 
         ExpressionRangeInfo info;
-        info.load(vm, byteCodeCache);
+        info.load(*m_unlinkedCodeBlock.vm(), byteCodeCache);
         m_unlinkedCodeBlock.m_expressionInfo.append(info);
     }
 }
 
-void UnlinkedCodeBlockStore::saveExpressionRangeInfos(VM&vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveExpressionRangeInfos(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_EXPRESSIONRANGEINFOS);
 
     Vector<ExpressionRangeInfo>& expressionInfo = m_unlinkedCodeBlock.m_expressionInfo;
@@ -946,11 +990,11 @@ void UnlinkedCodeBlockStore::saveExpressionRangeInfos(VM&vm, ByteCodeWriteStore&
     
     for (size_t i = 0; i < expressionInfoSize; i++) {
         ExpressionRangeInfo& info = expressionInfo[i];
-        info.save(vm, byteCodeCache);
+        info.save(*m_unlinkedCodeBlock.vm(), byteCodeCache);
     }
 }
 
-void UnlinkedCodeBlockStore::loadExpressionInfoFatPositions(VM&, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::loadExpressionInfoFatPositions(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_EXPRESSIONINFOFATPOSITIONS);
 
     size_t numFatPositions;
@@ -976,7 +1020,7 @@ void UnlinkedCodeBlockStore::loadExpressionInfoFatPositions(VM&, ByteCodeReadSto
     }
 }
 
-void UnlinkedCodeBlockStore::saveExpressionInfoFatPositions(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedCodeBlockStore::saveExpressionInfoFatPositions(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_EXPRESSIONINFOFATPOSITIONS);
 
     size_t numFatPositions = m_unlinkedCodeBlock.m_rareData ? m_unlinkedCodeBlock.m_rareData->m_expressionInfoFatPositions.size() : 0;

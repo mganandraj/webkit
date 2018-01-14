@@ -25,24 +25,7 @@
 
 #pragma once
 
-#include "BytecodeConventions.h"
-#include "CodeType.h"
-#include "ExpressionRangeInfo.h"
-#include "HandlerInfo.h"
-#include "Identifier.h"
-#include "JSCell.h"
-#include "LockDuringMarking.h"
-#include "ParserModes.h"
-#include "RegExp.h"
-#include "SpecialPointer.h"
-#include "UnlinkedFunctionExecutable.h"
-#include "VirtualRegister.h"
-#include <algorithm>
-#include <wtf/BitVector.h>
-#include <wtf/HashSet.h>
-#include <wtf/TriState.h>
-#include <wtf/Vector.h>
-#include <wtf/text/UniquedStringImpl.h>
+#include "UnlinkedCodeBlock.h"
 
 namespace JSC {
 
@@ -66,8 +49,8 @@ class UnlinkedCodeBlockStore  : public RefCounted<UnlinkedCodeBlockStore> {
 public:
     static Ref<UnlinkedCodeBlockStore> create(UnlinkedCodeBlock&);
 
-    void save(VM&, ByteCodeWriteStore&);
-    void load(VM&, ByteCodeReadStore&);
+    void save(ByteCodeWriteStore&);
+    void load(ByteCodeReadStore&);
 
 protected:
     UnlinkedCodeBlockStore(UnlinkedCodeBlock& unlinkedCodeBlock)
@@ -75,65 +58,65 @@ protected:
     {}
 
 private:
-    void saveInstructions(VM&, ByteCodeWriteStore&);
-    void loadInstructions(VM&, ByteCodeReadStore&);
+    void saveInstructions(ByteCodeWriteStore&);
+    void loadInstructions(ByteCodeReadStore&);
 
-    void saveVirtualRegisters(VM&, ByteCodeWriteStore&);
-    void loadVirtualRegisters(VM&, ByteCodeReadStore&);
+    void saveVirtualRegisters(ByteCodeWriteStore&);
+    void loadVirtualRegisters(ByteCodeReadStore&);
 
-    void saveIdentifiers(VM&, ByteCodeWriteStore&);
-    void loadIdentifiers(VM&, ByteCodeReadStore&);
+    void saveIdentifiers(ByteCodeWriteStore&);
+    void loadIdentifiers(ByteCodeReadStore&);
 
-    void saveBitVectors(VM&, ByteCodeWriteStore&);
-    void loadBitVectors(VM&, ByteCodeReadStore&);
+    void saveBitVectors(ByteCodeWriteStore&);
+    void loadBitVectors(ByteCodeReadStore&);
 
-    void saveConstants(VM&, ByteCodeWriteStore&);
-    void loadConstants(VM&, ByteCodeReadStore&);
+    void saveConstants(ByteCodeWriteStore&);
+    void loadConstants(ByteCodeReadStore&);
 
-    void saveConstantIdentifierSets(VM&, ByteCodeWriteStore&);
-    void loadConstantIdentifierSets(VM&, ByteCodeReadStore&);
+    void saveConstantIdentifierSets(ByteCodeWriteStore&);
+    void loadConstantIdentifierSets(ByteCodeReadStore&);
 
-    void saveLinkTimeConstants(VM&, ByteCodeWriteStore&);
-    void loadLinkTimeConstants(VM&, ByteCodeReadStore&);
+    void saveLinkTimeConstants(ByteCodeWriteStore&);
+    void loadLinkTimeConstants(ByteCodeReadStore&);
 
-    void saveProfileCounts(VM&, ByteCodeWriteStore&);
-    void loadProfileCounts(VM&, ByteCodeReadStore&);
+    void saveProfileCounts(ByteCodeWriteStore&);
+    void loadProfileCounts(ByteCodeReadStore&);
 
-    void loadMisc(VM&, ByteCodeReadStore&);
-    void saveMisc(VM&, ByteCodeWriteStore&);
+    void loadMisc(ByteCodeReadStore&);
+    void saveMisc(ByteCodeWriteStore&);
 
-    void loadFunctionDecls(VM&, ByteCodeReadStore&);
-    void saveFunctionDecls(VM&, ByteCodeWriteStore&);
+    void loadFunctionDecls(ByteCodeReadStore&);
+    void saveFunctionDecls(ByteCodeWriteStore&);
 
-    void loadFunctionExprs(VM&, ByteCodeReadStore&);
-    void saveFunctionExprs(VM&, ByteCodeWriteStore&);
+    void loadFunctionExprs(ByteCodeReadStore&);
+    void saveFunctionExprs(ByteCodeWriteStore&);
 
-    void loadSwitchJumpTables(VM&, ByteCodeReadStore&);
-    void saveSwitchJumpTables(VM&, ByteCodeWriteStore&);
+    void loadSwitchJumpTables(ByteCodeReadStore&);
+    void saveSwitchJumpTables(ByteCodeWriteStore&);
 
-    void loadStringSwitchJumpTables(VM&, ByteCodeReadStore&);
-    void saveStringSwitchJumpTables(VM&, ByteCodeWriteStore&);
+    void loadStringSwitchJumpTables(ByteCodeReadStore&);
+    void saveStringSwitchJumpTables(ByteCodeWriteStore&);
 
-    void loadExceptionHandlers(VM&, ByteCodeReadStore&);
-    void saveExceptionHandlers(VM&, ByteCodeWriteStore&);
+    void loadExceptionHandlers(ByteCodeReadStore&);
+    void saveExceptionHandlers(ByteCodeWriteStore&);
 
-    void loadRegexps(VM&, ByteCodeReadStore&);
-    void saveRegexps(VM&, ByteCodeWriteStore&);
+    void loadRegexps(ByteCodeReadStore&);
+    void saveRegexps(ByteCodeWriteStore&);
 
-    void loadConstantBuffers(VM&, ByteCodeReadStore&);
-    void saveConstantBuffers(VM&, ByteCodeWriteStore&);
+    void loadConstantBuffers(ByteCodeReadStore&);
+    void saveConstantBuffers(ByteCodeWriteStore&);
 
-    void loadPropertyAccessInstructions(VM&, ByteCodeReadStore&);
-    void savePropertyAccessInstructions(VM&, ByteCodeWriteStore&);
+    void loadPropertyAccessInstructions(ByteCodeReadStore&);
+    void savePropertyAccessInstructions(ByteCodeWriteStore&);
 
-    void loadJumpTargets(VM&, ByteCodeReadStore&);
-    void saveJumpTargets(VM&, ByteCodeWriteStore&);
+    void loadJumpTargets(ByteCodeReadStore&);
+    void saveJumpTargets(ByteCodeWriteStore&);
 
-    void loadExpressionRangeInfos(VM&, ByteCodeReadStore&);
-    void saveExpressionRangeInfos(VM&, ByteCodeWriteStore&);
+    void loadExpressionRangeInfos(ByteCodeReadStore&);
+    void saveExpressionRangeInfos(ByteCodeWriteStore&);
 
-    void loadExpressionInfoFatPositions(VM&, ByteCodeReadStore&);
-    void saveExpressionInfoFatPositions(VM&, ByteCodeWriteStore&);
+    void loadExpressionInfoFatPositions(ByteCodeReadStore&);
+    void saveExpressionInfoFatPositions(ByteCodeWriteStore&);
 
     UnlinkedCodeBlock& m_unlinkedCodeBlock;
 };

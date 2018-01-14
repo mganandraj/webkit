@@ -4,7 +4,7 @@ if (MSVC)
     include(OptionsMSVC)
 endif ()
 
-if (NOT WIN32)
+if (ANDROID)
     add_definitions(-D__BIONIC__)    
 #    add_definitions(-D__ARM_NEON__) 
     add_definitions(-D__thumb2__)

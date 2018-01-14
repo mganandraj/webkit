@@ -590,14 +590,15 @@ WEBKIT_CREATE_FORWARDING_HEADERS(JavaScriptCore DIRECTORIES ${JavaScriptCore_FOR
 
 target_include_directories(LLIntOffsetsExtractor PRIVATE ${JavaScriptCore_INCLUDE_DIRECTORIES})
 
-if (WIN32)
+# Don't built shell for android
+if (NOT ANDROID)
 	add_subdirectory(shell)
 endif ()
 
 WEBKIT_WRAP_SOURCELIST(${JavaScriptCore_SOURCES})
 WEBKIT_FRAMEWORK(JavaScriptCore)
 
-if (NOT WIN32)
+if (ANDROID)
     set_target_properties(JavaScriptCore PROPERTIES CXX_VISIBILITY_PRESET hidden)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script,C:\\WebkitUni\\jsc.versionscript")
