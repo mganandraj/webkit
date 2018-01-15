@@ -38,13 +38,11 @@
 #include "Structure.h"
 #include "UnlinkedFunctionCodeBlock.h"
 
-#include "ByteCodeStoreMacros.h"
-#include "ByteCodeReadStore.h"
-#include "ByteCodeWriteStore.h"
-#include "UnlinkedFunctionCodeBlockStore.h"
 #include "UnlinkedFunctionExecutableStore.h"
 
 namespace JSC {
+
+class ByteCodeReadStore;
 
 static_assert(sizeof(UnlinkedFunctionExecutable) <= 256, "UnlinkedFunctionExecutable should fit in a 256-byte cell.");
 
