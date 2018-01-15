@@ -26,10 +26,6 @@
 #pragma once
 
 #include <wtf/StdLibExtras.h>
-#include "ByteCodeReadStore.h"
-#include "ByteCodeWriteStore.h"
-#include "ByteCodeStoreMacros.h"
-
 
 namespace JSC {
 
@@ -99,45 +95,6 @@ struct ExpressionRangeInfo {
     {
         line = (position >> FatColumnModeLineShift) & FatColumnModeLineMask;
         column = position & FatColumnModeColumnMask;
-    }
-
-    void save(VM&, ByteCodeWriteStore& byteCodeCache) {
-
-        uint32_t u1 = (position << 2 );
-        u1 |= mode;
-
-        uint32_t u2 = divotPoint << 7;
-        u2 |= endOffset;
-
-        uint32_t u3 = instructionOffset << 7;
-        u3 |= startOffset;
-
-        ASSERT((u1 & 0x3) == mode);
-        ASSERT((u1 >> 2) == position);
-        ASSERT((u2 & 0x7F) == endOffset);
-        ASSERT((u2 >> 7) == divotPoint);
-        ASSERT((u3 & 0x7F) == startOffset);
-        ASSERT((u3 >> 7) == instructionOffset);
-
-        WRITEFIELD(u1);
-        WRITEFIELD(u2);
-        WRITEFIELD(u3);
-    }
-
-    void load(VM&, ByteCodeReadStore& byteCodeCache) {
-        
-        uint32_t u1, u2, u3;
-        READFIELD(u1);
-        READFIELD(u2);
-        READFIELD(u3);
-
-        instructionOffset = (u3 >> 7);
-        divotPoint = (u2 >> 7);
-        startOffset = (u3 & 0x7F);
-        endOffset = (u2 & 0x7F);
-
-        mode = (u1 & 0x3);
-        position = (u1 >> 2);
     }
 
     uint32_t instructionOffset : 25;

@@ -31,9 +31,6 @@
 #include "YarrJIT.h"
 #include <wtf/Assertions.h>
 
-#include "ByteCodeStoreMacros.h"
-#include "ByteCodeWriteStore.h"
-
 namespace JSC {
 
 const ClassInfo RegExp::s_info = { "RegExp", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(RegExp) };
@@ -228,17 +225,6 @@ RegExp::RegExp(VM& vm, const String& patternString, RegExpFlags flags)
     , m_rtMatchFoundCount(0)
 #endif
 {
-}
-
-void RegExp::save(VM&, ByteCodeWriteStore& byteCodeCache) 
-{   
-    WRITESTRING(m_patternString.impl());
-    
-    uint8_t flags = static_cast<uint8_t>(m_flags);
-    WRITEFIELD(flags);
-
-    uint8_t state = static_cast<uint8_t>(m_state);
-    WRITEFIELD(state);
 }
 
 void RegExp::finishCreation(VM& vm)

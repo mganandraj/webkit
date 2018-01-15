@@ -123,12 +123,11 @@ public:
 
     RegExpKey key() { return RegExpKey(m_flags, m_patternString); }
 
-    void save(VM&, ByteCodeWriteStore& byteCodeCache);
-
 protected:
     void finishCreation(VM&);
 
 private:
+    friend class UnlinkedCodeBlockStore;
     friend class RegExpCache;
     RegExp(VM&, const String&, RegExpFlags);
 

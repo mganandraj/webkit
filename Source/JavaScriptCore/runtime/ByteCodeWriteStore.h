@@ -46,6 +46,13 @@ public:
     
     size_t currentWritePosition();
     void writeBytes(const char*, size_t);
+    
+    template <typename T>
+    void writePrimitive(T* buffer) {
+        static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");
+        m_storeImplementation->writeBytes(reinterpret_cast<const char*>(buffer), sizeof(T));
+    }
+
 private:
     WTF_MAKE_NONCOPYABLE(ByteCodeWriteStore);
 

@@ -113,7 +113,6 @@ static void vprintf_stderr_common(const char* format, va_list args)
         CFStringGetCString(str.get(), buffer.data(), length, kCFStringEncodingUTF8);
 
         logToStderr(buffer.data());
-
         return;
     }
 
@@ -144,7 +143,6 @@ static void vprintf_stderr_common(const char* format, va_list args)
     }
 #endif
     vfprintf(stderr, format, args);
-	// dataLog("!!! STDERR !!! : ", format, args);
 }
 
 #if COMPILER(GCC_OR_CLANG)
@@ -205,17 +203,9 @@ static void printCallSite(const char* file, int line, const char* function)
 #endif
 }
 
-#if !OS(WINDOWS)    
-#include <android/log.h>
-#endif
-
 void WTFReportAssertionFailure(const char* file, int line, const char* function, const char* assertion)
 {
     dataLogLn("!! ASSERT !!", file, " : ", line, " : ", function, " : ", assertion);
-
-    #if !OS(WINDOWS)    
-    //__android_log_print(ANDROID_LOG_FATAL, "JSCASSERT", "%s : %d : %s : %s", file, line, function, assertion);    
-    #endif    
 
     if (assertion)
         printf_stderr_common("ASSERTION FAILED: %s\n", assertion);

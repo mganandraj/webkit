@@ -142,8 +142,13 @@ _HAVE_CHECK_INCLUDE(HAVE_FEATURES_H features.h)
 # Check for headers
 _HAVE_CHECK_INCLUDE(HAVE_ERRNO_H errno.h)
 
-#_HAVE_CHECK_INCLUDE(HAVE_LANGINFO_H langinfo.h)
-set(HAVE_LANGINFO_H FALSE)
+# On Android, the presense of langinfo.h doesn't guarantee availability of langinfo as the code in it can be conditional over the API level.
+if (ANDROID)
+    set(HAVE_LANGINFO_H FALSE)
+else ()
+    _HAVE_CHECK_INCLUDE(HAVE_LANGINFO_H langinfo.h)
+endif ()
+
 
 _HAVE_CHECK_INCLUDE(HAVE_MMAP sys/mman.h)
 _HAVE_CHECK_INCLUDE(HAVE_PTHREAD_NP_H pthread_np.h)

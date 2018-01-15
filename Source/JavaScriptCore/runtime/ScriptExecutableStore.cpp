@@ -27,13 +27,17 @@
 
 #include "ScriptExecutableStore.h"
 
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
+#include "ByteCodeStoreMacros.h"
+
 namespace JSC {
 
 Ref<ScriptExecutableStore> ScriptExecutableStore::create(ScriptExecutable& scriptExecutable) {
     return WTF::adoptRef(*new ScriptExecutableStore(scriptExecutable));
 }
 
-void ScriptExecutableStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void ScriptExecutableStore::load(VM&, ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_SCRIPT);
 
     uint16_t codeFeaturesVal;
@@ -52,7 +56,7 @@ void ScriptExecutableStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
     m_scriptExecutable.recordParse(codeFeatures, hasCapturedVariables, lastLine, endColumn);
 }
 
-void ScriptExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void ScriptExecutableStore::save(VM&, ByteCodeWriteStore& byteCodeCache) {
     
     WRITEMAGIC(MAGIC_SCRIPT);
 

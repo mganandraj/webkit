@@ -27,6 +27,10 @@
 
 #include "UnlinkedFunctionExecutableStore.h"
 
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
+#include "ByteCodeStoreMacros.h"
+
 namespace JSC {
 
 Ref<UnlinkedFunctionExecutableStore> UnlinkedFunctionExecutableStore::create(UnlinkedFunctionExecutable& unlinkedFunctionExecutable) {

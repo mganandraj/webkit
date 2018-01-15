@@ -27,6 +27,10 @@
 
 #include "FunctionExecutableStore.h"
 
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
+#include "ByteCodeStoreMacros.h"
+
 namespace JSC {
 
 Ref<FunctionExecutableStore> FunctionExecutableStore::create(FunctionExecutable& functionExecutable) {

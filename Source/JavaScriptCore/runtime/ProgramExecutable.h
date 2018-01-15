@@ -27,8 +27,6 @@
 
 #include "ScriptExecutable.h"
 
-#include <fstream>
-
 namespace JSC {
 
 class ByteCodeWriteStore;
@@ -46,7 +44,7 @@ public:
         
         executable->finishCreation(vm);
         return executable;
-    }  
+    }
 
     JSObject* initializeGlobalProperties(VM&, CallFrame*, JSScope*);
 

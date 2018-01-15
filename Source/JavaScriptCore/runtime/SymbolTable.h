@@ -42,8 +42,6 @@
 
 namespace JSC {
 
-class ByteCodeWriteStore;    
-class ByteCodeReadStore;
 class SymbolTable;
 
 static ALWAYS_INLINE int missingSymbolMarker() { return std::numeric_limits<int>::max(); }
@@ -318,22 +316,10 @@ public:
             return 0;
         return fatEntry()->m_watchpoints.get();
     }
-        
-    ALWAYS_INLINE intptr_t bits() const
-    {
-        if (isFat())
-            return fatEntry()->m_bits;
-        return m_bits;
-    }
-    
-    ALWAYS_INLINE intptr_t& bits()
-    {
-        if (isFat())
-            return fatEntry()->m_bits;
-        return m_bits;
-    }
 
 private:
+    friend class SymbolTableStore;
+
     static const intptr_t SlimFlag = 0x1;
     static const intptr_t ReadOnlyFlag = 0x2;
     static const intptr_t DontEnumFlag = 0x4;
@@ -386,6 +372,20 @@ private:
     }
     
     FatEntry* inflateSlow();
+
+        ALWAYS_INLINE intptr_t bits() const
+    {
+        if (isFat())
+            return fatEntry()->m_bits;
+        return m_bits;
+    }
+    
+    ALWAYS_INLINE intptr_t& bits()
+    {
+        if (isFat())
+            return fatEntry()->m_bits;
+        return m_bits;
+    }
     
     void freeFatEntry()
     {
@@ -573,7 +573,7 @@ public:
     template<typename Entry>
     void add(const ConcurrentJSLocker&, UniquedStringImpl* key, Entry&& entry)
     {
-		RELEASE_ASSERT(!m_localToEntry);
+        RELEASE_ASSERT(!m_localToEntry);
         didUseVarOffset(entry.varOffset());
         Map::AddResult result = m_map.add(key, std::forward<Entry>(entry));
         ASSERT_UNUSED(result, result.isNewEntry);

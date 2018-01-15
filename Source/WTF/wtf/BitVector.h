@@ -34,6 +34,11 @@
 #include <wtf/PrintStream.h>
 #include <wtf/StdLibExtras.h>
 
+// Hack .. We need to straighten this.
+namespace JSC {
+    class UnlinkedCodeBlockStore;
+}
+
 namespace WTF {
 
 // This is a space-efficient, resizeable bitvector class. In the common case it
@@ -331,21 +336,9 @@ public:
     iterator begin() const { return iterator(*this, findBit(0, true)); }
     iterator end() const { return iterator(*this, size()); }
      
-    uintptr_t* bits()
-    {
-        if (isInline())
-            return &m_bitsOrPointer;
-        return outOfLineBits()->bits();
-    }
-    
-    const uintptr_t* bits() const
-    {
-        if (isInline())
-            return &m_bitsOrPointer;
-        return outOfLineBits()->bits();
-    }
-
 private:
+    friend class JSC::UnlinkedCodeBlockStore;
+
     static unsigned bitsInPointer()
     {
         return sizeof(void*) << 3;
@@ -461,6 +454,20 @@ private:
     bool equalsSlowCaseSimple(const BitVector& other) const;
     WTF_EXPORT_PRIVATE uintptr_t hashSlowCase() const;
     
+    uintptr_t* bits()
+    {
+        if (isInline())
+            return &m_bitsOrPointer;
+        return outOfLineBits()->bits();
+    }
+    
+    const uintptr_t* bits() const
+    {
+        if (isInline())
+            return &m_bitsOrPointer;
+        return outOfLineBits()->bits();
+    }
+
     uintptr_t m_bitsOrPointer;
 };
 

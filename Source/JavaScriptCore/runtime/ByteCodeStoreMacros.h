@@ -57,8 +57,11 @@
 #define WRITEMAGIC(magic)  do { uint8_t fieldHeaderIndex = magic; WRITEFIELD(fieldHeaderIndex); } while (0)
 #define VERIFYMAGIC(magic) do { uint8_t index; READFIELD(index); ASSERT(index == magic); } while (0)
 
-#define WRITEFIELD(field_) byteCodeCache.writeBytes(reinterpret_cast<const char*>(&field_), sizeof(field_))
-#define READFIELD(field_) byteCodeCache.readBytes(reinterpret_cast<char*>(&field_), sizeof(field_))
+//#define WRITEFIELD(field_) byteCodeCache.writeBytes(reinterpret_cast<const char*>(&field_), sizeof(field_))
+//#define READFIELD(field_) byteCodeCache.readBytes(reinterpret_cast<char*>(&field_), sizeof(field_))
+
+#define WRITEFIELD(field_) byteCodeCache.writePrimitive(&field_)
+#define READFIELD(field_) byteCodeCache.readPrimitive(&field_)
 
 #define WRITEVECTOR8(buffer_, length_) byteCodeCache.writeBytes(reinterpret_cast<const char*>(buffer_), length_)
 #define WRITEVECTOR16(buffer_, length_) byteCodeCache.writeBytes(reinterpret_cast<const char*>(buffer_), 2 * length_)

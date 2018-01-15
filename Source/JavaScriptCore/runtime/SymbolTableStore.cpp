@@ -26,8 +26,23 @@
 #include "config.h"
 
 #include "SymbolTableStore.h"
+#include "BuiltinNames.h"
+
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
+
+#include "ByteCodeStoreMacros.h"
 
 namespace JSC {
+
+enum class SymbolSaveType {
+    BuiltinPrivateName=0,
+    PrivateName,
+    WellKnownSymbol,
+    Symbol,
+    Identifier,
+    Raw
+};
 
 Ref<SymbolTableStore> SymbolTableStore::create(SymbolTable& symbolTable) {
     return WTF::adoptRef(*new SymbolTableStore(symbolTable));

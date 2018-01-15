@@ -29,6 +29,9 @@
 #include "UnlinkedFunctionExecutableStore.h"
 #include "SymbolTableStore.h"
 
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
+#include "ByteCodeStoreMacros.h"
 #include "BuiltinNames.h"
 
 namespace JSC {
@@ -767,15 +770,11 @@ void UnlinkedCodeBlockStore::loadRegexps(ByteCodeReadStore& byteCodeCache) {
         WTF::String pattern(patternStringImpl.get());
 
         /*RegExpFlags*/ uint8_t flagsVal;
-        /*RegExpState*/ uint8_t stateVal;
         
         READFIELD(flagsVal);
-        READFIELD(stateVal);
-
+        
         m_unlinkedCodeBlock.m_rareData->m_regexps.append(WriteBarrier<RegExp>(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, 
             RegExp::create(*m_unlinkedCodeBlock.vm(), pattern, static_cast<RegExpFlags>(flagsVal))));
-        
-        // TODO :: SHould we reset the state 
     }
 }
 
@@ -787,7 +786,11 @@ void UnlinkedCodeBlockStore::saveRegexps(ByteCodeWriteStore& byteCodeCache) {
 
     for(size_t i=0; i<m_unlinkedCodeBlock.numberOfRegExps(); i++) {
         RegExp* reg = m_unlinkedCodeBlock.regexp(i);
-        reg->save(*m_unlinkedCodeBlock.vm(), byteCodeCache);
+        
+        WRITESTRING(reg->m_patternString.impl());
+        
+        uint8_t flags = static_cast<uint8_t>(reg->m_flags);
+        WRITEFIELD(flags);
     }
 }
 
@@ -976,7 +979,20 @@ void UnlinkedCodeBlockStore::loadExpressionRangeInfos(ByteCodeReadStore& byteCod
     for (size_t i = 0; i < expressionInfoSize; i++) {
 
         ExpressionRangeInfo info;
-        info.load(*m_unlinkedCodeBlock.vm(), byteCodeCache);
+        
+        uint32_t u1, u2, u3;
+        READFIELD(u1);
+        READFIELD(u2);
+        READFIELD(u3);
+
+        info.instructionOffset = (u3 >> 7);
+        info.divotPoint = (u2 >> 7);
+        info.startOffset = (u3 & 0x7F);
+        info.endOffset = (u2 & 0x7F);
+
+        info.mode = (u1 & 0x3);
+        info.position = (u1 >> 2);
+
         m_unlinkedCodeBlock.m_expressionInfo.append(info);
     }
 }
@@ -990,7 +1006,27 @@ void UnlinkedCodeBlockStore::saveExpressionRangeInfos(ByteCodeWriteStore& byteCo
     
     for (size_t i = 0; i < expressionInfoSize; i++) {
         ExpressionRangeInfo& info = expressionInfo[i];
-        info.save(*m_unlinkedCodeBlock.vm(), byteCodeCache);
+        
+        uint32_t u1 = info.position << 2 ;
+        u1 |= info.mode;
+
+        uint32_t u2 = info.divotPoint << 7;
+        u2 |= info.endOffset;
+
+        uint32_t u3 = info.instructionOffset << 7;
+        u3 |= info.startOffset;
+
+        ASSERT((u1 & 0x3) == info.mode);
+        ASSERT((u1 >> 2) == info.position);
+        ASSERT((u2 & 0x7F) == info.endOffset);
+        ASSERT((u2 >> 7) == info.divotPoint);
+        ASSERT((u3 & 0x7F) == info.startOffset);
+        ASSERT((u3 >> 7) == info.instructionOffset);
+
+        WRITEFIELD(u1);
+        WRITEFIELD(u2);
+        WRITEFIELD(u3);
+
     }
 }
 

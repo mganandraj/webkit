@@ -224,14 +224,6 @@ VM::VM(VMType vmType, HeapType heapType)
     , m_controlFlowProfilerEnabledCount(0)
     , m_shadowChicken(std::make_unique<ShadowChicken>())
 {
-    //#if OS(WINDOWS)
-    //processConfigFile("C:\\JSC\\jsc_win.cfg", "jsc");
-    //#else
-    //processConfigFile("/sdcard/jsc/jsc.cfg", "jsc");
-    //#endif
-
-    double vmStart = currentTime();
-
     interpreter = new Interpreter(*this);
     StackBounds stack = Thread::current().stack();
     updateSoftReservedZoneSize(Options::softReservedZoneSize());
@@ -362,8 +354,6 @@ VM::VM(VMType vmType, HeapType heapType)
     }
 
     VMInspector::instance().add(this);
-
-    dataLogLn("#VM: ", currentTime() - vmStart);
 }
 
 static StaticReadWriteLock s_destructionLock;

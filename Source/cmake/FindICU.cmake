@@ -15,33 +15,40 @@ pkg_check_modules(PC_ICU icu-uc)
 message("ANAND:" ${WEBKIT_LIBRARIES_INCLUDE_DIR})
 message("ANAND:" ${WEBKIT_LIBRARIES_LINK_DIR})
 
-# Look for the header file.
-find_path(
-    ICU_INCLUDE_DIR
-    NAMES unicode/utypes.h
-    HINTS ${PC_ICU_INCLUDE_DIRS}
-          ${PC_ICU_INCLUDEDIR}
-          ${WEBKIT_LIBRARIES_INCLUDE_DIR}
-    DOC "Include directory for the ICU library")
+if (ANDROID)
+# find_path doesn't work with the cmake shipped with Android SDK
+    set(ICU_INCLUDE_DIR ${WEBKIT_LIBRARIES_INCLUDE_DIR})
+else ()
+    # Look for the header file.
+    find_path(
+        ICU_INCLUDE_DIR
+        NAMES unicode/utypes.h
+        HINTS ${PC_ICU_INCLUDE_DIRS}
+            ${PC_ICU_INCLUDEDIR}
+            ${WEBKIT_LIBRARIES_INCLUDE_DIR}
+        DOC "Include directory for the ICU library")
+endif ()
+
 mark_as_advanced(ICU_INCLUDE_DIR)
 
 if (ANDROID)
-    set(ICU_INCLUDE_DIR ${WEBKIT_LIBRARIES_INCLUDE_DIR})
-endif ()
-
-# Look for the library.
-find_library(
-    ICU_LIBRARY
-    NAMES libicuuc cygicuuc cygicuuc32 icuuc
-    HINTS ${PC_ICU_LIBRARY_DIRS}
-          ${PC_ICU_LIBDIR}
-          ${WEBKIT_LIBRARIES_LINK_DIR}
-    DOC "Libraries to link against for the common parts of ICU")
-mark_as_advanced(ICU_LIBRARY)
-
-if (ANDROID)
+# find_library doesn't work with the cmake shipped with Android SDK
     set(ICU_LIBRARY ${WEBKIT_LIBRARIES_LINK_DIR}/libicuuc_o.so)
+    # add_library(ICU_LIBRARY SHARED IMPORTED)
+    # set_target_properties(ICU_LIBRARY PROPERTIES IMPORTED_LOCATION
+    #    ${WEBKIT_LIBRARIES_LINK_DIR}/libicuuc_o.so)
+else ()
+    # Look for the library.
+    find_library(
+        ICU_LIBRARY
+        NAMES libicuuc cygicuuc cygicuuc32 icuuc
+        HINTS ${PC_ICU_LIBRARY_DIRS}
+            ${PC_ICU_LIBDIR}
+            ${WEBKIT_LIBRARIES_LINK_DIR}
+        DOC "Libraries to link against for the common parts of ICU")
 endif ()
+
+mark_as_advanced(ICU_LIBRARY)
 
 message("ANAND:" ${ICU_INCLUDE_DIR})
 message("ANAND:" ${ICU_LIBRARY})

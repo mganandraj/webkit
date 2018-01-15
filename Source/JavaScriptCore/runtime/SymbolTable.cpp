@@ -35,24 +35,9 @@
 #include "SlotVisitorInlines.h"
 #include "TypeProfiler.h"
 
-#include "BuiltinNames.h"
-
-#include "ByteCodeStoreMacros.h"
-#include "ByteCodeReadStore.h"
-#include "ByteCodeWriteStore.h"
-
 namespace JSC {
 
 const ClassInfo SymbolTable::s_info = { "SymbolTable", nullptr, nullptr, nullptr, CREATE_METHOD_TABLE(SymbolTable) };
-
-enum class SymbolSaveType {
-    BuiltinPrivateName=0,
-    PrivateName,
-    WellKnownSymbol,
-    Symbol,
-    Identifier,
-    Raw
-};
 
 SymbolTableEntry& SymbolTableEntry::copySlow(const SymbolTableEntry& other)
 {

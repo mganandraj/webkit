@@ -345,7 +345,7 @@ if (NOT USE_SYSTEM_MALLOC)
     list(APPEND WTF_LIBRARIES bmalloc)
 endif ()
 
-if (NOT WIN32)
+if (ANDROID)
     list(APPEND WTF_SOURCES unicode/CollatorDefault.cpp)
 else ()
     list(APPEND WTF_SOURCES unicode/icu/CollatorICU.cpp)

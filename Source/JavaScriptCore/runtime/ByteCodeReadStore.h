@@ -50,7 +50,13 @@ public:
 
     void readBytes(char*, size_t);
     void readVector(char**, size_t);
-    void seekOffset(size_t offset);    
+    void seekOffset(size_t offset);
+
+    template <typename T>
+    void readPrimitive(T* buffer) {
+        static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");
+        m_storeImplementation->readBytes(reinterpret_cast<char*>(buffer), sizeof(T));
+    }    
 
 private:
     WTF_MAKE_NONCOPYABLE(ByteCodeReadStore);
