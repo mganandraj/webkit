@@ -55,12 +55,12 @@ namespace JSC {
 
         virtual unsigned hash() const = 0;
         virtual StringView source() const = 0;
-		virtual int length() const = 0;
 		virtual StringView getRange(int start, int end) const
         {
-            //dataLogLn("StringView::getRange :", sourceOrigin().string(), ":", start, " : ", end );
             return source().substring(start, end - start);
         }
+		virtual int length() const = 0;
+
 
         const SourceOrigin& sourceOrigin() const { return m_sourceOrigin; }
         const String& url() const { return m_url; }

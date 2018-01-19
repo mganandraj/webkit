@@ -258,6 +258,7 @@ bytecode/UnlinkedFunctionCodeBlockStore.cpp
 bytecode/UnlinkedFunctionExecutable.cpp
 bytecode/UnlinkedFunctionExecutableStore.cpp
 bytecode/UnlinkedInstructionStream.cpp
+bytecode/UnlinkedInstructionStreamStore.cpp
 bytecode/UnlinkedModuleProgramCodeBlock.cpp
 bytecode/UnlinkedProgramCodeBlock.cpp
 bytecode/UnlinkedProgramCodeBlockStore.cpp
@@ -650,6 +651,7 @@ parser/SourceProvider.cpp
 parser/SourceProviderCache.cpp
 parser/UnlinkedSourceCode.cpp
 parser/VariableEnvironment.cpp
+parser/VariableEnvironmentStore.cpp
 
 profiler/ProfilerBytecode.cpp
 profiler/ProfilerBytecodeSequence.cpp

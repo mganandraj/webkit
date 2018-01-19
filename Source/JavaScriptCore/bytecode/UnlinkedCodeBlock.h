@@ -110,7 +110,6 @@ struct UnlinkedInstruction {
 
 class UnlinkedCodeBlock : public JSCell {
 public:
-
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags;
 
@@ -407,7 +406,6 @@ protected:
 
 private:
     friend class UnlinkedCodeBlockStore;
-
     friend class BytecodeRewriter;
     void applyModification(BytecodeRewriter&);
 

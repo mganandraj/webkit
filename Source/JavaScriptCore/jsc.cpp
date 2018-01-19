@@ -1387,8 +1387,6 @@ public:
 
     bool m_interactive { false };
     bool m_dump { false };
-    bool m_save { false };
-    bool m_loadb { false };
     bool m_module { false };
     bool m_exitCode { false };
     Vector<Script> m_scripts;
@@ -1442,11 +1440,7 @@ template<typename Vector>
 static inline SourceCode jscSource(const Vector& utf8, const SourceOrigin& sourceOrigin, const String& filename)
 {
     String str = stringFromUTF(utf8);
-	 //if(!JSC::Options::loadBytecodes())
-	 //    return makeSource(str, sourceOrigin, filename);
-	 //else
-        //return makeMemoryMappedSource(str, sourceOrigin, filename);
-        return makeSource(str, sourceOrigin, filename);
+    return makeSource(str, sourceOrigin, filename);
 }
 
 class GlobalObject : public JSGlobalObject {
@@ -3663,7 +3657,6 @@ static bool runWithOptions(GlobalObject* globalObject, CommandLine& options)
         bool isModule = options.m_module || scripts[i].scriptType == Script::ScriptType::Module;
         if (scripts[i].codeSource == Script::CodeSource::File) {
             fileName = scripts[i].argument;
-            
             if (scripts[i].strictMode == Script::StrictMode::Strict)
                 scriptBuffer.append("\"use strict\";\n", strlen("\"use strict\";\n"));
 
@@ -3802,8 +3795,6 @@ static NO_RETURN void printUsageStatement(bool help = false)
 #endif
     fprintf(stderr, "  -p <file>  Outputs profiling data to a file\n");
     fprintf(stderr, "  -x         Output exit code before terminating\n");
-    fprintf(stderr, "  -a         Save parsed bundle\n");
-    fprintf(stderr, "  -b         Load parsed bundle\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  --sample                   Collects and outputs sampling profiler data\n");
     fprintf(stderr, "  --test262-async            Check that some script calls the print function with the string 'Test262:AsyncTestComplete'\n");
@@ -3863,14 +3854,6 @@ void CommandLine::parseArguments(int argc, char** argv)
         }
         if (!strcmp(arg, "-d")) {
             m_dump = true;
-            continue;
-        }
-        if (!strcmp(arg, "-a")) {
-            m_save = true;
-            continue;
-        }
-        if (!strcmp(arg, "-b")) {
-            m_loadb = true;
             continue;
         }
         if (!strcmp(arg, "-p")) {

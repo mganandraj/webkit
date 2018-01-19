@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2017 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,41 +23,37 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#include "config.h"
 
-#include "UnlinkedCodeBlock.h"
+#include "ByteCodeReadStore.h"
+#include "ByteCodeWriteStore.h"
+
+#include "ByteCodeStoreMacros.h"
+#include "UnlinkedInstructionStreamStore.h"
 
 namespace JSC {
 
-class UnlinkedFunctionCodeBlock final : public UnlinkedCodeBlock {
-public:
-    typedef UnlinkedCodeBlock Base;
-    static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
-
-    static UnlinkedFunctionCodeBlock* create(VM* vm, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-    {
-        UnlinkedFunctionCodeBlock* instance = new (NotNull, allocateCell<UnlinkedFunctionCodeBlock>(vm->heap)) UnlinkedFunctionCodeBlock(vm, vm->unlinkedFunctionCodeBlockStructure.get(), codeType, info, debuggerMode);
-        instance->finishCreation(*vm);
-        return instance;
-    }
-
-    static void destroy(JSCell*);
-
-private:
-    friend class UnlinkedFunctionCodeBlockStore;
+/*static */void UnlinkedInstructionStreamStore::save(UnlinkedInstructionStream& instructionStream, ByteCodeWriteStore& byteCodeCache) {
+    unsigned instructionCount = instructionStream.m_instructionCount;
+    WRITEFIELD(instructionCount);
     
-    UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-        : Base(vm, structure, codeType, info, debuggerMode)
-    {
-    }
-    
-public:
-    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
-    {
-        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedFunctionCodeBlockType, StructureFlags), info());
-    }
+    size_t instructionStreamSize = instructionStream.m_data.size();
+    WRITEFIELD(instructionStreamSize);
 
-    DECLARE_INFO;
-};
+    WRITEVECTOR8(instructionStream.m_data.data(), instructionStreamSize);
+}
+
+/*static */std::unique_ptr<UnlinkedInstructionStream> UnlinkedInstructionStreamStore::load(ByteCodeReadStore& byteCodeCache) {
+    unsigned instructioncount;
+    READFIELD(instructioncount);
+    
+    size_t instructionStreamSize;
+    READFIELD(instructionStreamSize);
+
+    RefCountedArray<unsigned char> instrArray(instructionStreamSize);
+    READVECTOR8_NOALLOC(instrArray.data(), instructionStreamSize);
+
+    auto unlinkedInstructionStream = std::make_unique<UnlinkedInstructionStream>(instrArray, instructioncount);
+}
 
 }

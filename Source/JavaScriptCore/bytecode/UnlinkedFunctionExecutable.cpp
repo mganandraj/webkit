@@ -87,14 +87,6 @@ void UnlinkedFunctionExecutable::finishCreation(VM& vm, ByteCodeReadStore& byteC
     unlinkedFunctionExecutableStore->loadHeader(vm, byteCodeCache);
 }
 
-void UnlinkedFunctionExecutable::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-}
-
-UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure)
-    : Base(*vm, structure) {}
-
 UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, const SourceCode& parentSource, SourceCode&& parentSourceOverride, FunctionMetadataNode* node, UnlinkedFunctionKind kind, ConstructAbility constructAbility, JSParserScriptMode scriptMode, VariableEnvironment& parentScopeTDZVariables, DerivedContextType derivedContextType)
     : Base(*vm, structure)
     , m_firstLineOffset(node->firstLine() - parentSource.firstLine().oneBasedInt())
@@ -134,7 +126,7 @@ UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* struct
     ASSERT(m_derivedContextType == static_cast<unsigned>(derivedContextType));
 
     m_parentScopeTDZVariables.swap(parentScopeTDZVariables);
-}   
+}
 
 void UnlinkedFunctionExecutable::destroy(JSCell* cell)
 {
@@ -150,8 +142,7 @@ void UnlinkedFunctionExecutable::visitChildren(JSCell* cell, SlotVisitor& visito
     visitor.append(thisObject->m_unlinkedCodeBlockForConstruct);
 }
 
-FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, 
-    std::optional<int> overrideLineNumber, Intrinsic intrinsic)
+FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, std::optional<int> overrideLineNumber, Intrinsic intrinsic)
 {
     const SourceCode& parentSource = m_parentSourceOverride.isNull() ? passedParentSource : m_parentSourceOverride;
     unsigned firstLine = parentSource.firstLine().oneBasedInt() + m_firstLineOffset;
@@ -215,10 +206,6 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockForCallFromByteCodeCache(VM& vm, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
 {
     ASSERT(m_unlinkedCodeBlockForCall.get() == nullptr);
-    //if (UnlinkedFunctionCodeBlock* codeBlock = m_unlinkedCodeBlockForCall.get())
-    //    return codeBlock;
-
-    //UnlinkedFunctionCodeBlock* result = this->loadCode(vm, parseMode, byteCodeCache); 
     
     Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*this);
     UnlinkedFunctionCodeBlock* result = unlinkedFunctionExecutableStore->loadCodeblock(vm, parseMode, byteCodeCache);
@@ -242,9 +229,9 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
     }
 
     UnlinkedFunctionCodeBlock* result = generateUnlinkedFunctionCodeBlock(
-            vm, this, source, specializationKind, debuggerMode, 
-            isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
-            error, parseMode);
+        vm, this, source, specializationKind, debuggerMode, 
+        isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
+        error, parseMode);
 
     if (error.isValid())
         return nullptr;

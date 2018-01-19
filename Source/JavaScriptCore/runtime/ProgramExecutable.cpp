@@ -39,10 +39,7 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
-#include "ByteCodeStoreMacros.h"
 #include "ByteCodeWriteStore.h"
-
-#include "UnlinkedProgramCodeBlockStore.h"
 #include "ProgramExecutableStore.h"
 
 namespace JSC {
@@ -53,7 +50,6 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
     : ScriptExecutable(exec->vm().programExecutableStructure.get(), exec->vm(), source, false, DerivedContextType::None, false, EvalContextType::None, NoIntrinsic)
 {
     ASSERT(source.provider()->sourceType() == SourceProviderSourceType::Program);
-
     m_typeProfilingStartOffset = 0;
     m_typeProfilingEndOffset = source.length() - 1;
     if (exec->vm().typeProfiler() || exec->vm().controlFlowProfiler())

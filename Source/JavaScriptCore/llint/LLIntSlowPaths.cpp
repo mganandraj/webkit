@@ -1398,8 +1398,6 @@ inline SlowPathReturnType setUpCall(ExecState* execCallee, Instruction* pc, Code
             codeBlock->linkIncomingCall(exec, callLinkInfo);
     }
 
-    //dataLogLn("Returning back to VM");
-
     LLINT_CALL_RETURN(exec, execCallee, codePtr.executableAddress());
 }
 

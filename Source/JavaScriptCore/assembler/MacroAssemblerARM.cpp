@@ -28,7 +28,6 @@
 #include "config.h"
 
 #if ENABLE(ASSEMBLER) && CPU(ARM_TRADITIONAL)
-
 #include "MacroAssembler.h"
 
 #include "ProbeContext.h"

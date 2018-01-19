@@ -229,7 +229,6 @@ template <> struct CacheTypes<UnlinkedModuleProgramCodeBlock> {
 template <class UnlinkedCodeBlockType, class ExecutableType>
 UnlinkedCodeBlockType* generateUnlinkedCodeBlock(VM& vm, ExecutableType* executable, const SourceCode& source, JSParserStrictMode strictMode, JSParserScriptMode scriptMode, DebuggerMode debuggerMode, ParserError& error, EvalContextType evalContextType, const VariableEnvironment* variablesUnderTDZ)
 {
-    double start = currentTime();
     typedef typename CacheTypes<UnlinkedCodeBlockType>::RootNode RootNode;
     DerivedContextType derivedContextType = executable->derivedContextType();
     std::unique_ptr<RootNode> rootNode = parse<RootNode>(
@@ -237,9 +236,6 @@ UnlinkedCodeBlockType* generateUnlinkedCodeBlock(VM& vm, ExecutableType* executa
     
     if (!rootNode)
         return nullptr;
-
-    double parseEnd = currentTime();
-    dataLogLn("#PRS: ", parseEnd - start);
 
     unsigned lineCount = rootNode->lastLine() - rootNode->firstLine();
     unsigned startColumn = rootNode->startColumn() + 1;
@@ -258,8 +254,6 @@ UnlinkedCodeBlockType* generateUnlinkedCodeBlock(VM& vm, ExecutableType* executa
 
     if (error.isValid())
         return nullptr;
-
-    dataLogLn("#CODEGEN: ", currentTime() - parseEnd);
 
     return unlinkedCodeBlock;
 }

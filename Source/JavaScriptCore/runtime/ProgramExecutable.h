@@ -29,6 +29,7 @@
 
 namespace JSC {
 
+class ByteCodeReadStore;
 class ByteCodeWriteStore;
 
 class ProgramExecutable final : public ScriptExecutable {
@@ -40,8 +41,7 @@ public:
     static ProgramExecutable* create(ExecState* exec, const SourceCode& source)
     {
         VM& vm = exec->vm();
-        ProgramExecutable* executable = new (NotNull, allocateCell<ProgramExecutable>(vm.heap)) ProgramExecutable(exec, source);
-        
+        ProgramExecutable* executable = new (NotNull, allocateCell<ProgramExecutable>(vm.heap)) ProgramExecutable(exec, source);        
         executable->finishCreation(vm);
         return executable;
     }

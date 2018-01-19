@@ -29,6 +29,7 @@
 #include "UnlinkedFunctionExecutableStore.h"
 #include "SymbolTableStore.h"
 #include "IdentifierStore.h"
+#include "UnlinkedInstructionStreamStore.h"
 
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
@@ -36,6 +37,7 @@
 #include "BuiltinNames.h"
 
 #include <wtf/text/StringStore.h>
+#include <wtf/BitVectorStore.h>
 
 namespace JSC {
 
@@ -105,29 +107,12 @@ void UnlinkedCodeBlockStore::save(ByteCodeWriteStore& byteCodeCache) {
 
 void UnlinkedCodeBlockStore::saveInstructions(ByteCodeWriteStore& byteCodeCache) {
     WRITEMAGIC(MAGIC_CODEBLOCK_INSTRUCTIONS);
-    
-    unsigned instructionCount = m_unlinkedCodeBlock.m_unlinkedInstructions->m_instructionCount;
-    WRITEFIELD(instructionCount);
-    
-    size_t instructionStreamSize = m_unlinkedCodeBlock.m_unlinkedInstructions->m_data.size();
-    WRITEFIELD(instructionStreamSize);
-
-    WRITEVECTOR8(m_unlinkedCodeBlock.m_unlinkedInstructions->m_data.data(), instructionStreamSize);
+    UnlinkedInstructionStreamStore::save(*m_unlinkedCodeBlock.m_unlinkedInstructions, byteCodeCache);
 }
 
 void UnlinkedCodeBlockStore::loadInstructions(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_INSTRUCTIONS);
-
-    unsigned instructioncount;
-    READFIELD(instructioncount);
-    
-    size_t instructionStreamSize;
-    READFIELD(instructionStreamSize);
-
-    RefCountedArray<unsigned char> instrArray(instructionStreamSize);
-    READVECTOR8_NOALLOC(instrArray.data(), instructionStreamSize);
-
-    m_unlinkedCodeBlock.m_unlinkedInstructions = std::make_unique<UnlinkedInstructionStream>(instrArray, instructioncount);
+    m_unlinkedCodeBlock.m_unlinkedInstructions = UnlinkedInstructionStreamStore::load(byteCodeCache);
 }
 
 void UnlinkedCodeBlockStore::saveVirtualRegisters(ByteCodeWriteStore& byteCodeCache) {
@@ -165,12 +150,10 @@ void UnlinkedCodeBlockStore::saveIdentifiers(ByteCodeWriteStore& byteCodeCache) 
     uint8_t identifierType;
     for (auto &identifier : m_unlinkedCodeBlock.m_identifiers) {
         IdentifierStore::save(*m_unlinkedCodeBlock.vm(), identifier, byteCodeCache);
-    }   
+    }    
 }
 
 void UnlinkedCodeBlockStore::loadIdentifiers(ByteCodeReadStore& byteCodeCache) {
-    VM& vm = *m_unlinkedCodeBlock.vm();
-    
     VERIFYMAGIC(MAGIC_CODEBLOCK_IDENTIFIERS);
 
     size_t numIdentifiers;
@@ -187,8 +170,10 @@ void UnlinkedCodeBlockStore::saveBitVectors(ByteCodeWriteStore& byteCodeCache) {
     size_t bitVectorSize = m_unlinkedCodeBlock.m_bitVectors.size();
     WRITEFIELD(bitVectorSize);
     for (auto &bitVector : m_unlinkedCodeBlock.m_bitVectors){
-        uintptr_t bits = *bitVector.bits();
-        WRITEFIELD(bits);
+        // uintptr_t bits = *bitVector.bits();
+        // WRITEFIELD(bits);
+        Ref<BitVectorStore> bitVectorStore = BitVectorStore::create(bitVector);
+        bitVectorStore->save(byteCodeCache.storeImplementation());
     }
 }
 
@@ -198,11 +183,14 @@ void UnlinkedCodeBlockStore::loadBitVectors(ByteCodeReadStore& byteCodeCache) {
     size_t numBitVectors;
     READFIELD(numBitVectors);
     for(size_t i=0; i<numBitVectors; i++) {
-        uintptr_t bits;
-        READFIELD(bits);
+        // uintptr_t bits;
+        // READFIELD(bits);
 
         BitVector bitVector;
-        *(bitVector.bits()) = bits;
+        Ref<BitVectorStore> bitVectorStore = BitVectorStore::create(bitVector);
+        bitVectorStore->load(byteCodeCache.storeImplementation());
+
+        // *(bitVector.bits()) = bits;
         m_unlinkedCodeBlock.m_bitVectors.append(bitVector);
     }
 }

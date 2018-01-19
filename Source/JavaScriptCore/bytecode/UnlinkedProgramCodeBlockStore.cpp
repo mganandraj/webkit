@@ -27,6 +27,7 @@
 
 #include "UnlinkedProgramCodeBlockStore.h"
 #include "UnlinkedCodeBlockStore.h"
+#include "VariableEnvironmentStore.h"
 
 namespace JSC {
 
@@ -34,18 +35,24 @@ Ref<UnlinkedProgramCodeBlockStore> UnlinkedProgramCodeBlockStore::create(Unlinke
     return WTF::adoptRef(*new UnlinkedProgramCodeBlockStore(UnlinkedProgramCodeBlock));
 }
 
-void UnlinkedProgramCodeBlockStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void UnlinkedProgramCodeBlockStore::load(VM&, ByteCodeReadStore& byteCodeCache) {
     UnlinkedCodeBlockStore::load(byteCodeCache);
 
-    m_unlinkedProgramCodeBlock.m_varDeclarations.load(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
-    m_unlinkedProgramCodeBlock.m_lexicalDeclarations.load(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+    Ref<VariableEnvironmentStore> varDeclVariableEnvironmentStore = VariableEnvironmentStore::create(m_unlinkedProgramCodeBlock.m_varDeclarations);
+    varDeclVariableEnvironmentStore->load(m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+
+    Ref<VariableEnvironmentStore> lexicalDeclVariableEnvironmentStore = VariableEnvironmentStore::create(m_unlinkedProgramCodeBlock.m_lexicalDeclarations);
+    lexicalDeclVariableEnvironmentStore->load(m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
 }
 
-void UnlinkedProgramCodeBlockStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
+void UnlinkedProgramCodeBlockStore::save(VM&, ByteCodeWriteStore& byteCodeCache) {
     UnlinkedCodeBlockStore::save(byteCodeCache);
 
-    m_unlinkedProgramCodeBlock.m_varDeclarations.save(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
-    m_unlinkedProgramCodeBlock.m_lexicalDeclarations.save(vm, m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+    Ref<VariableEnvironmentStore> varDeclVariableEnvironmentStore = VariableEnvironmentStore::create(m_unlinkedProgramCodeBlock.m_varDeclarations);
+    varDeclVariableEnvironmentStore->save(m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
+
+    Ref<VariableEnvironmentStore> lexicalDeclVariableEnvironmentStore = VariableEnvironmentStore::create(m_unlinkedProgramCodeBlock.m_lexicalDeclarations);
+    lexicalDeclVariableEnvironmentStore->save(m_unlinkedProgramCodeBlock.identifiers(), byteCodeCache);
 }    
 
 }

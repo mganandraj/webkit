@@ -34,11 +34,6 @@
 #include <wtf/PrintStream.h>
 #include <wtf/StdLibExtras.h>
 
-// Hack .. We need to straighten this.
-namespace JSC {
-    class UnlinkedCodeBlockStore;
-}
-
 namespace WTF {
 
 // This is a space-efficient, resizeable bitvector class. In the common case it
@@ -337,7 +332,7 @@ public:
     iterator end() const { return iterator(*this, size()); }
      
 private:
-    friend class JSC::UnlinkedCodeBlockStore;
+    friend class BitVectorStore;
 
     static unsigned bitsInPointer()
     {

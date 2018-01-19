@@ -373,7 +373,7 @@ private:
     
     FatEntry* inflateSlow();
 
-        ALWAYS_INLINE intptr_t bits() const
+    ALWAYS_INLINE intptr_t bits() const
     {
         if (isFat())
             return fatEntry()->m_bits;

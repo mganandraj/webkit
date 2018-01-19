@@ -66,8 +66,6 @@ void JSJobMicrotask::run(ExecState* exec)
     VM& vm = exec->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
 
-    //dataLogLn("JSJobMicrotask::run");
-
     CallData handlerCallData;
     CallType handlerCallType = getCallData(m_job.get(), handlerCallData);
     ASSERT(handlerCallType != CallType::None);

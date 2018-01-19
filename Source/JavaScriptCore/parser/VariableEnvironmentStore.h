@@ -25,39 +25,25 @@
 
 #pragma once
 
-#include "UnlinkedCodeBlock.h"
+#include <wtf/Ref.h>
+#include "VariableEnvironment.h"
 
 namespace JSC {
 
-class UnlinkedFunctionCodeBlock final : public UnlinkedCodeBlock {
+class VariableEnvironmentStore : public RefCounted<VariableEnvironmentStore> {
 public:
-    typedef UnlinkedCodeBlock Base;
-    static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
+    static Ref<VariableEnvironmentStore> create(VariableEnvironment&);
 
-    static UnlinkedFunctionCodeBlock* create(VM* vm, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-    {
-        UnlinkedFunctionCodeBlock* instance = new (NotNull, allocateCell<UnlinkedFunctionCodeBlock>(vm->heap)) UnlinkedFunctionCodeBlock(vm, vm->unlinkedFunctionCodeBlockStructure.get(), codeType, info, debuggerMode);
-        instance->finishCreation(*vm);
-        return instance;
-    }
+    void save(const Vector<Identifier>&, ByteCodeWriteStore&);
+    void load(const Vector<Identifier>&, ByteCodeReadStore&);
 
-    static void destroy(JSCell*);
+protected:
+    VariableEnvironmentStore(VariableEnvironment& variableEnvironment)
+        : m_variableEnvironment(variableEnvironment)
+    {}
 
 private:
-    friend class UnlinkedFunctionCodeBlockStore;
-    
-    UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-        : Base(vm, structure, codeType, info, debuggerMode)
-    {
-    }
-    
-public:
-    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
-    {
-        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedFunctionCodeBlockType, StructureFlags), info());
-    }
-
-    DECLARE_INFO;
+    VariableEnvironment& m_variableEnvironment;
 };
 
 }

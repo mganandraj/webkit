@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include "FunctionExecutableStore.h"
+#include "UnlinkedFunctionCodeBlockStore.h"
 
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
@@ -37,7 +38,7 @@ Ref<FunctionExecutableStore> FunctionExecutableStore::create(FunctionExecutable&
     return WTF::adoptRef(*new FunctionExecutableStore(functionExecutable));
 }
 
-void FunctionExecutableStore::load(VM& vm, ByteCodeReadStore& byteCodeCache) {
+void FunctionExecutableStore::load(VM&, ByteCodeReadStore&) {
     ASSERT(0);
 }
 

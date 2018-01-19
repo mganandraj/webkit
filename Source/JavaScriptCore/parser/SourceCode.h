@@ -30,8 +30,6 @@
 
 #include "UnlinkedSourceCode.h"
 
-#include "Options.h"
-
 namespace JSC {
 
     class SourceCode : public UnlinkedSourceCode {

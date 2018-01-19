@@ -85,7 +85,7 @@ void ScriptExecutable::finishCreation(VM& vm)
     if(JSC::Options::enableBytecodeCaching()) {   
         if (classInfo(vm) == ProgramExecutable::info()) {
             ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
-            ByteCodeReadStore::tryCreateForProgram(*executable);
+            ByteCodeReadStore::tryCreateForProgram(*executable); // TODO :: Not a nice pattern .. Fix.
         }
     }
 }
@@ -117,19 +117,6 @@ void ScriptExecutable::writeByteCodeCache(VM& vm)
         dataLogLn("Skip writing as byte codes are already cached.");
 #endif
     }
-}
-
-// Caller should know how many times to call this.
-std::string nexttoken(std::string text, size_t& next, size_t& last, char delimiter) {
-    std::string token;
-    if((next = text.find(delimiter, last)) != std::string::npos) {
-        token = text.substr(last, next-last);
-        last = next + 1;
-    } else {
-        token = text.substr(last);
-    }
-
-    return token;
 }
 
 void ScriptExecutable::destroy(JSCell* cell)
@@ -235,8 +222,6 @@ void ScriptExecutable::installCode(VM& vm, CodeBlock* genericCodeBlock, CodeType
     vm.heap.writeBarrier(this);
 }
 
-#include <sys/types.h>
-
 CodeBlock* ScriptExecutable::newCodeBlockFor(
     CodeSpecializationKind kind, JSFunction* function, JSScope* scope, JSObject*& exception)
 {
@@ -329,8 +314,6 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
             error.toErrorObject(globalObject, executable->m_source));
         return nullptr;
     }
-
-    //dataLogLn("2");    
 
     throwScope.release();
     return FunctionCodeBlock::create(vm, executable, unlinkedCodeBlock, scope, 
@@ -428,7 +411,6 @@ JSObject* ScriptExecutable::prepareForExecutionImpl(
         setupJIT(vm, codeBlock);
     
     installCode(vm, codeBlock, codeBlock->codeType(), codeBlock->specializationKind());
-    
     return nullptr;
 }
 

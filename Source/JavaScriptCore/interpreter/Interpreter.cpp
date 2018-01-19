@@ -771,8 +771,6 @@ static inline JSObject* checkedReturn(JSObject* returnValue)
 
 JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFrame, JSObject* thisObj)
 {
-    double start = currentTime();    
-
     JSScope* scope = thisObj->globalObject()->globalScope();
     VM& vm = *scope->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -868,7 +866,6 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
                 MarkedArgumentBuffer jsonArg;
                 jsonArg.append(JSONPValue);
                 JSValue thisValue = JSONPPath.size() == 1 ? jsUndefined(): baseObject;
-                //dataLogLn("really!!");
                 JSONPValue = JSC::call(callFrame, function, callType, callData, thisValue, jsonArg);
                 RETURN_IF_EXCEPTION(throwScope, JSValue());
                 break;
@@ -905,8 +902,6 @@ failedJSONP:
     if (UNLIKELY(error))
         return checkedReturn(throwException(callFrame, throwScope, error));
     
-    dataLogLn("#XP2:", currentTime() - start);
-    
     ProgramCodeBlock* codeBlock;
     {
         CodeBlock* tempCodeBlock;
@@ -916,8 +911,6 @@ failedJSONP:
             return checkedReturn(error);
         codeBlock = jsCast<ProgramCodeBlock*>(tempCodeBlock);
     }
-
-    dataLogLn("#XP3:", currentTime() - start);  
 
     VMTraps::Mask mask(VMTraps::NeedTermination, VMTraps::NeedWatchdogCheck);
     if (UNLIKELY(vm.needTrapHandling(mask))) {
@@ -936,8 +929,6 @@ failedJSONP:
     // Execute the code:
     throwScope.release();
     JSValue result = program->generatedJITCode()->execute(&vm, &protoCallFrame);
-
-    dataLogLn("#XP:", currentTime() - start);    
     
     if(JSC::Options::enableBytecodeCaching()) {
         program->writeByteCodeCache(vm);
@@ -985,13 +976,11 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
         ASSERT(!!newCodeBlock);
         newCodeBlock->m_shouldAlwaysBeInlined = false;
     } else {
-        // dataLogLn("A3");
         newCodeBlock = 0;
     } 
 
     VMTraps::Mask mask(VMTraps::NeedTermination, VMTraps::NeedWatchdogCheck);
     if (UNLIKELY(vm.needTrapHandling(mask))) {
-        // dataLogLn("A4");
         vm.handleTraps(callFrame, mask);
         RETURN_IF_EXCEPTION(throwScope, throwScope.exception());
     }
@@ -1016,8 +1005,6 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
 
 JSObject* Interpreter::executeConstruct(CallFrame* callFrame, JSObject* constructor, ConstructType constructType, const ConstructData& constructData, const ArgList& args, JSValue newTarget)
 {
-    // dataLogLn("Interpreter::executeConstruct");
-
     VM& vm = callFrame->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 

@@ -31,6 +31,8 @@
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
 
+#include "UnlinkedProgramCodeBlockStore.h"
+
 #include "ByteCodeStoreMacros.h"
 
 namespace JSC {

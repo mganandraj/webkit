@@ -25,39 +25,14 @@
 
 #pragma once
 
-#include "UnlinkedCodeBlock.h"
+#include "UnlinkedInstructionStream.h"
 
 namespace JSC {
 
-class UnlinkedFunctionCodeBlock final : public UnlinkedCodeBlock {
+class UnlinkedInstructionStreamStore {
 public:
-    typedef UnlinkedCodeBlock Base;
-    static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
-
-    static UnlinkedFunctionCodeBlock* create(VM* vm, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-    {
-        UnlinkedFunctionCodeBlock* instance = new (NotNull, allocateCell<UnlinkedFunctionCodeBlock>(vm->heap)) UnlinkedFunctionCodeBlock(vm, vm->unlinkedFunctionCodeBlockStructure.get(), codeType, info, debuggerMode);
-        instance->finishCreation(*vm);
-        return instance;
-    }
-
-    static void destroy(JSCell*);
-
-private:
-    friend class UnlinkedFunctionCodeBlockStore;
-    
-    UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-        : Base(vm, structure, codeType, info, debuggerMode)
-    {
-    }
-    
-public:
-    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
-    {
-        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedFunctionCodeBlockType, StructureFlags), info());
-    }
-
-    DECLARE_INFO;
+    static void save(UnlinkedInstructionStream&, ByteCodeWriteStore&);
+    static std::unique_ptr<UnlinkedInstructionStream> load(ByteCodeReadStore&);
 };
 
 }

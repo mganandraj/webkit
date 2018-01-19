@@ -30,9 +30,6 @@
 
 namespace JSC {
 
-class ByteCodeWriteStore;
-class ByteCodeReadStore;
-
 struct VariableEnvironmentEntry {
 public:
     ALWAYS_INLINE bool isCaptured() const { return m_bits & IsCaptured; }
@@ -59,9 +56,9 @@ public:
 
     ALWAYS_INLINE void clearIsVar() { m_bits &= ~IsVar; }
 
-    uint16_t m_bits { 0 };    
-
 private:
+    friend class VariableEnvironmentStore;
+
     enum Traits : uint16_t {
         IsCaptured = 1 << 0,
         IsConst = 1 << 1,
@@ -74,6 +71,7 @@ private:
         IsParameter = 1 << 8,
         IsSloppyModeHoistingCandidate = 1 << 9
     };
+    uint16_t m_bits { 0 };    
 };
 
 struct VariableEnvironmentEntryHashTraits : HashTraits<VariableEnvironmentEntry> {
@@ -92,11 +90,6 @@ public:
     { }
     VariableEnvironment(const VariableEnvironment&) = default;
     VariableEnvironment& operator=(const VariableEnvironment&) = default;
-
-    void save(VM&, const Vector<Identifier>& identifiers, ByteCodeWriteStore& byteCodeCache);
-    void load(VM&, const Vector<Identifier>& identifiers, ByteCodeReadStore& byteCodeCache);
-
-    ALWAYS_INLINE Map::AddResult add(const RefPtr<UniquedStringImpl>& identifier, VariableEnvironmentEntry entry) { return m_map.add(identifier, entry); }
 
     ALWAYS_INLINE Map::iterator begin() { return m_map.begin(); }
     ALWAYS_INLINE Map::iterator end() { return m_map.end(); }
@@ -119,6 +112,8 @@ public:
     void markVariableAsExported(const RefPtr<UniquedStringImpl>& identifier);
 
 private:
+    friend class VariableEnvironmentStore;
+
     Map m_map;
     bool m_isEverythingCaptured { false };
 };

@@ -32,16 +32,10 @@
 #include "JSFunction.h"
 #include "ScriptProfilingScope.h"
 
-#include <wtf/DataLog.h>
-
-#include <sys/types.h>
-
 namespace JSC {
 
 JSValue call(ExecState* exec, JSValue functionObject, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args)
 {
-    // dataLogLn("CallData::call", static_cast<uint32_t>(gettid()));
-    //dataLogLn("CallData::call");
     VM& vm = exec->vm();
     ASSERT(callType == CallType::JS || callType == CallType::Host);
     return vm.interpreter->executeCall(exec, asObject(functionObject), callType, callData, thisValue, args);
@@ -49,8 +43,6 @@ JSValue call(ExecState* exec, JSValue functionObject, CallType callType, const C
 
 JSValue call(ExecState* exec, JSValue functionObject, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args, NakedPtr<Exception>& returnedException)
 {
-    //dataLogLn("CallData::call2");
-
     VM& vm = exec->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
     JSValue result = call(exec, functionObject, callType, callData, thisValue, args);
@@ -65,16 +57,12 @@ JSValue call(ExecState* exec, JSValue functionObject, CallType callType, const C
 
 JSValue profiledCall(ExecState* exec, ProfilingReason reason, JSValue functionObject, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args)
 {
-    //dataLogLn("CallData::profiledCall");
-
     ScriptProfilingScope profilingScope(exec->vmEntryGlobalObject(), reason);
     return call(exec, functionObject, callType, callData, thisValue, args);
 }
 
 JSValue profiledCall(ExecState* exec, ProfilingReason reason, JSValue functionObject, CallType callType, const CallData& callData, JSValue thisValue, const ArgList& args, NakedPtr<Exception>& returnedException)
 {
-    //dataLogLn("CallData::profiledCall2");
-
     ScriptProfilingScope profilingScope(exec->vmEntryGlobalObject(), reason);
     return call(exec, functionObject, callType, callData, thisValue, args, returnedException);
 }

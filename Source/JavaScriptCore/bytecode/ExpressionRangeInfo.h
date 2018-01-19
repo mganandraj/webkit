@@ -104,5 +104,5 @@ struct ExpressionRangeInfo {
     uint32_t mode : 2;
     uint32_t position : 30;
 };
-  
+
 } // namespace JSC

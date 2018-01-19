@@ -45,6 +45,8 @@ class ParserError;
 class SourceProvider;
 class UnlinkedFunctionCodeBlock;
 
+class ByteCodeReadStore;
+
 enum UnlinkedFunctionKind {
     UnlinkedNormalFunction,
     UnlinkedBuiltinFunction,
@@ -53,6 +55,7 @@ enum UnlinkedFunctionKind {
 class UnlinkedFunctionExecutable final : public JSCell {
 public:
     friend class UnlinkedFunctionExecutableStore;
+    friend class FunctionExecutableStore;
     friend class CodeCache;
     friend class VM;
 
@@ -76,7 +79,7 @@ public:
         return instance;
     }
 
-    void finishCreation(VM& vm);
+    void finishCreation(VM& vm) { Base::finishCreation(vm); }
     void finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache);
 
     const Identifier& name() const { return m_name; }
@@ -118,8 +121,7 @@ public:
         const Identifier&, ExecState&, const SourceCode&, JSObject*& exception, 
         int overrideLineNumber);
 
-    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource,
-        std::optional<int> overrideLineNumber = std::nullopt, Intrinsic = NoIntrinsic);
+    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource, std::optional<int> overrideLineNumber = std::nullopt, Intrinsic = NoIntrinsic);
 
     void clearCode()
     {
@@ -160,12 +162,10 @@ public:
     size_t byteCodeBundleOffsetForCall() const { return m_byteCodeBundleOffsetForCall; }
     // size_t byteCodeBundleOffsetForConstruct() const { return m_byteCodeBundleOffsetForConstruct; }
 
-    WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForCall;
-    WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForConstruct;
-
 private:
     UnlinkedFunctionExecutable(VM*, Structure*, const SourceCode&, SourceCode&& parentSourceOverride, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, VariableEnvironment&,  JSC::DerivedContextType);
-    UnlinkedFunctionExecutable(VM*, Structure*);
+    UnlinkedFunctionExecutable(VM* vm, Structure* structure)
+        : Base(*vm, structure) {} 
 
     size_t m_byteCodeBundleOffsetForCall { 0 };
     // size_t m_byteCodeBundleOffsetForConstruct { 0 };
@@ -192,6 +192,9 @@ private:
     unsigned m_scriptMode: 1; // JSParserScriptMode
     unsigned m_superBinding : 1;
     unsigned m_derivedContextType: 2;
+
+    WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForCall;
+    WriteBarrier<UnlinkedFunctionCodeBlock> m_unlinkedCodeBlockForConstruct;
 
     Identifier m_name;
     Identifier m_ecmaName;

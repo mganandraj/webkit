@@ -7,6 +7,7 @@ set(WTF_HEADERS
     Bag.h
     BagToHashMap.h
     BitVector.h
+    BitVectorStore.h
     Bitmap.h
     Brigand.h
     BubbleSort.h
@@ -214,6 +215,7 @@ set(WTF_SOURCES
     Atomics.cpp
     AutomaticThread.cpp
     BitVector.cpp
+    BitVectorStore.cpp
     CPUTime.cpp
     ClockType.cpp
     CompilationThread.cpp

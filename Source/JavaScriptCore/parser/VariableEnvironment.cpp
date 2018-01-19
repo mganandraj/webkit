@@ -33,55 +33,6 @@
 
 namespace JSC {
 
-void VariableEnvironment::save(VM&, const Vector<Identifier>& identifiers, ByteCodeWriteStore& byteCodeCache) {
-    
-    WRITEMAGIC(MAGIC_VARIABLEENVIRONMENT);
-
-    unsigned mapSize = m_map.size();
-    WRITEFIELD(mapSize);
-
-    for_each (m_map.begin(), m_map.end(), [&identifiers, &byteCodeCache](auto keyvaluepair){
-        
-        WTF::RefPtr<WTF::UniquedStringImpl> key = keyvaluepair.key;
-        JSC::VariableEnvironmentEntry entry = keyvaluepair.value;
-
-        // Find the index in the identifier vector
-        uint32_t keyindex=0;
-        for(const Identifier& id : identifiers){
-            if (WTF::equal(id.impl(), key.get()))
-                break;
-            keyindex++;
-        }
-        ASSERT(keyindex < identifiers.size());
-
-        WRITEFIELD(keyindex);        
-        WRITEFIELD(entry.m_bits);
-    });
-}
-
-void VariableEnvironment::load(VM&, const Vector<Identifier>& identifiers, ByteCodeReadStore& byteCodeCache) {
-    VERIFYMAGIC(MAGIC_VARIABLEENVIRONMENT);
-    
-    unsigned mapSize;
-    READFIELD(mapSize);
-
-    for(size_t i=0; i<mapSize; i++) {
-        uint32_t keyindex;
-        uint16_t entryBits;   
-    
-        READFIELD(keyindex);
-        READFIELD(entryBits);
-
-        RefPtr<UniquedStringImpl> keystr(identifiers[keyindex].impl());
-        
-        VariableEnvironmentEntry entry;
-        entry.m_bits = entryBits;
-
-        Map::AddResult addResult = add(keystr, entry);
-        ASSERT_UNUSED(addResult, addResult.isNewEntry);
-    }
-}
-
 void VariableEnvironment::markVariableAsCapturedIfDefined(const RefPtr<UniquedStringImpl>& identifier)
 {
     auto findResult = m_map.find(identifier);

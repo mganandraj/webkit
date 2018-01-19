@@ -30,14 +30,17 @@
 #include "UnlinkedCodeBlock.h"
 #include <wtf/RefCountedArray.h>
 
+#include <memory>
+
 namespace JSC {
 
 class UnlinkedInstructionStream {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit UnlinkedInstructionStream(const Vector<UnlinkedInstruction, 0, UnsafeVectorOverflow>&);
-    explicit UnlinkedInstructionStream(RefCountedArray<unsigned char> data,
-        unsigned m_instructionCount);
+
+    explicit UnlinkedInstructionStream(RefCountedArray<unsigned char> data, unsigned instructionCount)
+            : m_data(data), m_instructionCount(instructionCount){}
 
     unsigned count() const { return m_instructionCount; }
     size_t sizeInBytes() const;
@@ -64,7 +67,6 @@ public:
 
 RefCountedArray<unsigned char> m_data;
 unsigned m_instructionCount;
-
 
 private:
     friend class Reader;

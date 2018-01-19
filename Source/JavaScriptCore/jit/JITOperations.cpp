@@ -927,8 +927,6 @@ static SlowPathReturnType handleHostCall(ExecState* execCallee, JSValue callee, 
 
 SlowPathReturnType JIT_OPERATION operationLinkCall(ExecState* execCallee, CallLinkInfo* callLinkInfo)
 {
-    // dataLogLn("operationLinkCall");
-
     ExecState* exec = execCallee->callerFrame();
     VM* vm = &exec->vm();
     auto throwScope = DECLARE_THROW_SCOPE(*vm);
@@ -992,8 +990,6 @@ SlowPathReturnType JIT_OPERATION operationLinkCall(ExecState* execCallee, CallLi
 
 void JIT_OPERATION operationLinkDirectCall(ExecState* exec, CallLinkInfo* callLinkInfo, JSFunction* callee)
 {
-    // dataLogLn("operationLinkDirectCall");
-
     VM* vm = &exec->vm();
     auto throwScope = DECLARE_THROW_SCOPE(*vm);
 

@@ -37,10 +37,6 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
-#include "ByteCodeWriteStore.h"
-#include "ByteCodeStoreMacros.h"
-#include "UnlinkedFunctionCodeBlockStore.h"
-
 namespace JSC {
 
 const ClassInfo FunctionExecutable::s_info = { "FunctionExecutable", &ScriptExecutable::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(FunctionExecutable) };

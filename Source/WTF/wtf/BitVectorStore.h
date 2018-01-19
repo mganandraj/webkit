@@ -25,39 +25,29 @@
 
 #pragma once
 
-#include "UnlinkedCodeBlock.h"
+#include <wtf/RefCounted.h>
+#include <wtf/Ref.h>
+#include "BitVector.h"
 
-namespace JSC {
+namespace WTF {
 
-class UnlinkedFunctionCodeBlock final : public UnlinkedCodeBlock {
+struct WriteStoreImplementation;
+struct ReadStoreImplementation;
+
+class BitVectorStore : public RefCounted<BitVectorStore> {
 public:
-    typedef UnlinkedCodeBlock Base;
-    static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
+    static Ref<BitVectorStore> create(BitVector&);
 
-    static UnlinkedFunctionCodeBlock* create(VM* vm, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-    {
-        UnlinkedFunctionCodeBlock* instance = new (NotNull, allocateCell<UnlinkedFunctionCodeBlock>(vm->heap)) UnlinkedFunctionCodeBlock(vm, vm->unlinkedFunctionCodeBlockStructure.get(), codeType, info, debuggerMode);
-        instance->finishCreation(*vm);
-        return instance;
-    }
+    void save(WriteStoreImplementation&);
+    void load(ReadStoreImplementation&);
 
-    static void destroy(JSCell*);
+protected:
+    BitVectorStore(BitVector& bitVector)
+        : m_bitVector(bitVector)
+    {}
 
 private:
-    friend class UnlinkedFunctionCodeBlockStore;
-    
-    UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
-        : Base(vm, structure, codeType, info, debuggerMode)
-    {
-    }
-    
-public:
-    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
-    {
-        return Structure::create(vm, globalObject, proto, TypeInfo(UnlinkedFunctionCodeBlockType, StructureFlags), info());
-    }
-
-    DECLARE_INFO;
+    BitVector& m_bitVector;
 };
 
 }
