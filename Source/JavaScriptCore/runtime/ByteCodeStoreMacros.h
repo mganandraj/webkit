@@ -114,6 +114,7 @@ do { \
     } \
 } while (0)
 
+/*
 // Call with RefPtr<StringImpl>
 #define WRITESTRING(str_) \
 do { \
@@ -129,8 +130,11 @@ do { \
         } \
     } \
 } while (0)
+*/
+//#define READSTRING(str_) str_=WTF::StringStore::load(byteCodeCache.storeImplementation());
 
 // creates and sets the provided RefPtr<StringImpl>
+/*
 #define READSTRING(str_) \
 do { \
     unsigned _length; \
@@ -151,7 +155,9 @@ do { \
         str_ = nullptr; \
     } \
 } while (0)
+*/
 
+/*
 #define READATOMICSTRING(str_) \
 do { \
     unsigned _length; \
@@ -172,3 +178,4 @@ do { \
         str_ = nullptr; \
     } \
 } while (0)
+*/

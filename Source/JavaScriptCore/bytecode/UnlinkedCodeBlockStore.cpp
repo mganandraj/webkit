@@ -28,11 +28,14 @@
 #include "UnlinkedCodeBlockStore.h"
 #include "UnlinkedFunctionExecutableStore.h"
 #include "SymbolTableStore.h"
+#include "IdentifierStore.h"
 
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
 #include "ByteCodeStoreMacros.h"
 #include "BuiltinNames.h"
+
+#include <wtf/text/StringStore.h>
 
 namespace JSC {
 
@@ -161,49 +164,7 @@ void UnlinkedCodeBlockStore::saveIdentifiers(ByteCodeWriteStore& byteCodeCache) 
     
     uint8_t identifierType;
     for (auto &identifier : m_unlinkedCodeBlock.m_identifiers) {
-        if (identifier.isPrivateName()) {
-            size_t privateNameIndex;
-            if(m_unlinkedCodeBlock.vm()->propertyNames->builtinNames().findPrivateNameIndex(identifier, privateNameIndex)) {
-                identifierType = static_cast<uint8_t>(IdentifierType::BuiltinPrivateName);
-                WRITEFIELD(identifierType);
-                WRITEFIELD(privateNameIndex);
-            } else {
-                identifierType = static_cast<uint8_t>(IdentifierType::PrivateName);
-                WRITEFIELD(identifierType);
-
-                ASSERT(identifier.string().length() == 0); // others are not yet implemented..
-            }
-        }
-        else if(identifier.isSymbol()) {
-            size_t symbolIndex;
-            if (m_unlinkedCodeBlock.vm()->propertyNames->findCommonSymbol(identifier, symbolIndex)) {
-                identifierType = static_cast<uint8_t>(IdentifierType::WellKnownSymbol);
-                WRITEFIELD(identifierType);
-                WRITEFIELD(symbolIndex);
-            }
-            else {
-                identifierType = static_cast<uint8_t>(IdentifierType::Symbol);
-                WRITEFIELD(identifierType);
-
-                ASSERT(identifier.string().length() == 0); // other symbols are not yet implemented..
-            }
-        } else {
-            size_t commonIdIndex;
-            if(m_unlinkedCodeBlock.vm()->propertyNames->findCommonPropName(identifier, commonIdIndex)) {
-                identifierType = static_cast<uint8_t>(IdentifierType::CommonIdentifier);
-                WRITEFIELD(identifierType);
-                WRITEFIELD(commonIdIndex);
-            } else {
-                identifierType = static_cast<uint8_t>(IdentifierType::Normal);
-                WRITEFIELD(identifierType);      
-
-                
-                //int identifierLength = identifier.length();
-                //WRITEFIELD(identifierLength);
-
-                WRITEATOMICIDENTIFIER(identifier);
-            }
-        }
+        IdentifierStore::save(*m_unlinkedCodeBlock.vm(), identifier, byteCodeCache);
     }   
 }
 
@@ -213,70 +174,14 @@ void UnlinkedCodeBlockStore::loadIdentifiers(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_IDENTIFIERS);
 
     size_t numIdentifiers;
-    uint8_t identifierType;
-    size_t identifierIndex;
     READFIELD(numIdentifiers);
+
     for(size_t i=0; i<numIdentifiers; i++) {
-        READFIELD(identifierType);
-        switch(static_cast<IdentifierType>(identifierType)) {
-            case IdentifierType::CommonIdentifier:{
-                READFIELD(identifierIndex);
-                m_unlinkedCodeBlock.m_identifiers.append(m_unlinkedCodeBlock.vm()->propertyNames->lookupCommonPropNameIdenfier(identifierIndex));
-            }
-            break;
-
-            case IdentifierType::WellKnownSymbol: {
-                READFIELD(identifierIndex);
-                m_unlinkedCodeBlock.m_identifiers.append(m_unlinkedCodeBlock.vm()->propertyNames->lookupCommonSymbolIdenfier(identifierIndex));
-            }
-            break;
-
-            case IdentifierType::Symbol: {
-                //ASSERT(0);
-                //int idlength;
-                //READFIELD(idlength);
-                //ASSERT(idlength == 0);
-
-                m_unlinkedCodeBlock.m_identifiers.append(Identifier::fromUid(PrivateName()));
-            }
-            break; 
-
-            case IdentifierType::PrivateName: {
-                //int idlength;
-                ///READFIELD(idlength);
-                //ASSERT(idlength == 0 );
-
-                m_unlinkedCodeBlock.m_identifiers.append(Identifier::fromUid(PrivateName()));
-            }
-            break;
-
-            case IdentifierType::BuiltinPrivateName: {
-                READFIELD(identifierIndex);
-                ASSERT(identifierIndex >= 0);
-
-                m_unlinkedCodeBlock.m_identifiers.append(m_unlinkedCodeBlock.vm()->propertyNames->builtinNames().lookupPrivateNameIdentifier(identifierIndex));
-            }
-            break;
-
-            case IdentifierType::Normal: {
-                //int idlength;
-                //READFIELD(idlength);
-                        
-                Identifier id;
-                READATOMICIDENTIFIER(id);
-                m_unlinkedCodeBlock.m_identifiers.append(id);
-            }
-            break;
-
-            default:
-                ASSERT(0);
-        }
+        m_unlinkedCodeBlock.m_identifiers.append(IdentifierStore::load(*m_unlinkedCodeBlock.vm(), byteCodeCache));
     }
 }
 
 void UnlinkedCodeBlockStore::saveBitVectors(ByteCodeWriteStore& byteCodeCache) {
-
-    
     WRITEMAGIC(MAGIC_CODEBLOCK_BITVECTORS);
     
     size_t bitVectorSize = m_unlinkedCodeBlock.m_bitVectors.size();
@@ -288,8 +193,6 @@ void UnlinkedCodeBlockStore::saveBitVectors(ByteCodeWriteStore& byteCodeCache) {
 }
 
 void UnlinkedCodeBlockStore::loadBitVectors(ByteCodeReadStore& byteCodeCache) {
-
-    
     VERIFYMAGIC(MAGIC_CODEBLOCK_BITVECTORS);
 
     size_t numBitVectors;
@@ -330,7 +233,8 @@ void UnlinkedCodeBlockStore::saveConstants(ByteCodeWriteStore& byteCodeCache) {
                     WRITEFIELD(constantType);
 
                     const String& constStr = static_cast<const JSString*>(value.asCell())->tryGetValue();
-                    WRITESTRING(constStr.impl());
+                    //WRITESTRING(constStr.impl());
+                    WTF::StringStore::save(*constStr.impl(), byteCodeCache.storeImplementation(), m_unlinkedCodeBlock.vm()->symbolRegistry());
 
                     int32_t sourceCodeRepresentation = static_cast<int32_t>(m_unlinkedCodeBlock.constantsSourceCodeRepresentation()[i]);
                     WRITEFIELD(sourceCodeRepresentation);
@@ -409,14 +313,13 @@ void UnlinkedCodeBlockStore::loadConstants(ByteCodeReadStore& byteCodeCache) {
 
             case ConstantType::String:
             {
-                RefPtr<StringImpl> constStringImpl = nullptr;
-                READSTRING(constStringImpl);
-    
-                if(constStringImpl) {
-                    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(m_unlinkedCodeBlock.vm(), String(constStringImpl.get()))));  
-                } else {
-                    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(m_unlinkedCodeBlock.vm(), String())));  
-                }
+                Ref<StringImpl> constStringImpl = WTF::StringStore::load(byteCodeCache.storeImplementation(), m_unlinkedCodeBlock.vm()->symbolRegistry());
+
+                //if(constStringImpl) {
+                m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(m_unlinkedCodeBlock.vm(), String(constStringImpl.get()))));  
+                //} else {
+                //    m_unlinkedCodeBlock.m_constantRegisters.last().set(vm, &m_unlinkedCodeBlock, JSValue(jsString(m_unlinkedCodeBlock.vm(), String())));  
+                //}
 
                 uint32_t constRepresentation;
                 READFIELD(constRepresentation);
@@ -666,8 +569,10 @@ void UnlinkedCodeBlockStore::loadStringSwitchJumpTables(ByteCodeReadStore& byteC
 
         for(size_t i=0; i < offsetTableSize; i++) {
 
-            RefPtr<StringImpl> key;
-            READSTRING(key);
+            //RefPtr<StringImpl> key;
+            Ref<StringImpl> key = WTF::StringStore::load(byteCodeCache.storeImplementation(), m_unlinkedCodeBlock.vm()->symbolRegistry());
+
+            // READSTRING(key);
 
             int32_t value;
             READFIELD(value);
@@ -675,7 +580,7 @@ void UnlinkedCodeBlockStore::loadStringSwitchJumpTables(ByteCodeReadStore& byteC
             struct UnlinkedStringJumpTable::OffsetLocation location;
             location.branchOffset = value;
 
-            stringJumpTable.offsetTable.add(key, location);
+            stringJumpTable.offsetTable.add(key.ptr(), location);
         }
 
         m_unlinkedCodeBlock.m_rareData->m_stringSwitchJumpTables.append(stringJumpTable);
@@ -698,7 +603,9 @@ void UnlinkedCodeBlockStore::saveStringSwitchJumpTables(ByteCodeWriteStore& byte
             RefPtr<StringImpl> key = entry.key;
             int32_t value = entry.value.branchOffset;
             
-            WRITESTRING(key);
+            //WRITESTRING(key);
+            WTF::StringStore::save(*key.get(), byteCodeCache.storeImplementation(), m_unlinkedCodeBlock.vm()->symbolRegistry());
+            
             WRITEFIELD(value);
         }
     }
@@ -763,9 +670,11 @@ void UnlinkedCodeBlockStore::loadRegexps(ByteCodeReadStore& byteCodeCache) {
 
     for(size_t i=0; i<numbRegexps; i++) {
 
-        RefPtr<StringImpl> patternStringImpl;
-        READSTRING(patternStringImpl);
-        ASSERT(patternStringImpl);
+        //RefPtr<StringImpl> patternStringImpl;
+        //READSTRING(patternStringImpl);
+        Ref<StringImpl> patternStringImpl = WTF::StringStore::load(byteCodeCache.storeImplementation(), m_unlinkedCodeBlock.vm()->symbolRegistry());
+
+        //ASSERT(patternStringImpl);
 
         WTF::String pattern(patternStringImpl.get());
 
@@ -787,8 +696,9 @@ void UnlinkedCodeBlockStore::saveRegexps(ByteCodeWriteStore& byteCodeCache) {
     for(size_t i=0; i<m_unlinkedCodeBlock.numberOfRegExps(); i++) {
         RegExp* reg = m_unlinkedCodeBlock.regexp(i);
         
-        WRITESTRING(reg->m_patternString.impl());
-        
+        //WRITESTRING(reg->m_patternString.impl());
+        WTF::StringStore::save(*reg->m_patternString.impl(), byteCodeCache.storeImplementation(), m_unlinkedCodeBlock.vm()->symbolRegistry());
+
         uint8_t flags = static_cast<uint8_t>(reg->m_flags);
         WRITEFIELD(flags);
     }

@@ -33,6 +33,8 @@
 
 #include "ByteCodeStoreMacros.h"
 
+#include <wtf/text/StringStore.h>
+
 namespace JSC {
 
 enum class SymbolSaveType {
@@ -83,7 +85,8 @@ void SymbolTableStore::load(VM& vm, const Vector<Identifier>& codeblockIdentifie
             break;
 
             case SymbolSaveType::Raw: {
-                READATOMICSTRING(keyStringImpl);
+                //READATOMICSTRING(keyStringImpl);
+                keyStringImpl = WTF::adoptRef(&WTF::StringStore::loadUniqued(byteCodeCache.storeImplementation(), vm.symbolRegistry()).leakRef());
             }
             break;
 
@@ -158,7 +161,8 @@ void SymbolTableStore::save(VM& vm, const Vector<Identifier>& codeblockIdentifie
             WRITEFIELD(symbolType);
 
             ASSERT(key->length() > 0);
-            WRITESTRING(key);
+            //WRITESTRING(key);
+            WTF::StringStore::save(*key.get(), byteCodeCache.storeImplementation(), vm.symbolRegistry());
 
         } else {
             ASSERT(0);

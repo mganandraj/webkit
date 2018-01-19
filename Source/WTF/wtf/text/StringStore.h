@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,26 +25,25 @@
 
 #pragma once
 
-#include <fstream>
+#include <wtf/text/StringImpl.h>
+#include <wtf/text/AtomicStringImpl.h>
+#include <wtf/text/SymbolImpl.h>
+#include <wtf/text/SymbolRegistry.h>
 
-#include "WriteStoreImplementation.h"
+namespace WTF {
 
-namespace JSC {    
+struct WriteStoreImplementation;
+struct ReadStoreImplementation;
 
-class WriteStoreImplementationOnFileStream : public WriteStoreImplementation {
+class StringStore {
 public:
-    void writeBytes(const char*, size_t) override;
-    size_t currentWritePosition() override;
+    WTF_EXPORT static void save(StringImpl&, WriteStoreImplementation&, SymbolRegistry& currentVMSymbolRegistry);
+    
+    WTF_EXPORT static Ref<StringImpl> load(ReadStoreImplementation&, SymbolRegistry& registry);
+    WTF_EXPORT static Ref<UniquedStringImpl> loadUniqued(ReadStoreImplementation&, SymbolRegistry& registry);
 
-    static Ref<WriteStoreImplementationOnFileStream> create(const char* byteCodeStorePath);
-private:
-    WTF_MAKE_NONCOPYABLE(WriteStoreImplementationOnFileStream);
-
-    WriteStoreImplementationOnFileStream();
-    void finishCreation(const char* byteCodeStorePath);
-
-    // TODO :: Flush and close to make sure that the bytecodes are flushed completely.
-    std::ofstream stream;
+    WTF_EXPORT static void saveSymbolImpl(SymbolImpl&, WriteStoreImplementation&, SymbolRegistry& currentVMSymbolRegistry);
+    WTF_EXPORT static Ref<SymbolImpl> loadSymbolImpl(ReadStoreImplementation&, SymbolRegistry& registry);
 };
 
 }

@@ -1,12 +1,17 @@
 #include "config.h"
-#include "MemoryMappedFileUtils.h"
+
+#include <wtf/Assertions.h>
+#include <wtf/text/WTFString.h>
+#include <wtf/text/CString.h>
+#include <wtf/MemoryMappedFileUtils.h>
+
+#include <wtf/dataLog.h>
+
+namespace WTF {
 
 #if OS(WINDOWS)
     
 #include "windows.h"
-#include <wtf/Assertions.h>
-#include <wtf/text/WTFString.h>
-#include <wtf/text/CString.h>
 
 bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_t** data) {
     ASSERT(0);
@@ -55,8 +60,10 @@ bool unmapFile(void* address, size_t length) {
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/mman.h>
 
-bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_t** data) {
+WTF_EXPORT bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_t** data) {
     const static auto ps = getpagesize();
     dataLogLn("mapFileSegmentForRead : ", fd, " : ", offset, " : ", size, " : ", ps);
 
@@ -95,7 +102,7 @@ bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_t** data) {
     return true;
 }
 
-bool mapWholeFileForRead(const String& localPath, uint8_t** data, size_t* size) {
+WTF_EXPORT bool mapWholeFileForRead(const String& localPath, uint8_t** data, size_t* size) {
     const char* localPathCStr= localPath.ascii().data();
     int fd = open(localPathCStr, O_RDONLY);
     if (fd < 0) {
@@ -127,10 +134,12 @@ bool mapWholeFileForRead(const String& localPath, uint8_t** data, size_t* size) 
     return true;
 }    
 
-bool unmapFile(void* address, size_t length) {
+WTF_EXPORT bool unmapFile(void* address, size_t length) {
     int ret = munmap(address, length);
     dataLogLnIf(ret < 0, "Failed unmap memory mapped region !!");
     return (ret == 0);
 }
 
 #endif
+
+} // namespace WTF

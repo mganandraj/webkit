@@ -26,48 +26,14 @@
 #pragma once
 
 #include <wtf/RefCounted.h>
-#include <wtf/RefPtr.h>
-#include <wtf/Ref.h>
-#include <wtf/ReadStoreImplementation.h>
 
-#include "CodeSpecializationKind.h"
+namespace WTF {
 
-using namespace WTF;
-
-namespace JSC {
-
-class UnlinkedFunctionExecutable;
-class ProgramExecutable;
-class FunctionExecutable;
-class VM;
-
-class ByteCodeReadStore : public RefCounted<ByteCodeReadStore> {
-public:
-    // Returns empty store if failed.
-    static void tryCreateForProgram(ProgramExecutable&);
-    
-    bool prepareForFunction(VM&, FunctionExecutable*, CodeSpecializationKind);
-
-    void readBytes(char*, size_t);
-    void readVector(char**, size_t);
-    void seekOffset(size_t offset);
-
-    template <typename T>
-    void readPrimitive(T* buffer) {
-        static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");
-        m_storeImplementation->readBytes(reinterpret_cast<char*>(buffer), sizeof(T));
-    }
-
-    ReadStoreImplementation& storeImplementation() { return m_storeImplementation.get(); }
-
-private:
-    WTF_MAKE_NONCOPYABLE(ByteCodeReadStore);
-
-    static bool validateStoreMagicBytes(ReadStoreImplementation&);
-    static bool trySeekEntryPoint(ReadStoreImplementation&);
-    
-    ByteCodeReadStore(ReadStoreImplementation& storeImplementation);
-    Ref<ReadStoreImplementation> m_storeImplementation;
+struct WriteStoreImplementation  : public RefCounted<WriteStoreImplementation> {
+    virtual void writeBytes(const char*, size_t) = 0;
+    //virtual void seekOffset(size_t offset) = 0; // To align - future
+    virtual size_t currentWritePosition() = 0;
+    virtual ~WriteStoreImplementation() {};
 };
 
-} // namespace JSC
+} // namespace WTF

@@ -25,35 +25,32 @@
 
 #include "config.h"
 
-#include "ByteCodeWriteStore.h"
 #include <wtf/WriteStoreImplementationOnFileStream.h>
-
-#include "ByteCodeStoreUtils.h"
-
 #include <wtf/DataLog.h>
 
-namespace JSC {
+namespace WTF {
 
-/*static */RefPtr<ByteCodeWriteStore> ByteCodeWriteStore::createForProgram(ProgramExecutable& program) {
-    const SourceCode& programSource = program.source();
-    std::string writeStorePath = ByteCodeStoreUtils::getByteCodeStorePathForSourceCode(programSource) ;
-
-    RefPtr<ByteCodeWriteStore> writeStore = nullptr;
-    Ref<WriteStoreImplementationOnFileStream> writeStoreImplmentation = WriteStoreImplementationOnFileStream::create(writeStorePath.c_str());
-    writeStore = WTF::adoptRef(new ByteCodeWriteStore(writeStoreImplmentation.leakRef()));
-    return writeStore;
+/*static*/ Ref<WriteStoreImplementationOnFileStream> WriteStoreImplementationOnFileStream::create(const char* byteCodeStorePath) {
+    Ref<WriteStoreImplementationOnFileStream> writeStoreImplementation(WTF::adoptRef(*new WriteStoreImplementationOnFileStream()));
+    writeStoreImplementation->finishCreation(byteCodeStorePath);
+    return writeStoreImplementation;
 }
 
-ByteCodeWriteStore::ByteCodeWriteStore(WriteStoreImplementation& storeImplementation)
-    : m_storeImplementation (WTF::adoptRef(storeImplementation))
-{}
-
-size_t ByteCodeWriteStore::currentWritePosition() {
-    return m_storeImplementation->currentWritePosition();
+void WriteStoreImplementationOnFileStream::finishCreation(const char* byteCodeStorePath) {
+    stream.open(byteCodeStorePath, std::ios::binary | std::ios::out); // overwrite
+    ASSERT(!stream.fail() && stream.is_open());    
 }
 
-void ByteCodeWriteStore::writeBytes(const char* buffer, size_t size) {
-    m_storeImplementation->writeBytes(buffer, size);
+WriteStoreImplementationOnFileStream::WriteStoreImplementationOnFileStream() {}
+
+void WriteStoreImplementationOnFileStream::writeBytes(const char* buffer, size_t size) {
+    ASSERT(stream.is_open());
+	stream.write(buffer, size);
 }
 
-} // end namespace JSC
+size_t WriteStoreImplementationOnFileStream::currentWritePosition() {
+    ASSERT(stream.is_open());
+    return static_cast<unsigned>(stream.tellp());
+}
+
+} // end namespace WTF

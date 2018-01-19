@@ -25,44 +25,18 @@
 
 #pragma once
 
-#include <fstream>
 #include <wtf/RefCounted.h>
-#include <wtf/RefPtr.h>
-#include <wtf/Ref.h>
 
-#include "CodeSpecializationKind.h"
+namespace WTF {
 
-using namespace WTF;
-
-namespace JSC {
-
-class UnlinkedFunctionExecutable;
-class ProgramExecutable;
-class FunctionExecutable;
-class VM;    
-
-class ReadStoreImplementationOnMemoryMappedFile : public ReadStoreImplementation {
-public:
-    bool isAvailable() override;
-    void readBytes(char*, size_t) override;
-    void readVector(char**, size_t) override;
-    void seekOffset(size_t offset) override;
-    void seekOffsetFromEnd(size_t offset) override;
-    size_t getSize() override;
-
-    static Ref<ReadStoreImplementationOnMemoryMappedFile> create(const char* byteCodeStorePath);
-private:
-    WTF_MAKE_NONCOPYABLE(ReadStoreImplementationOnMemoryMappedFile);
-
-    ~ReadStoreImplementationOnMemoryMappedFile();
-    ReadStoreImplementationOnMemoryMappedFile();
-    void finishCreation(const char* byteCodeStorePath);
-
-    uint8_t* m_mappedBuffer {nullptr};
-    size_t m_mappedSize {0} ;
-    bool m_memMappingSucceeded = false;
-
-    size_t m_pointer = 0;
+struct ReadStoreImplementation : public RefCounted<ReadStoreImplementation> {
+    virtual bool isAvailable() = 0;
+    virtual void readBytes(char*, size_t) = 0;
+    virtual void readVector(char**, size_t) = 0;
+    virtual void seekOffset(size_t offset) = 0;
+    virtual void seekOffsetFromEnd(size_t offset) = 0;
+    virtual size_t getSize() = 0;
+    virtual ~ReadStoreImplementation() {};
 };
 
-} // namespace JSC
+}

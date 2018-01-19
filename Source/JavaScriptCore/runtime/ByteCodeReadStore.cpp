@@ -28,72 +28,11 @@
 #include "ByteCodeStoreUtils.h"
 
 #include "ByteCodeReadStore.h"
-#include "ReadStoreImplementation.h"
-#include "ReadStoreImplementationMMap.h"
-
-#include "WriteStoreImplementationOnFileStream.h"
-
-#include "MemoryMappedFileUtils.h"
+#include <wtf/ReadStoreImplementationMMap.h>
 
 #include <wtf/DataLog.h>
 
 namespace JSC {
-
-/*static */Ref<ReadStoreImplementationOnMemoryMappedFile> ReadStoreImplementationOnMemoryMappedFile::create(const char* byteCodeStorePath) {
-    Ref<ReadStoreImplementationOnMemoryMappedFile> instance(WTF::adoptRef(*new ReadStoreImplementationOnMemoryMappedFile()));
-    instance->finishCreation(byteCodeStorePath);
-    return instance;
-}
-
-ReadStoreImplementationOnMemoryMappedFile::ReadStoreImplementationOnMemoryMappedFile() {
-    // Nothing for now ..
-}
-
-void ReadStoreImplementationOnMemoryMappedFile::finishCreation(const char* byteCodeStorePath) {
-    m_memMappingSucceeded = mapWholeFileForRead(byteCodeStorePath, &m_mappedBuffer, &m_mappedSize);
-}
-
-ReadStoreImplementationOnMemoryMappedFile::~ReadStoreImplementationOnMemoryMappedFile() {
-    if(isAvailable() && m_mappedBuffer != nullptr) {
-        unmapFile(m_mappedBuffer, m_mappedSize);
-    }
-}
-
-bool ReadStoreImplementationOnMemoryMappedFile::isAvailable() {
-    return m_memMappingSucceeded && m_mappedBuffer != nullptr && m_mappedSize > 0;
-}
-
-void ReadStoreImplementationOnMemoryMappedFile::readBytes(char* buffer, size_t size) {
-    ASSERT(m_mappedBuffer);
-    ASSERT(m_pointer + size <= m_mappedSize);
-
-    std::memcpy(buffer, m_mappedBuffer + m_pointer, size);
-    m_pointer += size;
-}
-
-void ReadStoreImplementationOnMemoryMappedFile::readVector(char** buffer, size_t size) {
-    ASSERT(m_mappedBuffer);
-    ASSERT(m_pointer + size <= m_mappedSize);
-
-    *buffer = reinterpret_cast<char*> (m_mappedBuffer + m_pointer);
-    m_pointer += size;
-}
-
-void ReadStoreImplementationOnMemoryMappedFile::seekOffsetFromEnd(size_t offset) {
-    ASSERT(m_mappedBuffer);
-    m_pointer = getSize() - offset;
-}
-
-void ReadStoreImplementationOnMemoryMappedFile::seekOffset(size_t offset) {
-    ASSERT(m_mappedBuffer);
-    ASSERT(offset <= m_mappedSize);
-
-    m_pointer = offset;
-}
-
-size_t ReadStoreImplementationOnMemoryMappedFile::getSize() {
-    return m_mappedSize;
-}
 
 /*static */bool ByteCodeReadStore::validateStoreMagicBytes(ReadStoreImplementation&) {
     // Verify "MSOJSC"

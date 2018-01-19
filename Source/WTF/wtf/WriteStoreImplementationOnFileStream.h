@@ -25,49 +25,27 @@
 
 #pragma once
 
-#include <wtf/RefCounted.h>
-#include <wtf/RefPtr.h>
+#include <fstream>
+
 #include <wtf/Ref.h>
-#include <wtf/ReadStoreImplementation.h>
+#include "WriteStoreImplementation.h"
 
-#include "CodeSpecializationKind.h"
+namespace WTF {    
 
-using namespace WTF;
-
-namespace JSC {
-
-class UnlinkedFunctionExecutable;
-class ProgramExecutable;
-class FunctionExecutable;
-class VM;
-
-class ByteCodeReadStore : public RefCounted<ByteCodeReadStore> {
+class WriteStoreImplementationOnFileStream : public WriteStoreImplementation {
 public:
-    // Returns empty store if failed.
-    static void tryCreateForProgram(ProgramExecutable&);
-    
-    bool prepareForFunction(VM&, FunctionExecutable*, CodeSpecializationKind);
+    void writeBytes(const char*, size_t) override;
+    size_t currentWritePosition() override;
 
-    void readBytes(char*, size_t);
-    void readVector(char**, size_t);
-    void seekOffset(size_t offset);
-
-    template <typename T>
-    void readPrimitive(T* buffer) {
-        static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");
-        m_storeImplementation->readBytes(reinterpret_cast<char*>(buffer), sizeof(T));
-    }
-
-    ReadStoreImplementation& storeImplementation() { return m_storeImplementation.get(); }
-
+    WTF_EXPORT static Ref<WriteStoreImplementationOnFileStream> create(const char* byteCodeStorePath);
 private:
-    WTF_MAKE_NONCOPYABLE(ByteCodeReadStore);
+    WTF_MAKE_NONCOPYABLE(WriteStoreImplementationOnFileStream);
 
-    static bool validateStoreMagicBytes(ReadStoreImplementation&);
-    static bool trySeekEntryPoint(ReadStoreImplementation&);
-    
-    ByteCodeReadStore(ReadStoreImplementation& storeImplementation);
-    Ref<ReadStoreImplementation> m_storeImplementation;
+    WriteStoreImplementationOnFileStream();
+    void finishCreation(const char* byteCodeStorePath);
+
+    // TODO :: Flush and close to make sure that the bytecodes are flushed completely.
+    std::ofstream stream;
 };
 
-} // namespace JSC
+}

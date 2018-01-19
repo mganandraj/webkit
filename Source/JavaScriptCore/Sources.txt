@@ -640,7 +640,6 @@ llint/LLIntThunks.cpp
 # FIXME: We can't bundle this file due to a clang bug.
 llint/LowLevelInterpreter.cpp #@no-unify
 
-parser/MemoryMappedFileUtils.cpp
 parser/Lexer.cpp
 parser/ModuleAnalyzer.cpp
 parser/Nodes.cpp
@@ -744,6 +743,7 @@ runtime/GeneratorPrototype.cpp
 runtime/GetterSetter.cpp
 runtime/HashMapImpl.cpp
 runtime/Identifier.cpp
+runtime/IdentifierStore.cpp
 runtime/IndexingType.cpp
 runtime/IndirectEvalExecutable.cpp
 runtime/InferredType.cpp

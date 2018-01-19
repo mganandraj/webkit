@@ -36,15 +36,6 @@ enum class ConstantType {
     NonCellValue
 };
 
-enum class IdentifierType {
-    CommonIdentifier = 0, // Look at CommonIdentifier.h
-    WellKnownSymbol,
-    Symbol,
-    BuiltinPrivateName,
-    PrivateName,
-    Normal
-};
-
 class UnlinkedCodeBlockStore  : public RefCounted<UnlinkedCodeBlockStore> {
 public:
     static Ref<UnlinkedCodeBlockStore> create(UnlinkedCodeBlock&);

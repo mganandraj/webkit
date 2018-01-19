@@ -35,7 +35,7 @@
 
 #include <wtf/DataLog.h>
 
-#include "MemoryMappedFileUtils.h"
+#include <wtf/MemoryMappedFileUtils.h>
 
 namespace JSC {
 
@@ -139,7 +139,7 @@ namespace JSC {
         m_size (size),
         m_startOffset (offset)
         {
-            bool fileMapped = mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
+            bool fileMapped = WTF::mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
             dataLogLnIf(!fileMapped, "Memory mapping failed.");
         }
 

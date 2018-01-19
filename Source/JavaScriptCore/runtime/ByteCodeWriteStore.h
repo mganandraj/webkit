@@ -28,8 +28,7 @@
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Ref.h>
-
-#include "WriteStoreImplementation.h"
+#include <wtf/WriteStoreImplementation.h>
 
 using namespace WTF;
 
@@ -52,6 +51,8 @@ public:
         static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");
         m_storeImplementation->writeBytes(reinterpret_cast<const char*>(buffer), sizeof(T));
     }
+
+    WriteStoreImplementation& storeImplementation() { return m_storeImplementation.get(); }
 
 private:
     WTF_MAKE_NONCOPYABLE(ByteCodeWriteStore);

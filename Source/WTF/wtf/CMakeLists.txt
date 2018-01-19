@@ -195,6 +195,7 @@ set(WTF_HEADERS
     text/UniquedStringImpl.h
     text/ValueToString.h
     text/WTFString.h
+    text/StringStore.h
 
     text/icu/UTextProvider.h
     text/icu/UTextProviderLatin1.h
@@ -270,6 +271,10 @@ set(WTF_SOURCES
     WorkQueue.cpp
     dtoa.cpp
 
+    ReadStoreImplementation.cpp
+    WriteStoreImplementation.cpp
+    MemoryMappedFileUtils.cpp
+
     dtoa/bignum-dtoa.cc
     dtoa/bignum.cc
     dtoa/cached-powers.cc
@@ -299,6 +304,7 @@ set(WTF_SOURCES
     text/TextBreakIterator.cpp
     text/TextStream.cpp
     text/WTFString.cpp
+    text/StringStore.cpp
 
     text/icu/UTextProvider.cpp
     text/icu/UTextProviderLatin1.cpp

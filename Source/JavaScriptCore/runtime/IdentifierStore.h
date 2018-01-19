@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,17 +25,14 @@
 
 #pragma once
 
-#include <wtf/RefCounted.h>
-
-using namespace WTF;
+#include "Identifier.h"
 
 namespace JSC {
 
-struct WriteStoreImplementation  : public RefCounted<WriteStoreImplementation> {
-    virtual void writeBytes(const char*, size_t) = 0;
-    //virtual void seekOffset(size_t offset) = 0; // To align - future
-    virtual size_t currentWritePosition() = 0;
-    virtual ~WriteStoreImplementation() {};
+class IdentifierStore {
+public:
+    static void save(VM&, Identifier&, ByteCodeWriteStore&);
+    static Identifier load(VM&, ByteCodeReadStore&);;
 };
 
-} // namespace JSC
+}

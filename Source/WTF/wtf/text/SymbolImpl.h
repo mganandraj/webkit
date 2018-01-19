@@ -87,6 +87,7 @@ public:
 protected:
     WTF_EXPORT_PRIVATE static unsigned nextHashForSymbol();
 
+    friend class StringStore;
     friend class StringImpl;
 
     SymbolImpl(const LChar* characters, unsigned length, Ref<StringImpl>&& base, Flags flags = s_flagDefault)
