@@ -330,7 +330,7 @@ public:
     // Use this to iterate over set bits.
     iterator begin() const { return iterator(*this, findBit(0, true)); }
     iterator end() const { return iterator(*this, size()); }
-     
+
 private:
     friend class BitVectorStore;
 

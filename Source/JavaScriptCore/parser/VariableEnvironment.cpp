@@ -27,10 +27,6 @@
 #include "VariableEnvironment.h"
 #include <wtf/text/UniquedStringImpl.h>
 
-#include "ByteCodeStoreMacros.h"
-#include "ByteCodeReadStore.h"
-#include "ByteCodeWriteStore.h"
-
 namespace JSC {
 
 void VariableEnvironment::markVariableAsCapturedIfDefined(const RefPtr<UniquedStringImpl>& identifier)

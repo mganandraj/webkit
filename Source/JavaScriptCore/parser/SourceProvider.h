@@ -55,7 +55,7 @@ namespace JSC {
 
         virtual unsigned hash() const = 0;
         virtual StringView source() const = 0;
-		virtual StringView getRange(int start, int end) const
+        virtual StringView getRange(int start, int end) const
         {
             return source().substring(start, end - start);
         }

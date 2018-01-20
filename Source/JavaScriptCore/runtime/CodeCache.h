@@ -232,8 +232,7 @@ UnlinkedCodeBlockType* generateUnlinkedCodeBlock(VM& vm, ExecutableType* executa
     typedef typename CacheTypes<UnlinkedCodeBlockType>::RootNode RootNode;
     DerivedContextType derivedContextType = executable->derivedContextType();
     std::unique_ptr<RootNode> rootNode = parse<RootNode>(
-        &vm, source, Identifier(), JSParserBuiltinMode::NotBuiltin, strictMode, scriptMode, CacheTypes<UnlinkedCodeBlockType>::parseMode, SuperBinding::NotNeeded, error, nullptr, ConstructorKind::None, derivedContextType, evalContextType);
-    
+        &vm, source, Identifier(), JSParserBuiltinMode::NotBuiltin, strictMode, scriptMode, CacheTypes<UnlinkedCodeBlockType>::parseMode, SuperBinding::NotNeeded, error, nullptr, ConstructorKind::None, derivedContextType, evalContextType);    
     if (!rootNode)
         return nullptr;
 

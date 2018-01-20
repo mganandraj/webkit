@@ -792,7 +792,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     // we'll handle the JSON object here. Else, we'll handle real JS code
     // below at failedJSONP.
 
-	if (false) { // This defeats the purpose of memory mapping the source...
+    if (false) { // This defeats the purpose of memory mapping the source...
 
 
     Vector<JSONPData> JSONPData;
@@ -888,7 +888,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
         }
         return result;
     }
-	 }
+    }
 
 failedJSONP:
     // If we get here, then we have already proven that the script is not a JSON
@@ -901,7 +901,7 @@ failedJSONP:
     EXCEPTION_ASSERT(!throwScope.exception() || !error);
     if (UNLIKELY(error))
         return checkedReturn(throwException(callFrame, throwScope, error));
-    
+
     ProgramCodeBlock* codeBlock;
     {
         CodeBlock* tempCodeBlock;
@@ -975,9 +975,8 @@ JSValue Interpreter::executeCall(CallFrame* callFrame, JSObject* function, CallT
 
         ASSERT(!!newCodeBlock);
         newCodeBlock->m_shouldAlwaysBeInlined = false;
-    } else {
+    } else
         newCodeBlock = 0;
-    } 
 
     VMTraps::Mask mask(VMTraps::NeedTermination, VMTraps::NeedWatchdogCheck);
     if (UNLIKELY(vm.needTrapHandling(mask))) {

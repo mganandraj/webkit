@@ -122,10 +122,8 @@
 #include <wtf/Threading.h>
 #include <wtf/text/AtomicStringTable.h>
 #include <wtf/text/SymbolRegistry.h>
-
 #include "HeapSnapshotBuilder.h"
 
-#include "ConfigFile.h"
 #if !ENABLE(JIT)
 #include "CLoopStack.h"
 #include "CLoopStackInlines.h"

@@ -30,8 +30,6 @@
 #include "UnlinkedCodeBlock.h"
 #include <wtf/RefCountedArray.h>
 
-#include <memory>
-
 namespace JSC {
 
 class UnlinkedInstructionStream {
@@ -65,15 +63,17 @@ public:
     const RefCountedArray<UnlinkedInstruction>& unpackForDebugging() const;
 #endif
 
-RefCountedArray<unsigned char> m_data;
-unsigned m_instructionCount;
-
 private:
     friend class Reader;
+    friend class UnlinkedInstructionStreamStore;
 
 #ifndef NDEBUG
     mutable RefCountedArray<UnlinkedInstruction> m_unpackedInstructionsForDebugging;
 #endif
+
+    RefCountedArray<unsigned char> m_data;
+    unsigned m_instructionCount;
+
 
 };
 

@@ -39,7 +39,6 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
-#include "ByteCodeWriteStore.h"
 #include "ProgramExecutableStore.h"
 
 namespace JSC {
@@ -101,15 +100,13 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
 
     UnlinkedProgramCodeBlock* unlinkedCodeBlock;
     
-    if(hasByteCodeCache()) {
-        dataLogLn("Loading byte codes for global program ...");
-        // unlinkedCodeBlock = loadFromByteCodeCache(vm);
-        Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*this);
-        unlinkedCodeBlock = programExecutableStore->load(vm, getByteCodeCache());
-    }
-    else {
+    if(!hasByteCodeCache()) {
         unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(
             vm, this, source(), strictMode, debuggerMode, error);
+    } else {
+        dataLogLn("Loading byte codes for global program ...");
+        Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*this);
+        unlinkedCodeBlock = programExecutableStore->load(vm, getByteCodeCache());
     }
      
     if (globalObject->hasDebugger())
