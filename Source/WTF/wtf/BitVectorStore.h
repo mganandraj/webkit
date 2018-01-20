@@ -36,10 +36,10 @@ struct ReadStoreImplementation;
 
 class BitVectorStore : public RefCounted<BitVectorStore> {
 public:
-    static Ref<BitVectorStore> create(BitVector&);
+    WTF_EXPORT static Ref<BitVectorStore> create(BitVector&);
 
-    void save(WriteStoreImplementation&);
-    void load(ReadStoreImplementation&);
+    WTF_EXPORT void save(WriteStoreImplementation&);
+    WTF_EXPORT void load(ReadStoreImplementation&);
 
 protected:
     BitVectorStore(BitVector& bitVector)

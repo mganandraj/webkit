@@ -53,7 +53,7 @@ namespace JSC {
     RefCountedArray<unsigned char> instrArray(instructionStreamSize);
     READVECTOR8_NOALLOC(instrArray.data(), instructionStreamSize);
 
-    auto unlinkedInstructionStream = std::make_unique<UnlinkedInstructionStream>(instrArray, instructioncount);
+    return std::make_unique<UnlinkedInstructionStream>(instrArray, instructioncount);
 }
 
 }
