@@ -50,6 +50,8 @@ public:
     const VariableEnvironment& lexicalDeclarations() const { return m_lexicalDeclarations; }
 
 private:
+    friend class UnlinkedProgramCodeBlockStore;
+
     UnlinkedProgramCodeBlock(VM* vm, Structure* structure, const ExecutableInfo& info, DebuggerMode debuggerMode)
         : Base(vm, structure, GlobalCode, info, debuggerMode)
     {

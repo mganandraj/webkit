@@ -405,6 +405,7 @@ protected:
     }
 
 private:
+    friend class UnlinkedCodeBlockStore;
     friend class BytecodeRewriter;
     void applyModification(BytecodeRewriter&);
 

@@ -316,8 +316,10 @@ public:
             return 0;
         return fatEntry()->m_watchpoints.get();
     }
-    
+
 private:
+    friend class SymbolTableStore;
+
     static const intptr_t SlimFlag = 0x1;
     static const intptr_t ReadOnlyFlag = 0x2;
     static const intptr_t DontEnumFlag = 0x4;
@@ -370,7 +372,7 @@ private:
     }
     
     FatEntry* inflateSlow();
-    
+
     ALWAYS_INLINE intptr_t bits() const
     {
         if (isFat())
@@ -689,6 +691,8 @@ public:
     DECLARE_EXPORT_INFO;
 
 private:
+    friend class SymbolTableStore;
+
     JS_EXPORT_PRIVATE SymbolTable(VM&);
     ~SymbolTable();
     

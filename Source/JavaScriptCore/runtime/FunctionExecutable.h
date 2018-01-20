@@ -187,6 +187,7 @@ public:
     Box<InlineWatchpointSet> sharedPolyProtoWatchpoint() const { return m_polyProtoWatchpoint; }
 
 private:
+    friend class FunctionExecutableStore;
     friend class ExecutableBase;
     FunctionExecutable(
         VM&, const SourceCode&, UnlinkedFunctionExecutable*,

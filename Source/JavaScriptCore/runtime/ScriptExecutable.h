@@ -26,8 +26,11 @@
 #pragma once
 
 #include "ExecutableBase.h"
+#include "ByteCodeReadStore.h"
 
 namespace JSC {
+
+class ByteCodeWriteStore;
 
 class ScriptExecutable : public ExecutableBase {
 public:
@@ -35,7 +38,13 @@ public:
     static const unsigned StructureFlags = Base::StructureFlags;
 
     static void destroy(JSCell*);
-        
+
+    void writeByteCodeCache(VM&);
+
+    bool hasByteCodeCache();
+    ByteCodeReadStore& getByteCodeCache();
+    void setByteCodeCache(ByteCodeReadStore& byteCodeCache);
+
     CodeBlockHash hashFor(CodeSpecializationKind) const;
 
     const SourceCode& source() const { return m_source; }
@@ -104,22 +113,14 @@ public:
     JSObject* prepareForExecution(VM&, JSFunction*, JSScope*, CodeSpecializationKind, CodeBlock*& resultCodeBlock);
 
 private:
+    friend class ScriptExecutableStore;
     friend class ExecutableBase;
     JSObject* prepareForExecutionImpl(VM&, JSFunction*, JSScope*, CodeSpecializationKind, CodeBlock*&);
 
 protected:
     ScriptExecutable(Structure*, VM&, const SourceCode&, bool isInStrictContext, DerivedContextType, bool isInArrowFunctionContext, EvalContextType, Intrinsic);
 
-    void finishCreation(VM& vm)
-    {
-        Base::finishCreation(vm);
-        vm.heap.addExecutable(this); // Balanced by Heap::deleteUnmarkedCompiledCode().
-
-#if ENABLE(CODEBLOCK_SAMPLING)
-        if (SamplingTool* sampler = vm.interpreter->sampler())
-            sampler->notifyOfScope(vm, this);
-#endif
-    }
+    void finishCreation(VM& vm);
 
     CodeFeatures m_features;
     bool m_didTryToEnterInLoop;
@@ -138,6 +139,8 @@ protected:
     unsigned m_typeProfilingStartOffset;
     unsigned m_typeProfilingEndOffset;
     SourceCode m_source;
+
+    RefPtr<ByteCodeReadStore> m_byteCodeCache;
 };
 
 } // namespace JSC

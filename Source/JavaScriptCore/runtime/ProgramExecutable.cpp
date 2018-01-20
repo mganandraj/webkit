@@ -39,6 +39,8 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
+#include "ProgramExecutableStore.h"
+
 namespace JSC {
 
 const ClassInfo ProgramExecutable::s_info = { "ProgramExecutable", &ScriptExecutable::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(ProgramExecutable) };
@@ -52,6 +54,7 @@ ProgramExecutable::ProgramExecutable(ExecState* exec, const SourceCode& source)
     if (exec->vm().typeProfiler() || exec->vm().controlFlowProfiler())
         exec->vm().functionHasExecutedCache()->insertUnexecutedRange(sourceID(), m_typeProfilingStartOffset, m_typeProfilingEndOffset);
 }
+    
 
 void ProgramExecutable::destroy(JSCell* cell)
 {
@@ -95,9 +98,17 @@ JSObject* ProgramExecutable::initializeGlobalProperties(VM& vm, CallFrame* callF
     JSParserStrictMode strictMode = isStrictMode() ? JSParserStrictMode::Strict : JSParserStrictMode::NotStrict;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
 
-    UnlinkedProgramCodeBlock* unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(
-        vm, this, source(), strictMode, debuggerMode, error);
-
+    UnlinkedProgramCodeBlock* unlinkedCodeBlock;
+    
+    if(!hasByteCodeCache()) {
+        unlinkedCodeBlock = vm.codeCache()->getUnlinkedProgramCodeBlock(
+            vm, this, source(), strictMode, debuggerMode, error);
+    } else {
+        dataLogLn("Loading byte codes for global program ...");
+        Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*this);
+        unlinkedCodeBlock = programExecutableStore->load(vm, getByteCodeCache());
+    }
+     
     if (globalObject->hasDebugger())
         globalObject->debugger()->sourceParsed(callFrame, source().provider(), error.line(), error.message());
 

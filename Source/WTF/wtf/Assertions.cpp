@@ -50,6 +50,8 @@
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/WTFString.h>
 
+#include <wtf/DataLog.h>
+
 #if HAVE(SIGNAL_H)
 #include <signal.h>
 #endif
@@ -203,6 +205,8 @@ static void printCallSite(const char* file, int line, const char* function)
 
 void WTFReportAssertionFailure(const char* file, int line, const char* function, const char* assertion)
 {
+    dataLogLn("!! ASSERT !!", file, " : ", line, " : ", function, " : ", assertion);
+
     if (assertion)
         printf_stderr_common("ASSERTION FAILED: %s\n", assertion);
     else

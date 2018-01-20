@@ -218,6 +218,8 @@ extern SymbolImpl::StaticSymbolImpl underscoreProtoPrivateName;
 // FIXME: This is a weird hack and we shouldn't need to do this.
 #define INITIALIZE_SYMBOL_PUBLIC_TO_PRIVATE_ENTRY(name) m_publicToPrivateMap.add(m_##name##SymbolPrivateIdentifier.impl(), &m_##name##Symbol);
 
+#define APPEND_PRIVATE_NAME_TO_IDVECTOR(name) privateNameVector.push_back(&m_##name##PrivateName);
+
 class BuiltinNames {
     WTF_MAKE_NONCOPYABLE(BuiltinNames); WTF_MAKE_FAST_ALLOCATED;
     
@@ -243,6 +245,11 @@ public:
         m_publicToPrivateMap.add(m_dollarVMName.impl(), &m_dollarVMPrivateName);
         m_privateToPublicMap.add(m_underscoreProtoPrivateName.impl(), &commonIdentifiers->underscoreProto);
         m_publicToPrivateMap.add(commonIdentifiers->underscoreProto.impl(), &m_underscoreProtoPrivateName);
+    
+        privateNameVector.push_back(&m_dollarVMPrivateName);
+        privateNameVector.push_back(&m_underscoreProtoPrivateName);
+        JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(APPEND_PRIVATE_NAME_TO_IDVECTOR);
+        JSC_FOREACH_BUILTIN_FUNCTION_NAME(APPEND_PRIVATE_NAME_TO_IDVECTOR);
     }
 
     const Identifier* lookUpPrivateName(const Identifier&) const;
@@ -257,6 +264,14 @@ public:
     const JSC::Identifier& dollarVMPrivateName() const { return m_dollarVMPrivateName; }
     const JSC::Identifier& underscoreProtoPrivateName() const { return m_underscoreProtoPrivateName; }
 
+    // Bytecode serialization
+    std::vector<const Identifier*> privateNameVector;
+    
+    bool findPrivateNameIndex(const Identifier&, size_t& index) const;
+    const Identifier& lookupPrivateNameIdentifier(size_t) const;
+
+    bool findPrivateNameIndex2(const UniquedStringImpl*, size_t& index) const;
+    UniquedStringImpl* lookupPrivateNameIdentifier2(size_t) const;
 private:
     Identifier m_emptyIdentifier;
     JSC_FOREACH_BUILTIN_FUNCTION_NAME(DECLARE_BUILTIN_NAMES)

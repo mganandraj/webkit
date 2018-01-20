@@ -792,6 +792,9 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
     // we'll handle the JSON object here. Else, we'll handle real JS code
     // below at failedJSONP.
 
+    if (false) { // This defeats the purpose of memory mapping the source...
+
+
     Vector<JSONPData> JSONPData;
     bool parseResult;
     StringView programSource = program->source().view();
@@ -885,6 +888,8 @@ JSValue Interpreter::executeProgram(const SourceCode& source, CallFrame* callFra
         }
         return result;
     }
+    }
+
 failedJSONP:
     // If we get here, then we have already proven that the script is not a JSON
     // object.
@@ -924,6 +929,11 @@ failedJSONP:
     // Execute the code:
     throwScope.release();
     JSValue result = program->generatedJITCode()->execute(&vm, &protoCallFrame);
+    
+    if(JSC::Options::enableBytecodeCaching()) {
+        program->writeByteCodeCache(vm);
+    }
+
     return checkedReturn(result);
 }
 

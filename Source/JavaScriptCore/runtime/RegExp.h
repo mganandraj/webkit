@@ -37,6 +37,7 @@ namespace JSC {
 
 struct RegExpRepresentation;
 class VM;
+class ByteCodeWriteStore;
 
 JS_EXPORT_PRIVATE RegExpFlags regExpFlags(const String&);
 
@@ -126,6 +127,7 @@ protected:
     void finishCreation(VM&);
 
 private:
+    friend class UnlinkedCodeBlockStore;
     friend class RegExpCache;
     RegExp(VM&, const String&, RegExpFlags);
 

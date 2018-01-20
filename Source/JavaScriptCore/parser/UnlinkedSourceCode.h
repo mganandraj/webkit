@@ -50,7 +50,7 @@ namespace JSC {
         UnlinkedSourceCode(Ref<SourceProvider>&& provider)
             : m_provider(WTFMove(provider))
             , m_startOffset(0)
-            , m_endOffset(m_provider->source().length())
+            , m_endOffset(m_provider->length())
         {
         }
 

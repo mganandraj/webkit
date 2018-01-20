@@ -44,6 +44,8 @@ public:
     static void destroy(JSCell*);
 
 private:
+    friend class UnlinkedFunctionCodeBlockStore;
+    
     UnlinkedFunctionCodeBlock(VM* vm, Structure* structure, CodeType codeType, const ExecutableInfo& info, DebuggerMode debuggerMode)
         : Base(vm, structure, codeType, info, debuggerMode)
     {

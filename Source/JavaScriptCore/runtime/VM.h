@@ -256,6 +256,9 @@ public:
         JS_EXPORT_PRIVATE virtual ~ClientData() = 0;
     };
 
+    void startSamplingProfiler();
+    void pokeSamplingProfiler();
+
     bool isSharedInstance() { return vmType == APIShared; }
     bool usingAPI() { return vmType != Default; }
     JS_EXPORT_PRIVATE static bool sharedInstanceExists();

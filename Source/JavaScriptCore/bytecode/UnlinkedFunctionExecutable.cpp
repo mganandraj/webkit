@@ -38,7 +38,11 @@
 #include "Structure.h"
 #include "UnlinkedFunctionCodeBlock.h"
 
+#include "UnlinkedFunctionExecutableStore.h"
+
 namespace JSC {
+
+class ByteCodeReadStore;
 
 static_assert(sizeof(UnlinkedFunctionExecutable) <= 256, "UnlinkedFunctionExecutable should fit in a 256-byte cell.");
 
@@ -73,6 +77,14 @@ static UnlinkedFunctionCodeBlock* generateUnlinkedFunctionCodeBlock(
     if (error.isValid())
         return nullptr;
     return result;
+}
+
+void UnlinkedFunctionExecutable::finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache)
+{
+    Base::finishCreation(vm);
+    //loadNonCode(vm, byteCodeCache);
+    Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*this);
+    unlinkedFunctionExecutableStore->loadHeader(vm, byteCodeCache);
 }
 
 UnlinkedFunctionExecutable::UnlinkedFunctionExecutable(VM* vm, Structure* structure, const SourceCode& parentSource, SourceCode&& parentSourceOverride, FunctionMetadataNode* node, UnlinkedFunctionKind kind, ConstructAbility constructAbility, JSParserScriptMode scriptMode, VariableEnvironment& parentScopeTDZVariables, DerivedContextType derivedContextType)
@@ -191,6 +203,16 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
     return executable;
 }
 
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockForCallFromByteCodeCache(VM& vm, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache)
+{
+    ASSERT(m_unlinkedCodeBlockForCall.get() == nullptr);
+    
+    Ref<UnlinkedFunctionExecutableStore> unlinkedFunctionExecutableStore = UnlinkedFunctionExecutableStore::create(*this);
+    UnlinkedFunctionCodeBlock* result = unlinkedFunctionExecutableStore->loadCodeblock(vm, parseMode, byteCodeCache);
+    
+    return result;
+}
+
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
     VM& vm, const SourceCode& source, CodeSpecializationKind specializationKind, 
     DebuggerMode debuggerMode, ParserError& error, SourceParseMode parseMode)
@@ -210,7 +232,7 @@ UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(
         vm, this, source, specializationKind, debuggerMode, 
         isBuiltinFunction() ? UnlinkedBuiltinFunction : UnlinkedNormalFunction, 
         error, parseMode);
-    
+
     if (error.isValid())
         return nullptr;
 

@@ -67,6 +67,8 @@ JS_EXPORT JSStringRef JSStringCreateWithCharacters(const JSChar* chars, size_t n
 */
 JS_EXPORT JSStringRef JSStringCreateWithUTF8CString(const char* string);
 
+JS_EXPORT JSStringRef JSStringCreateWithUTF8CStringExpectAscii(const char* string, size_t numChars);
+
 /*!
 @function
 @abstract         Retains a JavaScript string.

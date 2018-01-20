@@ -57,6 +57,8 @@ public:
     ALWAYS_INLINE void clearIsVar() { m_bits &= ~IsVar; }
 
 private:
+    friend class VariableEnvironmentStore;
+
     enum Traits : uint16_t {
         IsCaptured = 1 << 0,
         IsConst = 1 << 1,
@@ -69,7 +71,7 @@ private:
         IsParameter = 1 << 8,
         IsSloppyModeHoistingCandidate = 1 << 9
     };
-    uint16_t m_bits { 0 };
+    uint16_t m_bits { 0 };    
 };
 
 struct VariableEnvironmentEntryHashTraits : HashTraits<VariableEnvironmentEntry> {
@@ -110,6 +112,8 @@ public:
     void markVariableAsExported(const RefPtr<UniquedStringImpl>& identifier);
 
 private:
+    friend class VariableEnvironmentStore;
+
     Map m_map;
     bool m_isEverythingCaptured { false };
 };

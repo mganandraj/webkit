@@ -7,6 +7,7 @@ set(WTF_HEADERS
     Bag.h
     BagToHashMap.h
     BitVector.h
+    BitVectorStore.h
     Bitmap.h
     Brigand.h
     BubbleSort.h
@@ -195,6 +196,7 @@ set(WTF_HEADERS
     text/UniquedStringImpl.h
     text/ValueToString.h
     text/WTFString.h
+    text/StringStore.h
 
     text/icu/UTextProvider.h
     text/icu/UTextProviderLatin1.h
@@ -213,6 +215,7 @@ set(WTF_SOURCES
     Atomics.cpp
     AutomaticThread.cpp
     BitVector.cpp
+    BitVectorStore.cpp
     CPUTime.cpp
     ClockType.cpp
     CompilationThread.cpp
@@ -270,6 +273,10 @@ set(WTF_SOURCES
     WorkQueue.cpp
     dtoa.cpp
 
+    ReadStoreImplementation.cpp
+    WriteStoreImplementation.cpp
+    MemoryMappedFileUtils.cpp
+
     dtoa/bignum-dtoa.cc
     dtoa/bignum.cc
     dtoa/cached-powers.cc
@@ -299,6 +306,7 @@ set(WTF_SOURCES
     text/TextBreakIterator.cpp
     text/TextStream.cpp
     text/WTFString.cpp
+    text/StringStore.cpp
 
     text/icu/UTextProvider.cpp
     text/icu/UTextProviderLatin1.cpp
@@ -345,10 +353,12 @@ if (NOT USE_SYSTEM_MALLOC)
     list(APPEND WTF_LIBRARIES bmalloc)
 endif ()
 
-list(APPEND WTF_SOURCES
-#    unicode/icu/CollatorICU.cpp
-    unicode/CollatorDefault.cpp
-)
+if (ANDROID)
+    list(APPEND WTF_SOURCES unicode/CollatorDefault.cpp)
+else ()
+    list(APPEND WTF_SOURCES unicode/icu/CollatorICU.cpp)
+endif ()    
+
 set(WTF_SYSTEM_INCLUDE_DIRECTORIES
     ${ICU_INCLUDE_DIRS}
 )

@@ -40,6 +40,13 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
+#include "ByteCodeStoreMacros.h"
+#include "ByteCodeWriteStore.h"
+#include "ByteCodeReadStore.h"
+
+#include "UnlinkedFunctionExecutableStore.h"
+#include "ProgramExecutableStore.h"
+
 namespace JSC {
 
 const ClassInfo ScriptExecutable::s_info = { "ScriptExecutable", &ExecutableBase::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(ScriptExecutable) };
@@ -63,6 +70,53 @@ ScriptExecutable::ScriptExecutable(Structure* structure, VM& vm, const SourceCod
     , m_typeProfilingEndOffset(UINT_MAX)
     , m_source(source)
 {
+}
+
+void ScriptExecutable::finishCreation(VM& vm)
+{
+    Base::finishCreation(vm);
+    vm.heap.addExecutable(this); // Balanced by Heap::deleteUnmarkedCompiledCode().
+
+#if ENABLE(CODEBLOCK_SAMPLING)
+    if (SamplingTool* sampler = vm.interpreter->sampler())
+        sampler->notifyOfScope(vm, this);
+#endif
+
+    if(JSC::Options::enableBytecodeCaching()) {   
+        if (classInfo(vm) == ProgramExecutable::info()) {
+            ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
+            ByteCodeReadStore::tryCreateForProgram(*executable); // TODO :: Not a nice pattern .. Fix.
+        }
+    }
+}
+
+bool ScriptExecutable::hasByteCodeCache() { return m_byteCodeCache!= nullptr; }
+ByteCodeReadStore& ScriptExecutable::getByteCodeCache() { ASSERT(m_byteCodeCache); return *m_byteCodeCache; };
+void ScriptExecutable::setByteCodeCache(ByteCodeReadStore& byteCodeCache) { m_byteCodeCache = &byteCodeCache; }
+
+void ScriptExecutable::writeByteCodeCache(VM& vm) 
+{
+    // We support writing only program executable at root as of now.
+    ASSERT(classInfo(vm) == ProgramExecutable::info());
+
+	if(!this->hasByteCodeCache()) {
+        ProgramExecutable* program = jsCast<ProgramExecutable*>(this);
+
+        RefPtr<ByteCodeWriteStore> currentWriteStore = ByteCodeWriteStore::createForProgram(*program);
+        ASSERT(currentWriteStore);
+
+        ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
+        Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*executable);
+        size_t programOffset = programExecutableStore->save(vm, *currentWriteStore);
+        currentWriteStore->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
+#ifndef NDEBUG
+        dataLogLn("Writing completed.");
+#endif
+    } else {
+#ifndef NDEBUG
+        dataLogLn("Skip writing as byte codes are already cached.");
+#endif
+    }
 }
 
 void ScriptExecutable::destroy(JSCell* cell)
@@ -240,10 +294,16 @@ CodeBlock* ScriptExecutable::newCodeBlockFor(
     RELEASE_ASSERT(!executable->codeBlockFor(kind));
     ParserError error;
     DebuggerMode debuggerMode = globalObject->hasInteractiveDebugger() ? DebuggerOn : DebuggerOff;
-    UnlinkedFunctionCodeBlock* unlinkedCodeBlock = 
-        executable->m_unlinkedExecutable->unlinkedCodeBlockFor(
+    
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlock = nullptr;
+    if(hasByteCodeCache() && kind == CodeForCall && getByteCodeCache().prepareForFunction(*vm, executable, kind)) {
+        unlinkedCodeBlock = executable->m_unlinkedExecutable->unlinkedCodeBlockForCallFromByteCodeCache(*vm, executable->parseMode(), getByteCodeCache());
+    } else {
+        unlinkedCodeBlock = executable->m_unlinkedExecutable->unlinkedCodeBlockFor(
             *vm, executable->m_source, kind, debuggerMode, error, 
             executable->parseMode());
+    }
+
     recordParse(
         executable->m_unlinkedExecutable->features(), 
         executable->m_unlinkedExecutable->hasCapturedVariables(),

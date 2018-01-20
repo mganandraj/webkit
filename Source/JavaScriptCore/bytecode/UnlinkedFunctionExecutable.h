@@ -45,6 +45,8 @@ class ParserError;
 class SourceProvider;
 class UnlinkedFunctionCodeBlock;
 
+class ByteCodeReadStore;
+
 enum UnlinkedFunctionKind {
     UnlinkedNormalFunction,
     UnlinkedBuiltinFunction,
@@ -52,6 +54,8 @@ enum UnlinkedFunctionKind {
 
 class UnlinkedFunctionExecutable final : public JSCell {
 public:
+    friend class UnlinkedFunctionExecutableStore;
+    friend class FunctionExecutableStore;
     friend class CodeCache;
     friend class VM;
 
@@ -65,6 +69,18 @@ public:
         instance->finishCreation(*vm);
         return instance;
     }
+
+
+    static UnlinkedFunctionExecutable* create(VM* vm, ByteCodeReadStore& byteCodeCache)
+    {
+        UnlinkedFunctionExecutable* instance = new (NotNull, allocateCell<UnlinkedFunctionExecutable>(vm->heap))
+            UnlinkedFunctionExecutable(vm, vm->unlinkedFunctionExecutableStructure.get());
+        instance->finishCreation(*vm, byteCodeCache);
+        return instance;
+    }
+
+    void finishCreation(VM& vm) { Base::finishCreation(vm); }
+    void finishCreation(VM& vm, ByteCodeReadStore& byteCodeCache);
 
     const Identifier& name() const { return m_name; }
     const Identifier& ecmaName() const { return m_ecmaName; }
@@ -94,6 +110,8 @@ public:
     unsigned typeProfilingStartOffset() const { return m_typeProfilingStartOffset; }
     unsigned typeProfilingEndOffset() const { return m_typeProfilingEndOffset; }
     void setInvalidTypeProfilingOffsets();
+
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCallFromByteCodeCache(VM&, SourceParseMode parseMode, ByteCodeReadStore& byteCodeCache);
 
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(
         VM&, const SourceCode&, CodeSpecializationKind, DebuggerMode,
@@ -138,8 +156,19 @@ public:
     void setSourceURLDirective(const String& sourceURL) { m_sourceURLDirective = sourceURL; }
     void setSourceMappingURLDirective(const String& sourceMappingURL) { m_sourceMappingURLDirective = sourceMappingURL; }
 
+    void setByteCodeBundleOffsetForCall(size_t offset) { m_byteCodeBundleOffsetForCall = offset; }
+    // void setByteCodeBundleOffsetForConstruct(size_t offset) { m_byteCodeBundleOffsetForConstruct = offset; }
+
+    size_t byteCodeBundleOffsetForCall() const { return m_byteCodeBundleOffsetForCall; }
+    // size_t byteCodeBundleOffsetForConstruct() const { return m_byteCodeBundleOffsetForConstruct; }
+
 private:
     UnlinkedFunctionExecutable(VM*, Structure*, const SourceCode&, SourceCode&& parentSourceOverride, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, VariableEnvironment&,  JSC::DerivedContextType);
+    UnlinkedFunctionExecutable(VM* vm, Structure* structure)
+        : Base(*vm, structure) {} 
+
+    size_t m_byteCodeBundleOffsetForCall { 0 };
+    // size_t m_byteCodeBundleOffsetForConstruct { 0 };
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;

@@ -47,6 +47,40 @@ SymbolImpl::StaticSymbolImpl dollarVMPrivateName { "PrivateSymbol.$vm", SymbolIm
 SymbolImpl::StaticSymbolImpl underscoreProtoPrivateName { "PrivateSymbol.__proto__", SymbolImpl::s_flagIsPrivate };
 
 } // namespace Symbols
+
+bool BuiltinNames::findPrivateNameIndex(const Identifier& inId, size_t& index) const{
+    index = 0;
+    for(const Identifier* identifier : privateNameVector) {
+        if(Identifier::equal(identifier->impl(), inId.impl()))
+            return true;
+        index++;
+    }
+
+    return false;
+}
+
+const Identifier& BuiltinNames::lookupPrivateNameIdentifier(size_t index) const{
+    ASSERT(index >=0 && index < privateNameVector.size());
+    return *privateNameVector[index];
+}
+
+bool BuiltinNames::findPrivateNameIndex2(const UniquedStringImpl*inImpl, size_t& index) const {
+    index = 0;
+    for(const Identifier* identifier : privateNameVector) {
+        if(Identifier::equal(identifier->impl(), inImpl))
+            return true;
+        index++;
+    }
+
+    return false;
+}
+
+UniquedStringImpl* BuiltinNames::lookupPrivateNameIdentifier2(size_t index) const{
+    ASSERT(index >=0 && index < privateNameVector.size());
+    return privateNameVector[index]->impl();
+}
+
+
 } // namespace JSC
 
 #if COMPILER(MSVC)

@@ -4,6 +4,12 @@ if (MSVC)
     include(OptionsMSVC)
 endif ()
 
+if (ANDROID)
+    add_definitions(-D__BIONIC__)    
+#    add_definitions(-D__ARM_NEON__) 
+#    add_definitions(-D__thumb2__)
+endif ()
+
 add_definitions(-DBUILDING_JSCONLY__)
 
 set(PROJECT_VERSION_MAJOR 1)
@@ -35,7 +41,7 @@ set(ENABLE_WEBCORE OFF)
 set(ENABLE_WEBKIT_LEGACY OFF)
 set(ENABLE_WEBKIT OFF)
 
-if (WIN32)
+if (WIN32 OR ANDROID)
     set(ENABLE_API_TESTS OFF)
 else ()
     set(ENABLE_API_TESTS ON)

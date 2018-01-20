@@ -23,6 +23,8 @@
 #include "Identifier.h"
 #include <wtf/Noncopyable.h>
 
+#include <vector>
+
 // MarkedArgumentBuffer of property names, passed to a macro so we can do set them up various
 // ways without repeating the list.
 #define JSC_COMMON_IDENTIFIERS_EACH_PROPERTY_NAME(macro) \
@@ -301,6 +303,16 @@ namespace JSC {
         const Identifier thisIdentifier;
         const Identifier useStrictIdentifier;
         const Identifier timesIdentifier;
+
+        std::vector<const Identifier*> propNameVector;
+        std::vector<const Identifier*> symbolVector;
+
+        bool findCommonPropName(const Identifier&, size_t& index);
+        bool findCommonSymbol(const Identifier&, size_t& index);
+
+        const Identifier& lookupCommonPropNameIdenfier(size_t);
+        const Identifier& lookupCommonSymbolIdenfier(size_t);
+
     private:
         std::unique_ptr<BuiltinNames> m_builtinNames;
 

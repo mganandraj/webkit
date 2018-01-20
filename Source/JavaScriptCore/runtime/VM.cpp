@@ -122,6 +122,7 @@
 #include <wtf/Threading.h>
 #include <wtf/text/AtomicStringTable.h>
 #include <wtf/text/SymbolRegistry.h>
+#include "HeapSnapshotBuilder.h"
 
 #if !ENABLE(JIT)
 #include "CLoopStack.h"
@@ -359,6 +360,34 @@ void waitForVMDestruction()
 {
     auto locker = holdLock(s_destructionLock.write());
 }
+
+void VM::startSamplingProfiler() {
+    setShouldBuildPCToCodeOriginMapping();
+    Ref<Stopwatch> stopwatch = Stopwatch::create();
+    stopwatch->start();
+    m_samplingProfiler = adoptRef(new SamplingProfiler(*this, WTFMove(stopwatch)));
+    if (Options::samplingProfilerPath())
+        m_samplingProfiler->registerForReportAtExit();
+    m_samplingProfiler->start();
+}
+
+void VM::pokeSamplingProfiler() {
+    if(m_samplingProfiler) {
+        m_samplingProfiler->reportTopFunctions();
+        m_samplingProfiler->reportTopBytecodes();
+    } else {
+        dataLog("Poking Sampling profiler when it is not running ...");
+    }
+
+    dataLogLn("Heap size is ", heap.size(), " and capacity is ", heap.capacity());
+
+    HeapSnapshotBuilder snapshotBuilder(ensureHeapProfiler());
+    snapshotBuilder.buildSnapshot();
+
+    String jsonString = snapshotBuilder.json();
+    dataLogLn(jsonString);
+}
+
 
 VM::~VM()
 {
@@ -636,6 +665,10 @@ void VM::throwException(ExecState* exec, Exception* exception)
         CodeBlock* codeBlock = exec->codeBlock();
         dataLog("Throwing exception in call frame ", RawPointer(exec), " for code block ", codeBlock, "\n");
         CRASH();
+    }
+
+    if(exception) {
+        dataLogLn("VM::throwException :: ", exception->value().toWTFString(exec));    
     }
 
     ASSERT(exec == topCallFrame || exec == exec->lexicalGlobalObject()->globalExec() || exec == exec->vmEntryGlobalObject()->globalExec());

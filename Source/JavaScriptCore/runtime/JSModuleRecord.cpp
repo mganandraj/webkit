@@ -32,6 +32,8 @@
 #include "JSModuleEnvironment.h"
 #include "JSModuleNamespaceObject.h"
 #include "UnlinkedModuleProgramCodeBlock.h"
+#include "JSModuleLoader.h"
+#include "BuiltinNames.h"
 
 namespace JSC {
 

@@ -205,6 +205,8 @@ public:
     // The bottom 6 bits in the hash are flags.
     static constexpr const unsigned s_flagCount = 6;
 private:
+    friend class StringStore;
+
     static constexpr const unsigned s_flagMask = (1u << s_flagCount) - 1;
     static_assert(s_flagCount <= StringHasher::flagCount, "StringHasher reserves enough bits for StringImpl flags");
     static constexpr const unsigned s_flagStringKindCount = 4;

@@ -33,6 +33,10 @@
 #include <wtf/text/TextPosition.h>
 #include <wtf/text/WTFString.h>
 
+#include <wtf/DataLog.h>
+
+#include <wtf/MemoryMappedFileUtils.h>
+
 namespace JSC {
 
     enum class SourceProviderSourceType {
@@ -51,10 +55,12 @@ namespace JSC {
 
         virtual unsigned hash() const = 0;
         virtual StringView source() const = 0;
-        StringView getRange(int start, int end) const
+        virtual StringView getRange(int start, int end) const
         {
             return source().substring(start, end - start);
         }
+		virtual int length() const = 0;
+
 
         const SourceOrigin& sourceOrigin() const { return m_sourceOrigin; }
         const String& url() const { return m_url; }
@@ -90,6 +96,71 @@ namespace JSC {
         uintptr_t m_id : sizeof(uintptr_t) * 8 - 1;
     };
 
+    class MemoryMappedFileSourceProvider : public SourceProvider {
+    public:
+        static Ref<MemoryMappedFileSourceProvider> create(int fd, size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+        {
+            return adoptRef(*new MemoryMappedFileSourceProvider(fd, offset, size, sourceOrigin, url, startPosition, sourceType));
+        }
+    
+        static Ref<MemoryMappedFileSourceProvider> create(const String& localPath, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+        {
+            return adoptRef(*new MemoryMappedFileSourceProvider(localPath, sourceOrigin, url, startPosition, sourceType));
+        }
+        
+        unsigned hash() const override
+        {
+            // We don't want anyone calling this ..
+            // ASSERT(0);
+            return m_size;
+        }
+
+        StringView getRange(int start, int end) const override
+        {
+            return StringView(m_mappedBuffer + start, end-start);
+        }
+
+        StringView source() const override
+        {
+            return StringView(m_mappedBuffer, m_size);
+        }
+
+        int length() const override
+        {
+            // We don't want anyone calling this for now ..
+            // ASSERT(0);
+            return m_size;
+        }
+
+    private:
+    MemoryMappedFileSourceProvider(int fd , size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        : SourceProvider(sourceOrigin, url, startPosition, sourceType),
+        m_fd (fd),
+        m_size (size),
+        m_startOffset (offset)
+        {
+            bool fileMapped = WTF::mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
+            dataLogLnIf(!fileMapped, "Memory mapping failed.");
+        }
+
+    MemoryMappedFileSourceProvider(const String& localPath , const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        : SourceProvider(sourceOrigin, url, startPosition, sourceType),
+        m_localPath(localPath) {
+            bool fileMapped = mapWholeFileForRead(m_localPath, &m_mappedBuffer, &m_size);
+            dataLogLnIf(!fileMapped, "Memory mapping failed.");
+    }
+
+        int m_fd {-1};
+
+        String m_localPath;
+        
+        // TODO :: unmap when done.
+        uint8_t* m_mappedBuffer {nullptr};
+        size_t m_size;
+        size_t m_startOffset;
+    };
+
+
     class StringSourceProvider : public SourceProvider {
     public:
         static Ref<StringSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
@@ -106,6 +177,11 @@ namespace JSC {
         {
             return m_source.get();
         }
+
+		  int length() const override
+		  {
+			  return source().length();
+		  }
 
     private:
         StringSourceProvider(const String& source, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
@@ -134,6 +210,11 @@ namespace JSC {
         {
             return m_source;
         }
+
+		  int length() const override
+		  {
+			  return source().length();
+		  }
 
         const Vector<uint8_t>& data() const
         {

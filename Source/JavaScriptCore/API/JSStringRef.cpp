@@ -36,13 +36,13 @@ using namespace WTF::Unicode;
 
 JSStringRef JSStringCreateWithCharacters(const JSChar* chars, size_t numChars)
 {
-    initializeThreading();
+    JSC::initializeThreading();
     return &OpaqueJSString::create(reinterpret_cast<const UChar*>(chars), numChars).leakRef();
 }
 
 JSStringRef JSStringCreateWithUTF8CString(const char* string)
 {
-    initializeThreading();
+    JSC::initializeThreading();
     if (string) {
         size_t length = strlen(string);
         Vector<UChar, 1024> buffer(length);
@@ -59,9 +59,18 @@ JSStringRef JSStringCreateWithUTF8CString(const char* string)
     return &OpaqueJSString::create().leakRef();
 }
 
+JSStringRef JSStringCreateWithUTF8CStringExpectAscii(const char* string, size_t numChars)
+{
+    JSC::initializeThreading();
+    if (string)
+        return &OpaqueJSString::create(reinterpret_cast<const LChar*>(string), numChars).leakRef();
+
+    return &OpaqueJSString::create().leakRef();
+}
+
 JSStringRef JSStringCreateWithCharactersNoCopy(const JSChar* chars, size_t numChars)
 {
-    initializeThreading();
+    JSC::initializeThreading();
     return OpaqueJSString::create(StringImpl::createWithoutCopying(reinterpret_cast<const UChar*>(chars), numChars)).leakRef();
 }
 

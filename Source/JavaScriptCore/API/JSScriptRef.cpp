@@ -56,6 +56,11 @@ public:
         return m_source.get();
     }
 
+    int length() const override
+    {
+        return source().length();
+    }
+
     VM& vm() const { return m_vm; }
 
 private:

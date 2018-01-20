@@ -31,6 +31,7 @@ API/JSContextRef.cpp
 API/JSHeapFinalizerPrivate.cpp
 API/JSMarkingConstraintPrivate.cpp
 API/JSObjectRef.cpp
+API/JSSamplingProfiler.cpp
 API/JSTypedArray.cpp
 API/JSScriptRef.cpp
 API/JSStringRef.cpp
@@ -250,12 +251,17 @@ bytecode/SuperSampler.cpp
 bytecode/ToThisStatus.cpp
 bytecode/TrackedReferences.cpp
 bytecode/UnlinkedCodeBlock.cpp
+bytecode/UnlinkedCodeBlockStore.cpp
 bytecode/UnlinkedEvalCodeBlock.cpp
 bytecode/UnlinkedFunctionCodeBlock.cpp
+bytecode/UnlinkedFunctionCodeBlockStore.cpp
 bytecode/UnlinkedFunctionExecutable.cpp
+bytecode/UnlinkedFunctionExecutableStore.cpp
 bytecode/UnlinkedInstructionStream.cpp
+bytecode/UnlinkedInstructionStreamStore.cpp
 bytecode/UnlinkedModuleProgramCodeBlock.cpp
 bytecode/UnlinkedProgramCodeBlock.cpp
+bytecode/UnlinkedProgramCodeBlockStore.cpp
 bytecode/ValueRecovery.cpp
 bytecode/VariableWriteFireDetail.cpp
 bytecode/VirtualRegister.cpp
@@ -645,6 +651,7 @@ parser/SourceProvider.cpp
 parser/SourceProviderCache.cpp
 parser/UnlinkedSourceCode.cpp
 parser/VariableEnvironment.cpp
+parser/VariableEnvironmentStore.cpp
 
 profiler/ProfilerBytecode.cpp
 profiler/ProfilerBytecodeSequence.cpp
@@ -727,6 +734,7 @@ runtime/ExceptionScope.cpp
 runtime/ExecutableBase.cpp
 runtime/FunctionConstructor.cpp
 runtime/FunctionExecutable.cpp
+runtime/FunctionExecutableStore.cpp
 runtime/FunctionExecutableDump.cpp
 runtime/FunctionHasExecutedCache.cpp
 runtime/FunctionPrototype.cpp
@@ -737,6 +745,7 @@ runtime/GeneratorPrototype.cpp
 runtime/GetterSetter.cpp
 runtime/HashMapImpl.cpp
 runtime/Identifier.cpp
+runtime/IdentifierStore.cpp
 runtime/IndexingType.cpp
 runtime/IndirectEvalExecutable.cpp
 runtime/InferredType.cpp
@@ -854,6 +863,7 @@ runtime/ObjectPrototype.cpp
 runtime/Operations.cpp
 runtime/Options.cpp
 runtime/ProgramExecutable.cpp
+runtime/ProgramExecutableStore.cpp
 runtime/PromiseDeferredTimer.cpp
 runtime/PropertyDescriptor.cpp
 runtime/PropertySlot.cpp
@@ -877,6 +887,7 @@ runtime/ScopeOffset.cpp
 runtime/ScopedArguments.cpp
 runtime/ScopedArgumentsTable.cpp
 runtime/ScriptExecutable.cpp
+runtime/ScriptExecutableStore.cpp
 runtime/SetConstructor.cpp
 runtime/SetIteratorPrototype.cpp
 runtime/SetPrototype.cpp
@@ -899,6 +910,7 @@ runtime/SymbolConstructor.cpp
 runtime/SymbolObject.cpp
 runtime/SymbolPrototype.cpp
 runtime/SymbolTable.cpp
+runtime/SymbolTableStore.cpp
 runtime/TemplateRegistry.cpp
 runtime/TemplateRegistryKey.cpp
 runtime/TemplateRegistryKeyTable.cpp
@@ -921,6 +933,9 @@ runtime/WeakMapConstructor.cpp
 runtime/WeakMapPrototype.cpp
 runtime/WeakSetConstructor.cpp
 runtime/WeakSetPrototype.cpp
+runtime/ByteCodeStoreUtils.cpp
+runtime/ByteCodeReadStore.cpp
+runtime/ByteCodeWriteStore.cpp
 
 # Derived Sources
 # FIXME: We should move this to runtime but it kept breaking the Windows build in weird ways... https://bugs.webkit.org/show_bug.cgi?id=177486

@@ -47,6 +47,89 @@
 
 using namespace JSC;
 
+JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) {
+    if (!ctx) {
+        ASSERT_NOT_REACHED();
+        return 0;
+    }
+    ExecState* exec = toJS(ctx);
+    JSLockHolder locker(exec);
+
+    JSObject* jsThisObject = toJS(thisObject);
+    
+    // evaluate sets "this" to the global object if it is NULL
+    JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
+    auto sourceURLString = sourceURL ? sourceURL->string() : String();
+    SourceCode source = makeMemoryMappedSource(localPath->string(), SourceOrigin { sourceURLString }, sourceURLString );
+
+    NakedPtr<Exception> evaluationException;
+    JSValue returnValue = profiledEvaluate(globalObject->globalExec(), ProfilingReason::API, source, jsThisObject, evaluationException);
+
+    if (evaluationException) {
+        if (exception)
+            *exception = toRef(exec, evaluationException->value());
+#if ENABLE(REMOTE_INSPECTOR)
+        // FIXME: If we have a debugger attached we could learn about ParseError exceptions through
+        // ScriptDebugServer::sourceParsed and this path could produce a duplicate warning. The
+        // Debugger path is currently ignored by inspector.
+        // NOTE: If we don't have a debugger, this SourceCode will be forever lost to the inspector.
+        // We could stash it in the inspector in case an inspector is ever opened.
+        globalObject->inspectorController().reportAPIException(exec, evaluationException);
+#endif
+        return 0;
+    }
+
+    if (returnValue)
+        return toRef(exec, returnValue);
+
+    // happens, for example, when the only statement is an empty (';') statement
+    return toRef(exec, jsUndefined());
+}
+
+JSValueRef JSEvaluateScriptFD(JSContextRef ctx, int sourceFD, unsigned int offset, unsigned int size, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) {
+    dataLogLn("JSEvaluateScriptFD called ...");
+    
+    if (!ctx) {
+        dataLogLn("JSEvaluateScriptFD !ctx ...");
+        ASSERT_NOT_REACHED();
+        return 0;
+    }
+    ExecState* exec = toJS(ctx);
+    JSLockHolder locker(exec);
+
+    JSObject* jsThisObject = toJS(thisObject);
+    
+    // evaluate sets "this" to the global object if it is NULL
+    JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
+    auto sourceURLString = sourceURL ? sourceURL->string() : String();
+
+    SourceCode source = makeMemoryMappedSource(sourceFD, static_cast<size_t>(offset), static_cast<size_t>(size), SourceOrigin { sourceURLString }, sourceURLString );
+
+    NakedPtr<Exception> evaluationException;
+    JSValue returnValue = profiledEvaluate(globalObject->globalExec(), ProfilingReason::API, source, jsThisObject, evaluationException);
+
+    if (evaluationException) {
+        if (exception)
+            *exception = toRef(exec, evaluationException->value());
+#if ENABLE(REMOTE_INSPECTOR)
+        // FIXME: If we have a debugger attached we could learn about ParseError exceptions through
+        // ScriptDebugServer::sourceParsed and this path could produce a duplicate warning. The
+        // Debugger path is currently ignored by inspector.
+        // NOTE: If we don't have a debugger, this SourceCode will be forever lost to the inspector.
+        // We could stash it in the inspector in case an inspector is ever opened.
+        globalObject->inspectorController().reportAPIException(exec, evaluationException);
+#endif
+        return 0;
+    }
+
+    if (returnValue)
+        return toRef(exec, returnValue);
+
+    // happens, for example, when the only statement is an empty (';') statement
+    return toRef(exec, jsUndefined());
+}
+
+
 JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef thisObject, JSStringRef sourceURL, int startingLineNumber, JSValueRef* exception)
 {
     if (!ctx) {
@@ -62,7 +145,7 @@ JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef th
 
     // evaluate sets "this" to the global object if it is NULL
     JSGlobalObject* globalObject = exec->vmEntryGlobalObject();
-    auto sourceURLString = sourceURL ? sourceURL->string() : String();
+    auto sourceURLString = sourceURL ? sourceURL->string() : String();    
     SourceCode source = makeSource(script->string(), SourceOrigin { sourceURLString }, sourceURLString, TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
 
     NakedPtr<Exception> evaluationException;

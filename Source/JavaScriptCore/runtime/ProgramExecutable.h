@@ -69,6 +69,7 @@ public:
     ExecutableInfo executableInfo() const { return ExecutableInfo(usesEval(), isStrictMode(), false, false, ConstructorKind::None, JSParserScriptMode::Classic, SuperBinding::NotNeeded, SourceParseMode::ProgramMode, derivedContextType(), isArrowFunctionContext(), false, EvalContextType::None); }
 
 private:
+    friend class ProgramExecutableStore;
     friend class ExecutableBase;
     friend class ScriptExecutable;
 
