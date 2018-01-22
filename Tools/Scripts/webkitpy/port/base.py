@@ -49,6 +49,7 @@ from webkitpy.common.memoized import memoized
 from webkitpy.common.prettypatch import PrettyPatch
 from webkitpy.common.system import path
 from webkitpy.common.system.executive import ScriptError
+from webkitpy.common.version_name_map import PUBLIC_TABLE, VersionNameMap
 from webkitpy.common.wavediff import WaveDiff
 from webkitpy.common.webkit_finder import WebKitFinder
 from webkitpy.layout_tests.models.test_configuration import TestConfiguration
@@ -99,7 +100,7 @@ class Port(object):
         self._name = port_name
 
         # These are default values that should be overridden in a subclasses.
-        self._version = ''
+        self._os_version = None
 
         # FIXME: This can be removed once default architectures for GTK and EFL EWS bots are set.
         self.did_override_architecture = False
@@ -680,10 +681,10 @@ class Port(object):
 
     def normalize_test_name(self, test_name):
         """Returns a normalized version of the test name or test directory."""
-        if test_name.endswith('/'):
+        if test_name.endswith(os.path.sep):
             return test_name
         if self.test_isdir(test_name):
-            return test_name + '/'
+            return test_name + os.path.sep
         return test_name
 
     def driver_cmd_line_for_logging(self):
@@ -764,13 +765,16 @@ class Port(object):
         # Subclasses should override this default implementation.
         return 'mac'
 
-    def version(self):
+    @memoized
+    def version_name(self):
         """Returns a string indicating the version of a given platform, e.g.
         'leopard' or 'xp'.
 
         This is used to help identify the exact port when parsing test
         expectations, determining search paths, and logging information."""
-        return self._version
+        if self._os_version is None:
+            return None
+        return VersionNameMap.map(self.host.platform).to_name(self._os_version, table=PUBLIC_TABLE)
 
     def get_option(self, name, default_value=None):
         return getattr(self._options, name, default_value)
@@ -875,6 +879,7 @@ class Port(object):
             'DBUS_SESSION_BUS_ADDRESS',
             'LANG',
             'LD_LIBRARY_PATH',
+            'TERM',
             'XDG_DATA_DIRS',
             'XDG_RUNTIME_DIR',
 
@@ -1072,7 +1077,7 @@ class Port(object):
     def test_configuration(self):
         """Returns the current TestConfiguration for the port."""
         if not self._test_configuration:
-            self._test_configuration = TestConfiguration(self._version, self.architecture(), self._options.configuration.lower())
+            self._test_configuration = TestConfiguration(self.version_name(), self.architecture(), self._options.configuration.lower())
         return self._test_configuration
 
     # FIXME: Belongs on a Platform object.
@@ -1201,11 +1206,6 @@ class Port(object):
             return True
         return False
 
-    def _is_debian_php_version_7(self):
-        if self._filesystem.exists("/usr/lib/apache2/modules/libphp7.0.so"):
-            return True
-        return False
-
     def _is_darwin_php_version_7(self):
         if self._filesystem.exists("/usr/libexec/apache2/libphp7.so"):
             return True
@@ -1226,8 +1226,11 @@ class Port(object):
         return re.sub(r'(?:.|\n)*Server version: Apache/(\d+\.\d+)(?:.|\n)*', r'\1', config)
 
     def _debian_php_version(self):
-        if self._is_debian_php_version_7():
-            return "-php7"
+        if self._filesystem.exists("/usr/lib/apache2/modules/libphp7.0.so"):
+            return "-php7.0"
+        elif self._filesystem.exists("/usr/lib/apache2/modules/libphp7.1.so"):
+            return "-php7.1"
+        _log.error("No libphp7.x.so found")
         return ""
 
     def _darwin_php_version(self):
@@ -1382,10 +1385,6 @@ class Port(object):
     def sample_process(self, name, pid, target_host=None):
         pass
 
-    def find_system_pid(self, name, pid):
-        # This is only overridden on Windows
-        return pid
-
     def should_run_as_pixel_test(self, test_input):
         if not self._options.pixel_tests:
             return False
@@ -1427,7 +1426,7 @@ class Port(object):
         if args:
             run_script_command.extend(args)
         output = self._executive.run_command(run_script_command, cwd=self.webkit_base(), decode_output=decode_output, env=env)
-        _log.debug('Output of %s:\n%s' % (run_script_command, output))
+        _log.debug('Output of %s:\n%s' % (run_script_command, output.encode('utf-8') if decode_output else output))
         return output
 
     def _build_driver(self):
@@ -1440,7 +1439,7 @@ class Port(object):
             self._run_script("build-dumprendertree", args=self._build_driver_flags(), env=env)
             if self.get_option('webkit_test_runner'):
                 self._run_script("build-webkittestrunner", args=self._build_driver_flags(), env=env)
-        except ScriptError, e:
+        except ScriptError as e:
             _log.error(e.message_with_output(output_limit=None))
             return False
         return True
@@ -1450,7 +1449,7 @@ class Port(object):
         env = environment.to_dictionary()
         try:
             self._run_script("build-imagediff", env=env)
-        except ScriptError, e:
+        except ScriptError as e:
             _log.error(e.message_with_output(output_limit=None))
             return False
         return True
@@ -1492,7 +1491,7 @@ class Port(object):
         for path_to_module in self._modules_to_search_for_symbols():
             try:
                 symbols += self._executive.run_command([self.nm_command(), path_to_module], error_handler=self._executive.ignore_error)
-            except OSError, e:
+            except OSError as e:
                 _log.warn("Failed to run nm: %s.  Can't determine supported features correctly." % e)
         return symbols
 

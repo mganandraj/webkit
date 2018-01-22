@@ -16,7 +16,6 @@
       <dep package="freetype6"/>
       <dep package="harfbuzz"/>
       <dep package="xkbcommon"/>
-      <dep package="wayland"/>
       <dep package="webkit-gstreamer-testing-dependencies"/>
       <dep package="wpe"/>
       <dep package="wpe-mesa"/>
@@ -36,8 +35,6 @@
       href="http://cairographics.org"/>
   <repository type="tarball" name="freedesktop.org"
       href="http://www.freedesktop.org"/>
-  <repository type="tarball" name="wayland.freedesktop.org"
-      href="http://wayland.freedesktop.org"/>
   <repository type="git" name="github.com"
       href="https://github.com"/>
   <repository type="tarball" name="github-tarball"
@@ -107,7 +104,9 @@
             hash="sha256:a3c603ed84c3c2495f9c9331fe6bba3bb0ee65e06ec331e0a0fb52158291b40b"/>
   </autotools>
 
-  <autotools id="fontconfig" autogen-sh="configure">
+  <autotools id="fontconfig" autogen-sh="configure"
+             autogenargs="--disable-docs"
+             supports-non-srcdir-builds="no">
     <dependencies>
       <dep package="freetype6"/>
     </dependencies>
@@ -149,9 +148,7 @@
     </dependencies>
     <branch module="releases/cairo-1.14.8.tar.xz" version="1.14.8"
             repo="cairographics.org"
-            hash="sha1:c6f7b99986f93c9df78653c3e6a3b5043f65145e">
-      <patch file="cairo-egl-device-create-for-egl-surface.patch" strip="1"/>
-    </branch>
+            hash="sha1:c6f7b99986f93c9df78653c3e6a3b5043f65145e"/>
   </autotools>
 
   <autotools id="xkbcommon"
@@ -161,28 +158,19 @@
             hash="sha1:7127993bfb69e13cdff25fb8b3c8f26ce6be5bfa"/>
   </autotools>
 
-  <autotools id="wayland"
-             autogen-sh="configure"
-             autogenargs="--disable-documentation">
-    <branch module="releases/wayland-1.10.0.tar.xz" version="1.10.0"
-            repo="wayland.freedesktop.org"
-            hash="sha256:4bf6e790aa6f50ab3825676282ecd75850ec9c4767af96ecb7127b1f3c3d60dc"/>
-  </autotools>
-
   <cmake id="wpe">
     <branch repo="github.com" module="WebPlatformForEmbedded/WPEBackend.git"
-            tag="5e2a29d2ccc637f7122ba72c1d62ef669b42f05c" />
+            tag="3013faaebab42e7ef7497b3850a2902978eb3d6f" />
   </cmake>
 
   <cmake id="wpe-mesa">
     <dependencies>
       <dep package="wpe" />
       <dep package="glib" />
-      <dep package="wayland" />
       <dep package="xkbcommon" />
     </dependencies>
     <branch repo="github.com" module="WebPlatformForEmbedded/WPEBackend-mesa.git"
-            tag="0286aed84a09120de16c3ab08bdf83c91d4a1754" />
+            tag="8e159832dc55164758f68fad02f52e6ad7c70642" />
   </cmake>
 
   <autotools id="libgpg-error" autogen-sh="configure">
@@ -211,7 +199,7 @@
   </autotools>
 
   <autotools id="dyz" supports-non-srcdir-builds="no">
-    <branch repo="github.com" module="Igalia/dyz" tag="0880252bac243add39ea54c0797ceb167d775ce9"/>
+    <branch repo="github.com" module="Igalia/dyz" tag="203a1ebd1481e44aa8105e862c02f317e6653627"/>
   </autotools>
 
   <meson id="graphene">

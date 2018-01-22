@@ -68,6 +68,7 @@
 #import <WebCore/LegacyWebArchive.h>
 #import <WebCore/Page.h>
 #import <WebCore/PlatformKeyboardEvent.h>
+#import <WebCore/RuntimeEnabledFeatures.h>
 #import <WebCore/Settings.h>
 #import <WebCore/SpellChecker.h>
 #import <WebCore/StyleProperties.h>
@@ -418,6 +419,12 @@ void WebEditorClient::getClientPasteboardDataForRange(WebCore::Range*, Vector<St
     // Not implemented WebKit, only WebKit2.
 }
 
+String WebEditorClient::replacementURLForResource(Ref<SharedBuffer>&&, const String&)
+{
+    // Not implemented in WebKitLegacy.
+    return { };
+}
+
 #if (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300)
 
 // FIXME: Remove both this stub and the real version of this function below once we don't need the real version on any supported platform.
@@ -433,7 +440,7 @@ void _WebCreateFragment(Document&, NSAttributedString *, FragmentAndResources&)
 static NSDictionary *attributesForAttributedStringConversion()
 {
     // This function needs to be kept in sync with identically named one in WebCore, which is used on newer OS versions.
-    NSArray *excludedElements = [[NSArray alloc] initWithObjects:
+    NSMutableArray *excludedElements = [[NSMutableArray alloc] initWithObjects:
         // Omit style since we want style to be inline so the fragment can be easily inserted.
         @"style",
         // Omit xml so the result is not XHTML.
@@ -442,8 +449,16 @@ static NSDictionary *attributesForAttributedStringConversion()
         @"doctype", @"html", @"head", @"body", 
         // Omit deprecated tags.
         @"applet", @"basefont", @"center", @"dir", @"font", @"menu", @"s", @"strike", @"u",
+#if !ENABLE(ATTACHMENT_ELEMENT)
         // Omit object so no file attachments are part of the fragment.
-        @"object", nil];
+        @"object",
+#endif
+        nil];
+
+#if ENABLE(ATTACHMENT_ELEMENT)
+    if (!RuntimeEnabledFeatures::sharedFeatures().attachmentElementEnabled())
+        [excludedElements addObject:@"object"];
+#endif
 
 #if PLATFORM(IOS)
     static NSString * const NSExcludedElementsDocumentAttribute = @"ExcludedElements";
@@ -746,7 +761,7 @@ void WebEditorClient::redo()
 
 void WebEditorClient::handleKeyboardEvent(KeyboardEvent* event)
 {
-    Frame* frame = event->target()->toNode()->document().frame();
+    auto* frame = downcast<Node>(event->target())->document().frame();
 #if !PLATFORM(IOS)
     WebHTMLView *webHTMLView = [[kit(frame) frameView] documentView];
     if ([webHTMLView _interpretKeyEvent:event savingCommands:NO])
@@ -762,7 +777,7 @@ void WebEditorClient::handleInputMethodKeydown(KeyboardEvent* event)
 {
 #if !PLATFORM(IOS)
     // FIXME: Switch to WebKit2 model, interpreting the event before it's sent down to WebCore.
-    Frame* frame = event->target()->toNode()->document().frame();
+    auto* frame = downcast<Node>(event->target())->document().frame();
     WebHTMLView *webHTMLView = [[kit(frame) frameView] documentView];
     if ([webHTMLView _interpretKeyEvent:event savingCommands:YES])
         event->setDefaultHandled();

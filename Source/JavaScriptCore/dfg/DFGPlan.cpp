@@ -41,7 +41,6 @@
 #include "DFGCriticalEdgeBreakingPhase.h"
 #include "DFGDCEPhase.h"
 #include "DFGFailedFinalizer.h"
-#include "DFGFixedButterflyAccessUncagingPhase.h"
 #include "DFGFixupPhase.h"
 #include "DFGGraphSafepoint.h"
 #include "DFGIntegerCheckCombiningPhase.h"
@@ -247,11 +246,7 @@ Plan::CompilationPath Plan::compileInThreadImpl()
     }
     
     Graph dfg(*vm, *this);
-    
-    if (!parse(dfg)) {
-        finalizer = std::make_unique<FailedFinalizer>(*this);
-        return FailPath;
-    }
+    parse(dfg);
 
     codeBlock->setCalleeSaveRegisters(RegisterSet::dfgCalleeSaveRegisters());
 
@@ -468,7 +463,6 @@ Plan::CompilationPath Plan::compileInThreadImpl()
         RUN_PHASE(performCFA);
         RUN_PHASE(performGlobalStoreBarrierInsertion);
         RUN_PHASE(performStoreBarrierClustering);
-        RUN_PHASE(performFixedButterflyAccessUncaging);
         if (Options::useMovHintRemoval())
             RUN_PHASE(performMovHintRemoval);
         RUN_PHASE(performCleanUp);
@@ -701,7 +695,8 @@ void Plan::cleanMustHandleValuesIfNecessary()
     if (!mustHandleValues.numberOfLocals())
         return;
     
-    FastBitVector liveness = codeBlock->alternative()->livenessAnalysis().getLivenessInfoAtBytecodeOffset(osrEntryBytecodeIndex);
+    CodeBlock* alternative = codeBlock->alternative();
+    FastBitVector liveness = alternative->livenessAnalysis().getLivenessInfoAtBytecodeOffset(alternative, osrEntryBytecodeIndex);
     
     for (unsigned local = mustHandleValues.numberOfLocals(); local--;) {
         if (!liveness[local])

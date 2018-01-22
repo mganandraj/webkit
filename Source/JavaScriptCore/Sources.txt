@@ -1,25 +1,25 @@
-# Copyright (C) 2017 Apple Inc. All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
-# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-# THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright (C) 2017 Apple Inc. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
+// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+// THE POSSIBILITY OF SUCH DAMAGE.
 
 API/JSBase.cpp
 API/JSCTestRunnerUtils.cpp
@@ -48,6 +48,7 @@ assembler/MacroAssemblerARM.cpp
 assembler/MacroAssemblerARM64.cpp
 assembler/MacroAssemblerARMv7.cpp
 assembler/MacroAssemblerCodeRef.cpp
+assembler/MacroAssemblerMIPS.cpp
 assembler/MacroAssemblerPrinter.cpp
 assembler/MacroAssemblerX86Common.cpp
 assembler/Printer.cpp
@@ -210,6 +211,7 @@ bytecode/DeferredCompilationCallback.cpp
 bytecode/DeferredSourceDump.cpp
 bytecode/DirectEvalCodeCache.cpp
 bytecode/EvalCodeBlock.cpp
+bytecode/ExecutableToCodeBlockEdge.cpp
 bytecode/ExecutionCounter.cpp
 bytecode/ExitKind.cpp
 bytecode/ExitingJITType.cpp
@@ -228,7 +230,6 @@ bytecode/LazyOperandValueProfile.cpp
 bytecode/MethodOfGettingAValueProfile.cpp
 bytecode/ModuleNamespaceAccessCase.cpp
 bytecode/ModuleProgramCodeBlock.cpp
-bytecode/ObjectAllocationProfile.cpp
 bytecode/ObjectPropertyCondition.cpp
 bytecode/ObjectPropertyConditionSet.cpp
 bytecode/Opcode.cpp
@@ -321,7 +322,6 @@ dfg/DFGEdge.cpp
 dfg/DFGEpoch.cpp
 dfg/DFGFailedFinalizer.cpp
 dfg/DFGFinalizer.cpp
-dfg/DFGFixedButterflyAccessUncagingPhase.cpp
 dfg/DFGFixupPhase.cpp
 dfg/DFGFlowIndexing.cpp
 dfg/DFGFlushFormat.cpp
@@ -472,11 +472,13 @@ ftl/FTLThunks.cpp
 ftl/FTLValueRange.cpp
 
 heap/AlignedMemoryAllocator.cpp
-heap/AllocatorAttributes.cpp
+heap/BlockDirectory.cpp
+heap/CellAttributes.cpp
 heap/CellContainer.cpp
 heap/CodeBlockSet.cpp
 heap/CollectionScope.cpp
 heap/CollectorPhase.cpp
+heap/CompleteSubspace.cpp
 heap/ConservativeRoots.cpp
 heap/DeferGC.cpp
 heap/DestructionMode.cpp
@@ -490,26 +492,31 @@ heap/GCLogging.cpp
 heap/GCRequest.cpp
 heap/GigacageAlignedMemoryAllocator.cpp
 heap/HandleSet.cpp
-heap/HandleStack.cpp
 heap/Heap.cpp
 heap/HeapCell.cpp
+heap/HeapCellType.cpp
 heap/HeapFinalizerCallback.cpp
 heap/HeapHelperPool.cpp
 heap/HeapProfiler.cpp
 heap/HeapSnapshot.cpp
 heap/HeapSnapshotBuilder.cpp
 heap/IncrementalSweeper.cpp
+heap/IsoAlignedMemoryAllocator.cpp
+heap/IsoCellSet.cpp
+heap/IsoSubspace.cpp
 heap/JITStubRoutineSet.cpp
 heap/LargeAllocation.cpp
 heap/MachineStackMarker.cpp
 heap/MarkStack.cpp
-heap/MarkedAllocator.cpp
+heap/MarkStackMergingConstraint.cpp
 heap/MarkedBlock.cpp
 heap/MarkedSpace.cpp
 heap/MarkingConstraint.cpp
 heap/MarkingConstraintSet.cpp
+heap/MarkingConstraintSolver.cpp
 heap/MutatorScheduler.cpp
 heap/MutatorState.cpp
+heap/SimpleMarkingConstraint.cpp
 heap/SlotVisitor.cpp
 heap/SpaceTimeMutatorScheduler.cpp
 heap/StochasticSpaceTimeMutatorScheduler.cpp
@@ -537,7 +544,6 @@ inspector/InjectedScriptModule.cpp
 inspector/InspectorAgentRegistry.cpp
 inspector/InspectorFrontendRouter.cpp
 inspector/InspectorBackendDispatcher.cpp
-inspector/InspectorValues.cpp
 inspector/JSGlobalObjectConsoleClient.cpp
 inspector/JSGlobalObjectInspectorController.cpp
 inspector/JSGlobalObjectScriptDebugServer.cpp
@@ -553,7 +559,7 @@ inspector/ScriptCallStack.cpp
 inspector/ScriptCallStackFactory.cpp
 inspector/ScriptDebugServer.cpp
 
-# Derived Sources
+// Derived Sources
 inspector/InspectorBackendDispatchers.cpp
 inspector/InspectorFrontendDispatchers.cpp
 inspector/InspectorProtocolObjects.cpp
@@ -564,7 +570,6 @@ inspector/agents/InspectorDebuggerAgent.cpp
 inspector/agents/InspectorHeapAgent.cpp
 inspector/agents/InspectorRuntimeAgent.cpp
 inspector/agents/InspectorScriptProfilerAgent.cpp
-inspector/agents/JSGlobalObjectConsoleAgent.cpp
 inspector/agents/JSGlobalObjectDebuggerAgent.cpp
 inspector/agents/JSGlobalObjectRuntimeAgent.cpp
 
@@ -638,8 +643,8 @@ llint/LLIntEntrypoint.cpp
 llint/LLIntExceptions.cpp
 llint/LLIntSlowPaths.cpp
 llint/LLIntThunks.cpp
-# FIXME: We can't bundle this file due to a clang bug.
-llint/LowLevelInterpreter.cpp #@no-unify
+// FIXME: We can't bundle this file due to a clang bug.
+llint/LowLevelInterpreter.cpp @no-unify
 
 parser/Lexer.cpp
 parser/ModuleAnalyzer.cpp
@@ -687,6 +692,9 @@ runtime/AtomicsObject.cpp
 runtime/AsyncFunctionConstructor.cpp
 runtime/AsyncFunctionPrototype.cpp
 runtime/BasicBlockLocation.cpp
+runtime/BigIntConstructor.cpp
+runtime/BigIntObject.cpp
+runtime/BigIntPrototype.cpp
 runtime/BooleanConstructor.cpp
 runtime/BooleanObject.cpp
 runtime/BooleanPrototype.cpp
@@ -748,6 +756,8 @@ runtime/Identifier.cpp
 runtime/IdentifierStore.cpp
 runtime/IndexingType.cpp
 runtime/IndirectEvalExecutable.cpp
+runtime/InferredStructure.cpp
+runtime/InferredStructureWatchpoint.cpp
 runtime/InferredType.cpp
 runtime/InferredTypeTable.cpp
 runtime/InferredValue.cpp
@@ -775,15 +785,17 @@ runtime/JSArrayBufferPrototype.cpp
 runtime/JSArrayBufferView.cpp
 runtime/JSAsyncFunction.cpp
 runtime/JSAsyncGeneratorFunction.cpp
+runtime/JSBigInt.cpp
 runtime/JSBoundFunction.cpp
 runtime/JSCJSValue.cpp
+runtime/JSCPoison.cpp
 runtime/JSCallee.cpp
 runtime/JSCell.cpp
 runtime/JSCustomGetterSetterFunction.cpp
 runtime/JSDataView.cpp
 runtime/JSDataViewPrototype.cpp
 runtime/JSDateMath.cpp
-runtime/JSDestructibleObjectSubspace.cpp
+runtime/JSDestructibleObjectHeapCellType.cpp
 runtime/JSFixedArray.cpp
 runtime/JSFunction.cpp
 runtime/JSGeneratorFunction.cpp
@@ -816,15 +828,16 @@ runtime/JSProxy.cpp
 runtime/JSRunLoopTimer.cpp
 runtime/JSScope.cpp
 runtime/JSScriptFetcher.cpp
+runtime/JSScriptFetchParameters.cpp
 runtime/JSSegmentedVariableObject.cpp
-runtime/JSSegmentedVariableObjectSubspace.cpp
+runtime/JSSegmentedVariableObjectHeapCellType.cpp
 runtime/JSSet.cpp
 runtime/JSSetIterator.cpp
 runtime/JSSourceCode.cpp
 runtime/JSString.cpp
 runtime/JSStringIterator.cpp
 runtime/JSStringJoiner.cpp
-runtime/JSStringSubspace.cpp
+runtime/JSStringHeapCellType.cpp
 runtime/JSSymbolTableObject.cpp
 runtime/JSTemplateRegistryKey.cpp
 runtime/JSTypedArrayConstructors.cpp
@@ -868,7 +881,6 @@ runtime/PromiseDeferredTimer.cpp
 runtime/PropertyDescriptor.cpp
 runtime/PropertySlot.cpp
 runtime/PropertyTable.cpp
-runtime/PrototypeMap.cpp
 runtime/ProxyConstructor.cpp
 runtime/ProxyObject.cpp
 runtime/ProxyRevoke.cpp
@@ -902,6 +914,7 @@ runtime/StringObject.cpp
 runtime/StringPrototype.cpp
 runtime/StringRecursionChecker.cpp
 runtime/Structure.cpp
+runtime/StructureCache.cpp
 runtime/StructureChain.cpp
 runtime/StructureIDTable.cpp
 runtime/StructureRareData.cpp
@@ -928,8 +941,8 @@ runtime/VMEntryScope.cpp
 runtime/VMTraps.cpp
 runtime/VarOffset.cpp
 runtime/Watchdog.cpp
-runtime/WeakMapBase.cpp
 runtime/WeakMapConstructor.cpp
+runtime/WeakMapImpl.cpp
 runtime/WeakMapPrototype.cpp
 runtime/WeakSetConstructor.cpp
 runtime/WeakSetPrototype.cpp
@@ -937,8 +950,8 @@ runtime/ByteCodeStoreUtils.cpp
 runtime/ByteCodeReadStore.cpp
 runtime/ByteCodeWriteStore.cpp
 
-# Derived Sources
-# FIXME: We should move this to runtime but it kept breaking the Windows build in weird ways... https://bugs.webkit.org/show_bug.cgi?id=177486
+// Derived Sources
+// FIXME: We should move this to runtime but it kept breaking the Windows build in weird ways... https://bugs.webkit.org/show_bug.cgi?id=177486
 JSCBuiltins.cpp
 
 tools/CellList.cpp
@@ -948,11 +961,9 @@ tools/FunctionOverrides.cpp
 tools/FunctionWhitelist.cpp
 tools/HeapVerifier.cpp
 tools/JSDollarVM.cpp
-tools/JSDollarVMPrototype.cpp
 tools/SigillCrashAnalyzer.cpp
 tools/VMInspector.cpp
 
-wasm/JSWebAssembly.cpp
 wasm/WasmB3IRGenerator.cpp
 wasm/WasmBBQPlan.cpp
 wasm/WasmBinding.cpp
@@ -960,12 +971,16 @@ wasm/WasmCallee.cpp
 wasm/WasmCallingConvention.cpp
 wasm/WasmCodeBlock.cpp
 wasm/WasmContext.cpp
+wasm/WasmEmbedder.h
 wasm/WasmFaultSignalHandler.cpp
 wasm/WasmFormat.cpp
 wasm/WasmIndexOrName.cpp
+wasm/WasmInstance.cpp
+wasm/WasmInstance.h
 wasm/WasmMachineThreads.cpp
 wasm/WasmMemory.cpp
 wasm/WasmMemoryInformation.cpp
+wasm/WasmMemoryMode.cpp
 wasm/WasmModule.cpp
 wasm/WasmModuleInformation.cpp
 wasm/WasmModuleParser.cpp
@@ -975,12 +990,17 @@ wasm/WasmOpcodeOrigin.cpp
 wasm/WasmPageCount.cpp
 wasm/WasmPlan.cpp
 wasm/WasmSignature.cpp
+wasm/WasmTable.cpp
+wasm/WasmTable.h
 wasm/WasmThunks.cpp
 wasm/WasmValidate.cpp
 wasm/WasmWorklist.cpp
 
+wasm/js/JSToWasm.cpp
+wasm/js/JSToWasm.h
+wasm/js/JSWebAssembly.cpp
 wasm/js/JSWebAssemblyCodeBlock.cpp
-wasm/js/JSWebAssemblyCodeBlockSubspace.cpp
+wasm/js/JSWebAssemblyCodeBlockHeapCellType.cpp
 wasm/js/JSWebAssemblyCompileError.cpp
 wasm/js/JSWebAssemblyInstance.cpp
 wasm/js/JSWebAssemblyLinkError.cpp
@@ -988,6 +1008,8 @@ wasm/js/JSWebAssemblyMemory.cpp
 wasm/js/JSWebAssemblyModule.cpp
 wasm/js/JSWebAssemblyRuntimeError.cpp
 wasm/js/JSWebAssemblyTable.cpp
+wasm/js/WasmToJS.cpp
+wasm/js/WasmToJS.h
 wasm/js/WebAssemblyCompileErrorConstructor.cpp
 wasm/js/WebAssemblyCompileErrorPrototype.cpp
 wasm/js/WebAssemblyFunction.cpp
@@ -1011,10 +1033,12 @@ wasm/js/WebAssemblyWrapperFunction.cpp
 
 yarr/RegularExpression.cpp
 yarr/YarrCanonicalizeUCS2.cpp
+yarr/YarrErrorCode.cpp
 yarr/YarrInterpreter.cpp
 yarr/YarrJIT.cpp
 yarr/YarrPattern.cpp
 yarr/YarrSyntaxChecker.cpp
+yarr/YarrUnicodeProperties.cpp
 
-# Derived Sources
+// Derived Sources
 yarr/YarrCanonicalizeUnicode.cpp

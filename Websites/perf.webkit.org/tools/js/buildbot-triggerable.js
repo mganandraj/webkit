@@ -27,11 +27,36 @@ class BuildbotTriggerable {
         this._logger = logger || {log: () => { }, error: () => { }};
     }
 
+    // This method handles Buildbot 0.9 data format
+    getBuilderNameToIDMap()
+    {
+        return this._buildbotRemote.getJSON("/api/v2/builders").then((content) => {
+            assert(content.builders instanceof Array);
+
+            const builderNameToIDMap = {};
+            for (const builder of content.builders)
+                builderNameToIDMap[builder.name] = builder.builderid;
+
+            return builderNameToIDMap;
+        });
+    }
+
+    // This method handles Buildbot 0.8 data format
+    getBuilderNameToIDMapDeprecated()
+    {
+        return this._buildbotRemote.getJSON("/json/builders").then((content) => {
+            const builderNameToIDMap = {};
+            for (let builder in content)
+                builderNameToIDMap[builder] = builder;
+
+            return builderNameToIDMap;
+        });
+    }
+
     initSyncers()
     {
-        return new Promise((resolve, reject) => {
-            this._syncers = BuildbotSyncer._loadConfig(this._buildbotRemote, this._config);
-            setTimeout(resolve, 0);
+        return this.getBuilderNameToIDMapDeprecated().then((builderNameToIDMap) => {
+            this._syncers = BuildbotSyncer._loadConfig(this._buildbotRemote, this._config, builderNameToIDMap);
         });
     }
 
@@ -154,17 +179,19 @@ class BuildbotTriggerable {
 
                     const info = buildReqeustsByGroup.get(request.testGroupId());
                     if (request.isBuild()) {
-                        assert(!info.buildSyncer || info.buildSyncer == buildSyncer);
+                        assert(!info.buildSyncer || info.buildSyncer == syncer);
                         if (entry.slaveName()) {
                             assert(!info.buildSlaveName || info.buildSlaveName == entry.slaveName());
                             info.buildSlaveName = entry.slaveName();
                         }
+                        info.buildSyncer = syncer;
                     } else {
-                        assert(!info.testSyncer || info.testSyncer == testSyncer);
+                        assert(!info.testSyncer || info.testSyncer == syncer);
                         if (entry.slaveName()) {
                             assert(!info.testSlaveName || info.testSlaveName == entry.slaveName());
                             info.testSlaveName = entry.slaveName();
                         }
+                        info.testSyncer = syncer;
                     }
 
                     const newStatus = entry.buildRequestStatusIfUpdateIsNeeded(request);
@@ -238,7 +265,7 @@ class BuildbotTriggerable {
         for (let request of buildRequests) {
             let groupId = request.testGroupId();
             if (!map.has(groupId)) // Don't use real TestGroup objects to avoid executing postgres query in the server
-                map.set(groupId, {id: groupId, groupOrder: groupOrder++, requests: [request], syncer: null, slaveName: null});
+                map.set(groupId, {id: groupId, groupOrder: groupOrder++, requests: [request], buildSyncer: null, testSyncer: null, slaveName: null});
             else
                 map.get(groupId).requests.push(request);
         }

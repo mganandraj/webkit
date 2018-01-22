@@ -9,6 +9,7 @@ editing/input/focus-change-with-marked-text.html [ Pass ]
 
 # No service worker implementation for WK1
 imported/w3c/web-platform-tests/service-workers [ Skip ]
+http/wpt/service-workers [ Skip ]
 http/wpt/cache-storage [ Skip ]
 http/tests/cache-storage [ Skip ]
 
@@ -123,7 +124,6 @@ editing/style/apple-style-editable-mix.html [ Failure ]
 # Editing tests that time out:
 editing/deleting/delete-button-background-image-none.html
 editing/input/page-up-down-scrolls.html
-editing/input/reveal-contenteditable-on-input-vertically.html
 editing/selection/caret-at-bidi-boundary.html
 editing/spelling/context-menu-suggestions-multiword-selection.html
 editing/spelling/delete-into-misspelled-word.html
@@ -875,9 +875,6 @@ fast/transforms/transformed-caret.html [ Failure ]
 fast/transforms/transformed-focused-text-input.html [ Failure ]
 fast/writing-mode/Kusa-Makura-background-canvas.html [ Failure ]
 http/tests/navigation/page-cache-iframe-no-current-historyItem.html [ Failure ]
-
-# XMLHttpRequest tests that fail
-webkit.org/b/82672 http/tests/xmlhttprequest/range-test.html [ Failure ]
 
 # JavaScripts tests that fail:
 js/dom/deep-recursion-test.html [ Failure ]
@@ -1900,3 +1897,12 @@ http/tests/websocket/tests/hybi/network-process-crash-error.html [ Skip ]
 http/tests/css/filters-on-iframes.html [ Skip ]
 
 webkit.org/b/172092 [ Release ] fast/parser/adoption-agency-unload-iframe-4.html [ Timeout ]
+
+# FIXME: For some reason EventSender.keyDown() does not work.
+webkit.org/b/178490 fast/text/scroll-text-overflow-ellipsis.html [ Skip ]
+
+# User-installed fonts test infrastructure is not present in WK1
+webkit.org/b/180062 fast/text/user-installed-fonts [ ImageOnlyFailure ]
+
+# rdar://problem/34716163 Breaks subsequent tests using response.xml
+http/tests/xmlhttprequest/range-test.html [ Skip ]

@@ -27,12 +27,19 @@
 #include "StorageToWebProcessConnection.h"
 
 #include "Logging.h"
+#include "StorageProcess.h"
+#include "StorageProcessMessages.h"
 #include "StorageToWebProcessConnectionMessages.h"
 #include "WebIDBConnectionToClient.h"
 #include "WebIDBConnectionToClientMessages.h"
 #include "WebSWServerConnection.h"
 #include "WebSWServerConnectionMessages.h"
 #include <wtf/RunLoop.h>
+
+#if ENABLE(SERVICE_WORKER)
+#include "WebSWServerToContextConnection.h"
+#include "WebSWServerToContextConnectionMessages.h"
+#endif
 
 using namespace PAL;
 using namespace WebCore;
@@ -63,6 +70,11 @@ void StorageToWebProcessConnection::didReceiveMessage(IPC::Connection& connectio
         return;
     }
 
+    if (decoder.messageReceiverName() == Messages::StorageProcess::messageReceiverName()) {
+        StorageProcess::singleton().didReceiveStorageProcessMessage(connection, decoder);
+        return;
+    }
+
 #if ENABLE(INDEXED_DATABASE)
     if (decoder.messageReceiverName() == Messages::WebIDBConnectionToClient::messageReceiverName()) {
         auto iterator = m_webIDBConnections.find(decoder.destinationID());
@@ -74,9 +86,14 @@ void StorageToWebProcessConnection::didReceiveMessage(IPC::Connection& connectio
 
 #if ENABLE(SERVICE_WORKER)
     if (decoder.messageReceiverName() == Messages::WebSWServerConnection::messageReceiverName()) {
-        auto iterator = m_swConnections.find(decoder.destinationID());
+        auto iterator = m_swConnections.find(makeObjectIdentifier<SWServerConnectionIdentifierType>(decoder.destinationID()));
         if (iterator != m_swConnections.end())
             iterator->value->didReceiveMessage(connection, decoder);
+        return;
+    }
+
+    if (decoder.messageReceiverName() == Messages::WebSWServerToContextConnection::messageReceiverName()) {
+        StorageProcess::singleton().globalServerToContextConnection()->didReceiveMessage(connection, decoder);
         return;
     }
 #endif
@@ -91,11 +108,29 @@ void StorageToWebProcessConnection::didReceiveSyncMessage(IPC::Connection& conne
         return;
     }
 
+#if ENABLE(SERVICE_WORKER)
+    if (decoder.messageReceiverName() == Messages::WebSWServerConnection::messageReceiverName()) {
+        auto iterator = m_swConnections.find(makeObjectIdentifier<SWServerConnectionIdentifierType>(decoder.destinationID()));
+        if (iterator != m_swConnections.end())
+            iterator->value->didReceiveSyncMessage(connection, decoder, replyEncoder);
+        return;
+    }
+#endif
+
     ASSERT_NOT_REACHED();
 }
 
-void StorageToWebProcessConnection::didClose(IPC::Connection&)
+void StorageToWebProcessConnection::didClose(IPC::Connection& connection)
 {
+    UNUSED_PARAM(connection);
+
+#if ENABLE(SERVICE_WORKER)
+    if (StorageProcess::singleton().globalServerToContextConnection() && StorageProcess::singleton().globalServerToContextConnection()->ipcConnection() == &connection) {
+        // Service Worker process exited.
+        StorageProcess::singleton().connectionToContextProcessWasClosed();
+    }
+#endif
+
 #if ENABLE(INDEXED_DATABASE)
     auto idbConnections = m_webIDBConnections;
     for (auto& connection : idbConnections.values())
@@ -122,42 +157,49 @@ void StorageToWebProcessConnection::didReceiveInvalidMessage(IPC::Connection&, I
 
 }
 
-static uint64_t generateConnectionToServerIdentifier()
-{
-    ASSERT(RunLoop::isMain());
-    static uint64_t identifier = 0;
-    return ++identifier;
-}
-
 #if ENABLE(SERVICE_WORKER)
-void StorageToWebProcessConnection::establishSWServerConnection(SessionID sessionID, uint64_t& serverConnectionIdentifier)
+void StorageToWebProcessConnection::establishSWServerConnection(SessionID sessionID, SWServerConnectionIdentifier& serverConnectionIdentifier)
 {
-    serverConnectionIdentifier = generateConnectionToServerIdentifier();
-    LOG(ServiceWorker, "StorageToWebProcessConnection::establishSWServerConnection - %" PRIu64, serverConnectionIdentifier);
+    auto& server = StorageProcess::singleton().swServerForSession(sessionID);
+    auto connection = std::make_unique<WebSWServerConnection>(server, m_connection.get(), sessionID);
+
+    serverConnectionIdentifier = connection->identifier();
+    LOG(ServiceWorker, "StorageToWebProcessConnection::establishSWServerConnection - %s", serverConnectionIdentifier.loggingString().utf8().data());
     ASSERT(!m_swConnections.contains(serverConnectionIdentifier));
 
-    auto result = m_swServers.add(sessionID, nullptr);
-    if (result.isNewEntry)
-        result.iterator->value = std::make_unique<SWServer>();
+    auto addResult = m_swConnections.add(serverConnectionIdentifier, WTFMove(connection));
+    ASSERT_UNUSED(addResult, addResult.isNewEntry);
 
-    ASSERT(result.iterator->value);
-
-    m_swConnections.set(serverConnectionIdentifier, std::make_unique<WebSWServerConnection>(*result.iterator->value, m_connection.get(), serverConnectionIdentifier, sessionID));
+    if (!StorageProcess::singleton().globalServerToContextConnection())
+        StorageProcess::singleton().createServerToContextConnection(sessionID);
 }
 
-void StorageToWebProcessConnection::removeSWServerConnection(uint64_t serverConnectionIdentifier)
+void StorageToWebProcessConnection::removeSWServerConnection(WebCore::SWServer::Connection::Identifier serverConnectionIdentifier)
 {
     ASSERT(m_swConnections.contains(serverConnectionIdentifier));
 
     auto connection = m_swConnections.take(serverConnectionIdentifier);
     connection->disconnectedFromWebProcess();
 }
+
+void StorageToWebProcessConnection::workerContextProcessConnectionCreated()
+{
+    for (auto* server : SWServer::allServers())
+        server->serverToContextConnectionCreated();
+}
 #endif
 
 #if ENABLE(INDEXED_DATABASE)
+static uint64_t generateIDBConnectionToServerIdentifier()
+{
+    ASSERT(RunLoop::isMain());
+    static uint64_t identifier = 0;
+    return ++identifier;
+}
+
 void StorageToWebProcessConnection::establishIDBConnectionToServer(SessionID sessionID, uint64_t& serverConnectionIdentifier)
 {
-    serverConnectionIdentifier = generateConnectionToServerIdentifier();
+    serverConnectionIdentifier = generateIDBConnectionToServerIdentifier();
     LOG(IndexedDB, "StorageToWebProcessConnection::establishIDBConnectionToServer - %" PRIu64, serverConnectionIdentifier);
     ASSERT(!m_webIDBConnections.contains(serverConnectionIdentifier));
 
@@ -172,6 +214,5 @@ void StorageToWebProcessConnection::removeIDBConnectionToServer(uint64_t serverC
     connection->disconnectedFromWebProcess();
 }
 #endif
-
 
 } // namespace WebKit

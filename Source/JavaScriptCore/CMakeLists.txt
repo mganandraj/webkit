@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 2.8.12)
 include(WebKitCommon)
 set_property(DIRECTORY . PROPERTY FOLDER "JavaScriptCore")
 
+list(APPEND JavaScriptCore_UNIFIED_SOURCE_LIST_FILES
+    "Sources.txt"
+)
+
 set(JavaScriptCore_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
     "${JAVASCRIPTCORE_DIR}"
@@ -48,12 +52,12 @@ set(JavaScriptCore_SYSTEM_INCLUDE_DIRECTORIES
     "${ICU_INCLUDE_DIRS}"
 )
 
-WEBKIT_COMPUTE_SOURCES(JavaScriptCore)
-
 set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/ArrayConstructor.cpp
     runtime/ArrayIteratorPrototype.cpp
     runtime/AsyncGeneratorPrototype.cpp
+    runtime/BigIntConstructor.cpp
+    runtime/BigIntPrototype.cpp
     runtime/BooleanPrototype.cpp
     runtime/DateConstructor.cpp
     runtime/DatePrototype.cpp
@@ -356,6 +360,8 @@ set(JavaScriptCore_FORWARDING_HEADERS_DIRECTORIES
 # GENERATOR 1-B: particular LUT creator (for 1 file only)
 GENERATE_HASH_LUT(${CMAKE_CURRENT_SOURCE_DIR}/parser/Keywords.table ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Lexer.lut.h)
 
+file(MAKE_DIRECTORY ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr)
+
 #GENERATOR: "RegExpJitTables.h": tables used by Yarr
 add_custom_command(
     OUTPUT ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/RegExpJitTables.h
@@ -364,6 +370,15 @@ add_custom_command(
     VERBATIM)
 list(APPEND JavaScriptCore_HEADERS ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/RegExpJitTables.h)
 WEBKIT_ADD_SOURCE_DEPENDENCIES(${CMAKE_CURRENT_SOURCE_DIR}/yarr/YarrPattern.cpp ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/RegExpJitTables.h)
+
+add_custom_command(
+    OUTPUT ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/UnicodePatternTables.h
+    MAIN_DEPENDENCY ${JAVASCRIPTCORE_DIR}/Scripts/generateYarrUnicodePropertyTables.py
+    DEPENDS ${JAVASCRIPTCORE_DIR}/Scripts/hasher.py ${JAVASCRIPTCORE_DIR}/ucd/DerivedBinaryProperties.txt ${JAVASCRIPTCORE_DIR}/ucd/DerivedCoreProperties.txt ${JAVASCRIPTCORE_DIR}/ucd/DerivedNormalizationProps.txt ${JAVASCRIPTCORE_DIR}/ucd/PropList.txt ${JAVASCRIPTCORE_DIR}/ucd/PropertyAliases.txt ${JAVASCRIPTCORE_DIR}/ucd/PropertyValueAliases.txt ${JAVASCRIPTCORE_DIR}/ucd/ScriptExtensions.txt ${JAVASCRIPTCORE_DIR}/ucd/Scripts.txt ${JAVASCRIPTCORE_DIR}/ucd/UnicodeData.txt ${JAVASCRIPTCORE_DIR}/ucd/emoji-data.txt
+    COMMAND ${PYTHON_EXECUTABLE} ${JAVASCRIPTCORE_DIR}/Scripts/generateYarrUnicodePropertyTables.py ${JAVASCRIPTCORE_DIR}/ucd ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/UnicodePatternTables.h
+    VERBATIM)
+list(APPEND JavaScriptCore_HEADERS ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/UnicodePatternTables.h)
+WEBKIT_ADD_SOURCE_DEPENDENCIES(${CMAKE_CURRENT_SOURCE_DIR}/yarr/UnicodePatternTables.cpp ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/UnicodePatternTables.h)
 
 add_custom_command(
     OUTPUT ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/yarr/YarrCanonicalizeUnicode.cpp
@@ -437,6 +452,12 @@ endif ()
 if (ENABLE_RESOURCE_USAGE)
     list(APPEND JavaScriptCore_INSPECTOR_DOMAINS
         ${JAVASCRIPTCORE_DIR}/inspector/protocol/Memory.json
+    )
+endif ()
+
+if (ENABLE_SERVICE_WORKER)
+    list(APPEND JavaScriptCore_INSPECTOR_DOMAINS
+        ${JAVASCRIPTCORE_DIR}/inspector/protocol/ServiceWorker.json
     )
 endif ()
 
@@ -557,19 +578,7 @@ add_custom_command(
 
 list(APPEND JavaScriptCore_HEADERS ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/InjectedScriptSource.h)
 
-if (WTF_CPU_ARM)
-elseif (WTF_CPU_ARM64)
-elseif (WTF_CPU_ALPHA)
-elseif (WTF_CPU_HPPA)
-elseif (WTF_CPU_PPC)
-elseif (WTF_CPU_PPC64)
-elseif (WTF_CPU_PPC64LE)
-elseif (WTF_CPU_S390)
-elseif (WTF_CPU_S390X)
-elseif (WTF_CPU_MIPS)
-elseif (WTF_CPU_SH4)
-elseif (WTF_CPU_X86)
-elseif (WTF_CPU_X86_64)
+if (WTF_CPU_X86_64)
     if (MSVC AND ENABLE_JIT)
         add_custom_command(
             OUTPUT ${DERIVED_SOURCES_DIR}/JITStubsMSVC64.obj
@@ -579,8 +588,6 @@ elseif (WTF_CPU_X86_64)
 
         list(APPEND JavaScriptCore_SOURCES ${DERIVED_SOURCES_DIR}/JITStubsMSVC64.obj)
     endif ()
-else ()
-    message(FATAL_ERROR "Unknown CPU")
 endif ()
 
 WEBKIT_FRAMEWORK_DECLARE(JavaScriptCore)
@@ -589,12 +596,14 @@ WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
 WEBKIT_CREATE_FORWARDING_HEADERS(JavaScriptCore DIRECTORIES ${JavaScriptCore_FORWARDING_HEADERS_DIRECTORIES} FILES ${JavaScriptCore_FORWARDING_HEADERS_FILES})
 
 target_include_directories(LLIntOffsetsExtractor PRIVATE ${JavaScriptCore_INCLUDE_DIRECTORIES})
+target_include_directories(LLIntOffsetsExtractor SYSTEM PUBLIC ${JavaScriptCore_SYSTEM_INCLUDE_DIRECTORIES})
 
 # Don't built shell for android
 if (NOT ANDROID)
 	add_subdirectory(shell)
 endif ()
 
+WEBKIT_COMPUTE_SOURCES(JavaScriptCore)
 WEBKIT_WRAP_SOURCELIST(${JavaScriptCore_SOURCES})
 WEBKIT_FRAMEWORK(JavaScriptCore)
 

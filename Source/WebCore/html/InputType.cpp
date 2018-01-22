@@ -68,6 +68,7 @@
 #include "ShadowRoot.h"
 #include "SubmitInputType.h"
 #include "TelephoneInputType.h"
+#include "TextControlInnerElements.h"
 #include "TextInputType.h"
 #include "TimeInputType.h"
 #include "URLInputType.h"
@@ -163,9 +164,7 @@ std::unique_ptr<InputType> InputType::createText(HTMLInputElement& element)
     return std::make_unique<TextInputType>(element);
 }
 
-InputType::~InputType()
-{
-}
+InputType::~InputType() = default;
 
 bool InputType::themeSupportsDataListUI(InputType* type)
 {
@@ -194,10 +193,10 @@ bool InputType::shouldSaveAndRestoreFormControlState() const
 
 FormControlState InputType::saveFormControlState() const
 {
-    String currentValue = element().value();
+    auto currentValue = element().value();
     if (currentValue == element().defaultValue())
-        return FormControlState();
-    return FormControlState(currentValue);
+        return { };
+    return { { currentValue } };
 }
 
 void InputType::restoreFormControlState(const FormControlState& state)
@@ -495,7 +494,7 @@ void InputType::createShadowSubtree()
 
 void InputType::destroyShadowSubtree()
 {
-    ShadowRoot* root = element().userAgentShadowRoot();
+    RefPtr<ShadowRoot> root = element().userAgentShadowRoot();
     if (!root)
         return;
 
@@ -698,7 +697,7 @@ void InputType::willDispatchClick(InputElementClickState&)
 {
 }
 
-void InputType::didDispatchClick(Event*, const InputElementClickState&)
+void InputType::didDispatchClick(Event&, const InputElementClickState&)
 {
 }
 
@@ -1143,8 +1142,13 @@ Color InputType::valueAsColor() const
     return Color::transparent;
 }
 
-void InputType::selectColor(const Color&)
+void InputType::selectColor(StringView)
 {
+}
+
+RefPtr<TextControlInnerTextElement> InputType::innerTextElement() const
+{
+    return nullptr;
 }
 
 } // namespace WebCore

@@ -45,7 +45,7 @@
 #import <wtf/SoftLinking.h>
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
-SOFT_LINK_PRIVATE_FRAMEWORK(LinkPresentation)
+SOFT_LINK_PRIVATE_FRAMEWORK_OPTIONAL(LinkPresentation)
 #endif
 
 namespace WebCore {
@@ -198,11 +198,10 @@ LinkImageLayout::LinkImageLayout(URL& url, const String& titleString)
     NSURL *cocoaURL = url;
     NSString *absoluteURLString = [cocoaURL absoluteString];
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
-    LinkPresentationLibrary();
-    NSString *domain = [cocoaURL _lp_simplifiedDisplayString];
-#else
     NSString *domain = absoluteURLString;
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
+    if (LinkPresentationLibrary())
+        domain = [cocoaURL _lp_simplifiedDisplayString];
 #endif
 
     if ([title isEqualToString:absoluteURLString])
@@ -303,7 +302,11 @@ DragImageRef createDragImageForLink(Element&, URL& url, const String& title, Tex
     RetainPtr<NSImage> dragImage = adoptNS([[NSImage alloc] initWithSize:imageSize]);
     [dragImage lockFocus];
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     GraphicsContext context((CGContextRef)[NSGraphicsContext currentContext].graphicsPort);
+#pragma clang diagnostic pop
+
 #if __MAC_OS_X_VERSION_MIN_REQUIRED < 101300
     context.translate(linkImageShadowRadius, linkImageShadowRadius - linkImageShadowOffsetY);
     context.setShadow({ 0, linkImageShadowOffsetY }, linkImageShadowRadius, { 0.f, 0.f, 0.f, .25 });

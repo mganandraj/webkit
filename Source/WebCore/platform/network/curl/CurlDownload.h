@@ -30,7 +30,7 @@
 #if USE(CURL)
 
 #include "CurlRequest.h"
-#include "CurlRequestDelegate.h"
+#include "CurlRequestClient.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
 
@@ -47,7 +47,7 @@ public:
     virtual void didFail() { }
 };
 
-class CurlDownload : public ThreadSafeRefCounted<CurlDownload>, public CurlRequestDelegate {
+class CurlDownload : public ThreadSafeRefCounted<CurlDownload>, public CurlRequestClient {
 public:
     CurlDownload() = default;
     ~CurlDownload();
@@ -57,7 +57,7 @@ public:
 
     void setListener(CurlDownloadListener* listener) { m_listener = listener; }
 
-    bool start();
+    void start();
     bool cancel();
 
     bool deletesFileUponFailure() const { return m_deletesFileUponFailure; }

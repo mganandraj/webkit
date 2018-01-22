@@ -47,6 +47,7 @@
 #import "HTMLObjectElement.h"
 #import "HitTestRequest.h"
 #import "HitTestResult.h"
+#import "Logging.h"
 #import "MainFrame.h"
 #import "NodeRenderStyle.h"
 #import "NodeTraversal.h"
@@ -67,6 +68,7 @@
 #import "WAKWindow.h"
 #import <runtime/JSLock.h>
 #import <wtf/BlockObjCExceptions.h>
+#import <wtf/text/TextStream.h>
 
 using namespace WebCore::HTMLNames;
 using namespace WTF::Unicode;
@@ -117,7 +119,7 @@ NSArray *Frame::wordsInCurrentParagraph() const
     if (!isStartOfParagraph(end)) {
         VisiblePosition previous = end.previous();
         UChar c(previous.characterAfter());
-        if (!iswpunct(c) && !isSpaceOrNewline(c) && c != 0xA0)
+        if (!iswpunct(c) && !isSpaceOrNewline(c) && c != noBreakSpace)
             end = startOfWord(end);
     }
     VisiblePosition start(startOfParagraph(end));
@@ -138,7 +140,7 @@ NSArray *Frame::wordsInCurrentParagraph() const
         if (length > 1 || !isSpaceOrNewline(text[0])) {
             int startOfWordBoundary = 0;
             for (int i = 1; i < length; i++) {
-                if (isSpaceOrNewline(text[i]) || text[i] == 0xA0) {
+                if (isSpaceOrNewline(text[i]) || text[i] == noBreakSpace) {
                     int wordLength = i - startOfWordBoundary;
                     if (wordLength > 0) {
                         RetainPtr<NSString> chunk = text.substring(startOfWordBoundary, wordLength).createNSString();
@@ -158,7 +160,7 @@ NSArray *Frame::wordsInCurrentParagraph() const
     if ([words count] > 0 && isEndOfParagraph(position) && !isStartOfParagraph(position)) {
         VisiblePosition previous = position.previous();
         UChar c(previous.characterAfter());
-        if (!isSpaceOrNewline(c) && c != 0xA0)
+        if (!isSpaceOrNewline(c) && c != noBreakSpace)
             [words removeLastObject];
     }
 
@@ -697,22 +699,13 @@ NSArray *Frame::interpretationsForCurrentRoot() const
     return result;
 }
 
-static bool anyFrameHasTiledLayers(Frame* rootFrame)
-{
-    for (Frame* frame = rootFrame; frame; frame = frame->tree().traverseNext(rootFrame)) {
-        if (frame->containsTiledBackingLayers())
-            return true;
-    }
-    return false;
-}
-
 void Frame::viewportOffsetChanged(ViewportOffsetChangeType changeType)
 {
+    LOG_WITH_STREAM(Scrolling, stream << "Frame::viewportOffsetChanged - " << (changeType == IncrementalScrollOffset ? "incremental" : "completed"));
+
     if (changeType == IncrementalScrollOffset) {
-        if (anyFrameHasTiledLayers(this)) {
-            if (RenderView* root = contentRenderer())
-                root->compositor().didChangeVisibleRect();
-        }
+        if (RenderView* root = contentRenderer())
+            root->compositor().didChangeVisibleRect();
     }
 
     if (changeType == CompletedScrollOffset) {
@@ -731,6 +724,8 @@ bool Frame::containsTiledBackingLayers() const
 
 void Frame::overflowScrollPositionChangedForNode(const IntPoint& position, Node* node, bool isUserScroll)
 {
+    LOG_WITH_STREAM(Scrolling, stream << "Frame::overflowScrollPositionChangedForNode " << node << " position " << position);
+
     RenderObject* renderer = node->renderer();
     if (!renderer || !renderer->hasLayer())
         return;

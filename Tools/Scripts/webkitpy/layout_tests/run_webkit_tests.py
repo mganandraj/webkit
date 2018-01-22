@@ -28,6 +28,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
 import logging
 import optparse
 import os
@@ -35,7 +36,6 @@ import sys
 import traceback
 
 from webkitpy.common.host import Host
-from webkitpy.common.interupt_debugging import log_stack_trace_on_cntrl_c, log_stack_trace_on_term
 from webkitpy.layout_tests.controllers.manager import Manager
 from webkitpy.layout_tests.models.test_run_results import INTERRUPTED_EXIT_STATUS
 from webkitpy.port import configuration_options, platform_options
@@ -69,14 +69,10 @@ def main(argv, stdout, stderr):
 
     try:
         port = host.port_factory.get(options.platform, options)
-    except NotImplementedError, e:
+    except NotImplementedError as e:
         # FIXME: is this the best way to handle unsupported port names?
-        print >> stderr, str(e)
+        print(str(e), file=stderr)
         return EXCEPTIONAL_EXIT_STATUS
-
-    stack_trace_path = host.filesystem.join(port.results_directory(), 'python_stack_trace.txt')
-    log_stack_trace_on_cntrl_c(output_file=stack_trace_path)
-    log_stack_trace_on_term(output_file=stack_trace_path)
 
     if options.print_expectations:
         return _print_expectations(port, options, args, stderr)
@@ -97,7 +93,7 @@ def main(argv, stdout, stderr):
         return INTERRUPTED_EXIT_STATUS
     except BaseException as e:
         if isinstance(e, Exception):
-            print >> stderr, '\n%s raised: %s' % (e.__class__.__name__, str(e))
+            print('\n%s raised: %s' % (e.__class__.__name__, str(e)), file=stderr)
             traceback.print_exc(file=stderr)
         return EXCEPTIONAL_EXIT_STATUS
 
@@ -300,7 +296,6 @@ def parse_args(args):
         optparse.make_option('--no-install', action='store_const', const=False, default=True, dest='install',
             help='Skip install step for device and simulator testing'),
         optparse.make_option('--version', help='Specify the version of iOS to be used. By default, this will adopt the runtime for iOS Simulator.'),
-        optparse.make_option('--runtime', help='iOS Simulator runtime identifier (default: latest runtime)'),
         optparse.make_option('--device-type', help='iOS Simulator device type identifier (default: i386 -> iPhone 5, x86_64 -> iPhone 5s)'),
         optparse.make_option('--dedicated-simulators', action="store_true", default=False,
             help="If set, dedicated iOS simulators will always be created.  If not set, the script will attempt to use any currently running simulator."),
@@ -331,9 +326,9 @@ def parse_args(args):
             help=("The name of the buildslave used. e.g. apple-macpro-6.")),
         optparse.make_option("--build-number", default="DUMMY_BUILD_NUMBER",
             help=("The build number of the builder running this script.")),
-        optparse.make_option("--test-results-server", default="",
+        optparse.make_option("--test-results-server", action="append", default=[],
             help=("If specified, upload results json files to this appengine server.")),
-        optparse.make_option("--results-server-host", default="",
+        optparse.make_option("--results-server-host", action="append", default=[],
             help=("If specified, upload results JSON file to this results server.")),
         optparse.make_option("--additional-repository-name",
             help=("The name of an additional subversion or git checkout")),
@@ -343,7 +338,7 @@ def parse_args(args):
             help=("If specified, tests are allowed to make requests to the specified hostname."))
     ]))
 
-    option_parser = optparse.OptionParser()
+    option_parser = optparse.OptionParser(usage="%prog [options] [<path>...]")
 
     for group_name, group_options in option_group_definitions:
         option_group = optparse.OptionGroup(option_parser, group_name)

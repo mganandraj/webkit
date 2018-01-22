@@ -19,9 +19,14 @@ set(WTF_HEADERS
     ClockType.h
     CompilationThread.h
     Compiler.h
+    ConcurrentBuffer.h
+    ConcurrentPtrHashSet.h
+    ConcurrentVector.h
     Condition.h
+    CountingLock.h
     CrossThreadCopier.h
     CrossThreadTask.h
+    CrossThreadTaskHandler.h
     CryptographicUtilities.h
     CryptographicallyRandomNumber.h
     CurrentTime.h
@@ -33,6 +38,7 @@ set(WTF_HEADERS
     Deque.h
     DisallowCType.h
     DoublyLinkedList.h
+    DumbPtrTraits.h
     FastMalloc.h
     FastTLS.h
     FeatureDefines.h
@@ -61,6 +67,7 @@ set(WTF_HEADERS
     IndexedContainerIterator.h
     IteratorAdaptors.h
     IteratorRange.h
+    JSONValues.h
     Language.h
     ListHashSet.h
     Liveness.h
@@ -104,6 +111,8 @@ set(WTF_HEADERS
     ParkingLot.h
     Platform.h
     PlatformRegisters.h
+    Poisoned.h
+    PoisonedUniquePtr.h
     PrintStream.h
     ProcessID.h
     RAMSize.h
@@ -131,9 +140,10 @@ set(WTF_HEADERS
     SegmentedVector.h
     SmallPtrSet.h
     StackBounds.h
+    StackShot.h
+    StackShotProfiler.h
     StackStats.h
     StackTrace.h
-    StaticConstructors.h
     StdLibExtras.h
     Stopwatch.h
     StringExtras.h
@@ -147,6 +157,7 @@ set(WTF_HEADERS
     Threading.h
     ThreadingPrimitives.h
     TimeWithDynamicClockType.h
+    TimingScope.h
     TinyPtrSet.h
     UUID.h
     UniqueRef.h
@@ -184,6 +195,7 @@ set(WTF_HEADERS
     text/StringBuffer.h
     text/StringCommon.h
     text/StringHash.h
+    text/StringHasher.h
     text/StringImpl.h
     text/StringMalloc.h
     text/StringVector.h
@@ -219,7 +231,10 @@ set(WTF_SOURCES
     CPUTime.cpp
     ClockType.cpp
     CompilationThread.cpp
+    ConcurrentPtrHashSet.cpp
+    CountingLock.cpp
     CrossThreadCopier.cpp
+    CrossThreadTaskHandler.cpp
     CryptographicUtilities.cpp
     CryptographicallyRandomNumber.cpp
     CurrentTime.cpp
@@ -234,6 +249,8 @@ set(WTF_SOURCES
     GlobalVersion.cpp
     GregorianDateTime.cpp
     HashTable.cpp
+    JSONValues.cpp
+    JSValueMalloc.cpp
     Language.cpp
     Lock.cpp
     LockedPrintStream.cpp
@@ -249,6 +266,7 @@ set(WTF_SOURCES
     ParallelHelperPool.cpp
     ParallelJobsGeneric.cpp
     ParkingLot.cpp
+    Poisoned.cpp
     PrintStream.cpp
     RAMSize.cpp
     RandomDevice.cpp
@@ -267,7 +285,9 @@ set(WTF_SOURCES
     ThreadMessage.cpp
     Threading.cpp
     TimeWithDynamicClockType.cpp
+    TimingScope.cpp
     UUID.cpp
+    WTFAssertions.cpp
     WallTime.cpp
     WordLock.cpp
     WorkQueue.cpp
@@ -407,10 +427,10 @@ if (MSVC)
         VERBATIM)
 endif ()
 
-file(MAKE_DIRECTORY ${FORWARDING_HEADERS_DIR}/WTF/Scripts)
+file(MAKE_DIRECTORY ${FORWARDING_HEADERS_DIR}/wtf/Scripts)
 
 file(COPY
     ../Scripts/generate-unified-source-bundles.rb
     DESTINATION
-    ${FORWARDING_HEADERS_DIR}/WTF/Scripts
+    ${FORWARDING_HEADERS_DIR}/wtf/Scripts
 )

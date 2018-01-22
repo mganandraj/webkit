@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "LogMacros.h"
+#include <pal/LogMacros.h>
 #include <wtf/Assertions.h>
 #include <wtf/Forward.h>
 
@@ -42,11 +42,13 @@ namespace WebCore {
     M(Archives) \
     M(Compositing) \
     M(ContentFiltering) \
+    M(DatabaseTracker) \
     M(DisplayLists) \
     M(DOMTimers) \
     M(Editing) \
     M(Events) \
     M(FileAPI) \
+    M(Filters) \
     M(Frames) \
     M(FTP) \
     M(Fullscreen) \
@@ -67,6 +69,7 @@ namespace WebCore {
     M(MediaStream) \
     M(MediaSourceSamples) \
     M(MemoryPressure) \
+    M(MessagePorts) \
     M(Network) \
     M(NotYetImplemented) \
     M(PageCache) \
@@ -76,6 +79,7 @@ namespace WebCore {
     M(PopupBlocking) \
     M(Progress) \
     M(RemoteInspector) \
+    M(RequestAnimationFrame) \
     M(ResourceLoading) \
     M(ResourceLoadObserver) \
     M(ResourceLoadStatistics) \
@@ -90,6 +94,7 @@ namespace WebCore {
     M(Tiling) \
     M(Threading) \
     M(URLParser) \
+    M(Viewports) \
     M(WebAudio) \
     M(WebGL) \
     M(WebGPU) \
@@ -105,10 +110,9 @@ WEBCORE_LOG_CHANNELS(DECLARE_LOG_CHANNEL)
 String logLevelString();
 bool isLogChannelEnabled(const String& name);
 WEBCORE_EXPORT void setLogChannelToAccumulate(const String& name);
-#ifndef NDEBUG
-void registerNotifyCallback(const String& notifyID, WTF::Function<void()>&& callback);
-#endif
 
 #endif // !LOG_DISABLED || !RELEASE_LOG_DISABLED
+
+WEBCORE_EXPORT WTFLogChannel* getLogChannel(const String& name);
 
 } // namespace WebCore

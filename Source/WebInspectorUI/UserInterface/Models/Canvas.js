@@ -25,24 +25,25 @@
 
 WI.Canvas = class Canvas extends WI.Object
 {
-    constructor(identifier, contextType, frame, {domNode, cssCanvasName, contextAttributes, memoryCost} = {})
+    constructor(identifier, contextType, {domNode, cssCanvasName, contextAttributes, memoryCost, backtrace} = {})
     {
         super();
 
         console.assert(identifier);
         console.assert(contextType);
-        console.assert(frame instanceof WI.Frame);
 
         this._identifier = identifier;
         this._contextType = contextType;
-        this._frame = frame;
         this._domNode = domNode || null;
         this._cssCanvasName = cssCanvasName || "";
         this._contextAttributes = contextAttributes || {};
+        this._extensions = new Set;
         this._memoryCost = memoryCost || NaN;
+        this._backtrace = backtrace || [];
 
         this._cssCanvasClientNodes = null;
-        this._shaderProgramCollection = new WI.Collection(WI.Collection.TypeVerifier.ShaderProgram);
+        this._shaderProgramCollection = new WI.ShaderProgramCollection;
+        this._recordingCollection = new WI.RecordingCollection;
 
         this._nextShaderProgramDisplayNumber = 1;
 
@@ -58,6 +59,9 @@ WI.Canvas = class Canvas extends WI.Object
         case CanvasAgent.ContextType.Canvas2D:
             contextType = WI.Canvas.ContextType.Canvas2D;
             break;
+        case CanvasAgent.ContextType.BitmapRenderer:
+            contextType = WI.Canvas.ContextType.BitmapRenderer;
+            break;
         case CanvasAgent.ContextType.WebGL:
             contextType = WI.Canvas.ContextType.WebGL;
             break;
@@ -71,12 +75,12 @@ WI.Canvas = class Canvas extends WI.Object
             console.error("Invalid canvas context type", payload.contextType);
         }
 
-        let frame = WI.frameResourceManager.frameForIdentifier(payload.frameId);
-        return new WI.Canvas(payload.canvasId, contextType, frame, {
+        return new WI.Canvas(payload.canvasId, contextType, {
             domNode: payload.nodeId ? WI.domTreeManager.nodeForId(payload.nodeId) : null,
             cssCanvasName: payload.cssCanvasName,
             contextAttributes: payload.contextAttributes,
             memoryCost: payload.memoryCost,
+            backtrace: Array.isArray(payload.backtrace) ? payload.backtrace.map((item) => WI.CallFrame.fromPayload(WI.mainTarget, item)) : [],
         });
     }
 
@@ -85,6 +89,8 @@ WI.Canvas = class Canvas extends WI.Object
         switch (contextType) {
         case WI.Canvas.ContextType.Canvas2D:
             return WI.UIString("2D");
+        case WI.Canvas.ContextType.BitmapRenderer:
+            return WI.unlocalizedString("Bitmap Renderer");
         case WI.Canvas.ContextType.WebGL:
             return WI.unlocalizedString("WebGL");
         case WI.Canvas.ContextType.WebGL2:
@@ -105,10 +111,12 @@ WI.Canvas = class Canvas extends WI.Object
 
     get identifier() { return this._identifier; }
     get contextType() { return this._contextType; }
-    get frame() { return this._frame; }
     get cssCanvasName() { return this._cssCanvasName; }
     get contextAttributes() { return this._contextAttributes; }
+    get extensions() { return this._extensions; }
+    get backtrace() { return this._backtrace; }
     get shaderProgramCollection() { return this._shaderProgramCollection; }
+    get recordingCollection() { return this._recordingCollection; }
 
     get isRecording()
     {
@@ -251,13 +259,20 @@ WI.Canvas = class Canvas extends WI.Object
 
     saveIdentityToCookie(cookie)
     {
-        cookie[WI.Canvas.FrameURLCookieKey] = this._frame.url.hash;
-
         if (this._cssCanvasName)
             cookie[WI.Canvas.CSSCanvasNameCookieKey] = this._cssCanvasName;
         else if (this._domNode)
             cookie[WI.Canvas.NodePathCookieKey] = this._domNode.path;
 
+    }
+
+    enableExtension(extension)
+    {
+        // Called from WI.CanvasManager.
+
+        this._extensions.add(extension);
+
+        this.dispatchEventToListeners(WI.Canvas.Event.ExtensionEnabled, {extension});
     }
 
     cssCanvasClientNodesChanged()
@@ -287,14 +302,14 @@ WI.Canvas.CSSCanvasNameCookieKey = "canvas-css-canvas-name";
 
 WI.Canvas.ContextType = {
     Canvas2D: "canvas-2d",
+    BitmapRenderer: "bitmaprenderer",
     WebGL: "webgl",
     WebGL2: "webgl2",
     WebGPU: "webgpu",
 };
 
-WI.Canvas.ResourceSidebarType = "resource-type-canvas";
-
 WI.Canvas.Event = {
     MemoryChanged: "canvas-memory-changed",
+    ExtensionEnabled: "canvas-extension-enabled",
     CSSCanvasClientNodesChanged: "canvas-css-canvas-client-nodes-changed",
 };

@@ -66,7 +66,7 @@ public:
         NONE
     };
 
-    virtual ~FilterOperation() { }
+    virtual ~FilterOperation() = default;
 
     virtual Ref<FilterOperation> clone() const = 0;
 
@@ -94,7 +94,7 @@ public:
 
     // True if the alpha channel of any pixel can change under this operation.
     virtual bool affectsOpacity() const { return false; }
-    // True if the the value of one pixel can affect the value of another pixel under this operation, such as blur.
+    // True if the value of one pixel can affect the value of another pixel under this operation, such as blur.
     virtual bool movesPixels() const { return false; }
     // True if the filter should not be allowed to work on content that is not available from this security origin.
     virtual bool shouldBeRestrictedBySecurityOrigin() const { return false; }
@@ -166,11 +166,10 @@ public:
     }
     virtual ~ReferenceFilterOperation();
 
-    Ref<FilterOperation> clone() const override
+    Ref<FilterOperation> clone() const final
     {
         // Reference filters cannot be cloned.
         RELEASE_ASSERT_NOT_REACHED();
-        return *static_cast<FilterOperation*>(nullptr);
     }
 
     bool affectsOpacity() const override { return true; }

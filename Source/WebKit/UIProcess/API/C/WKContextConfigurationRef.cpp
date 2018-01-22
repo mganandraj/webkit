@@ -58,16 +58,6 @@ void WKContextConfigurationSetDiskCacheDirectory(WKContextConfigurationRef confi
     toImpl(configuration)->setDiskCacheDirectory(toImpl(diskCacheDirectory)->string());
 }
 
-WKStringRef WKContextConfigurationCopyCacheStorageDirectory(WKContextConfigurationRef configuration)
-{
-    return toCopiedAPI(toImpl(configuration)->cacheStorageDirectory());
-}
-
-void WKContextConfigurationSetCacheStorageDirectory(WKContextConfigurationRef configuration, WKStringRef cacheStorageDirectory)
-{
-    toImpl(configuration)->setCacheStorageDirectory(toImpl(cacheStorageDirectory)->string());
-}
-
 WKStringRef WKContextConfigurationCopyApplicationCacheDirectory(WKContextConfigurationRef configuration)
 {
     return toCopiedAPI(toImpl(configuration)->applicationCacheDirectory());
@@ -86,6 +76,16 @@ WKStringRef WKContextConfigurationCopyIndexedDBDatabaseDirectory(WKContextConfig
 void WKContextConfigurationSetIndexedDBDatabaseDirectory(WKContextConfigurationRef configuration, WKStringRef indexedDBDatabaseDirectory)
 {
     toImpl(configuration)->setIndexedDBDatabaseDirectory(toImpl(indexedDBDatabaseDirectory)->string());
+}
+
+WKStringRef WKContextConfigurationCopyServiceWorkerDatabaseDirectory(WKContextConfigurationRef configuration)
+{
+    return toCopiedAPI(toImpl(configuration)->serviceWorkerRegistrationDirectory());
+}
+
+void WKContextConfigurationSetServiceWorkerDatabaseDirectory(WKContextConfigurationRef configuration, WKStringRef swDatabaseDirectory)
+{
+    toImpl(configuration)->setServiceWorkerRegistrationDirectory(toImpl(swDatabaseDirectory)->string());
 }
 
 WKStringRef WKContextConfigurationCopyInjectedBundlePath(WKContextConfigurationRef configuration)

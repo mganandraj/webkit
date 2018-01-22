@@ -31,6 +31,7 @@
 #import "WebKitNSStringExtras.h"
 #import "WebNSURLExtras.h"
 #import <WebCore/FileSystem.h>
+#import <WebCore/LoaderNSURLExtras.h>
 #import <sys/stat.h>
 #import <wtf/Assertions.h>
 #import <wtf/ObjcRuntimeExtras.h>
@@ -43,7 +44,7 @@
 {
     ASSERT(URLString);
     ASSERT(path);
-    WebCore::setMetadataURL(path, URLString, referrer);
+    WebCore::FileSystem::setMetadataURL(path, URLString, referrer);
 }
 
 #endif // !PLATFORM(IOS)
@@ -60,7 +61,7 @@ static BOOL fileExists(NSString *path)
 - (NSString *)_webkit_pathWithUniqueFilenameForPath:(NSString *)path
 {
     // "Fix" the filename of the path.
-    NSString *filename = [[path lastPathComponent] _webkit_filenameByFixingIllegalCharacters];
+    NSString *filename = filenameByFixingIllegalCharacters([path lastPathComponent]);
     path = [[path stringByDeletingLastPathComponent] stringByAppendingPathComponent:filename];
 
     if (fileExists(path)) {
@@ -92,7 +93,7 @@ static BOOL fileExists(NSString *path)
 #if PLATFORM(IOS)
 - (NSString *)_webkit_createTemporaryDirectoryWithTemplatePrefix:(NSString *)prefix
 {
-    return WebCore::createTemporaryDirectory(prefix);
+    return WebCore::FileSystem::createTemporaryDirectory(prefix);
 }
 #endif
 

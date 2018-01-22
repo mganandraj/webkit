@@ -149,7 +149,7 @@ void JITCompiler::compileExceptionHandlers()
     if (!m_exceptionChecksWithCallFrameRollback.empty()) {
         m_exceptionChecksWithCallFrameRollback.link(this);
 
-        copyCalleeSavesToVMEntryFrameCalleeSavesBuffer(*vm());
+        copyCalleeSavesToEntryFrameCalleeSavesBuffer(vm()->topEntryFrame);
 
         // lookupExceptionHandlerFromCallerFrame is passed two arguments, the VM and the exec (the CallFrame*).
         move(TrustedImmPtr(vm()), GPRInfo::argumentGPR0);
@@ -169,7 +169,7 @@ void JITCompiler::compileExceptionHandlers()
     if (!m_exceptionChecks.empty()) {
         m_exceptionChecks.link(this);
 
-        copyCalleeSavesToVMEntryFrameCalleeSavesBuffer(*vm());
+        copyCalleeSavesToEntryFrameCalleeSavesBuffer(vm()->topEntryFrame);
 
         // lookupExceptionHandler is passed two arguments, the VM and the exec (the CallFrame*).
         move(TrustedImmPtr(vm()), GPRInfo::argumentGPR0);
@@ -288,7 +288,7 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
     
     for (auto& record : m_jsCalls) {
         CallLinkInfo& info = *record.info;
-        linkBuffer.link(record.slowCall, FunctionPtr(vm()->getCTIStub(linkCallThunkGenerator).code().executableAddress()));
+        linkBuffer.link(record.slowCall, FunctionPtr(vm()->getCTIStub(linkCallThunkGenerator).code()));
         info.setCallLocations(
             CodeLocationLabel(linkBuffer.locationOfNearCall(record.slowCall)),
             CodeLocationLabel(linkBuffer.locationOf(record.targetToCheck)),
@@ -525,9 +525,9 @@ void JITCompiler::compileFunction()
     
     m_jitCode->shrinkToFit();
     codeBlock()->shrinkToFit(CodeBlock::LateShrink);
-    
-    linkBuffer->link(m_callArityFixup, FunctionPtr((vm()->getCTIStub(arityFixupGenerator)).code().executableAddress()));
-    
+
+    linkBuffer->link(m_callArityFixup, FunctionPtr(vm()->getCTIStub(arityFixupGenerator).code()));
+
     disassemble(*linkBuffer);
 
     MacroAssemblerCodePtr withArityCheck = linkBuffer->locationOf(m_arityCheck);

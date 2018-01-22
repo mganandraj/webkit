@@ -48,6 +48,7 @@
 #import <WebCore/CertificateInfo.h>
 #import <WebCore/PluginData.h>
 #import <pal/spi/cf/CFNetworkSPI.h>
+#import <pal/spi/cocoa/NSKeyedArchiverSPI.h>
 #import <wtf/RetainPtr.h>
 
 #if PLATFORM(IOS)
@@ -93,6 +94,11 @@ static WKProcessPool *sharedProcessPool;
     _processPool->~WebProcessPool();
 
     [super dealloc];
+}
+
++ (BOOL)supportsSecureCoding
+{
+    return YES;
 }
 
 - (void)encodeWithCoder:(NSCoder *)coder
@@ -176,6 +182,16 @@ static WKProcessPool *sharedProcessPool;
     _processPool->allowSpecificHTTPSCertificateForHost(WebKit::WebCertificateInfo::create(WebCore::CertificateInfo((CFArrayRef)certificateChain)).ptr(), host);
 }
 
+- (void)_registerURLSchemeServiceWorkersCanHandle:(NSString *)scheme
+{
+    _processPool->registerURLSchemeServiceWorkersCanHandle(scheme);
+}
+
+- (void)_setMaximumNumberOfProcesses:(NSUInteger)value
+{
+    _processPool->setMaximumNumberOfProcesses(value);
+}
+
 - (void)_setCanHandleHTTPSServerTrustEvaluation:(BOOL)value
 {
     _processPool->setCanHandleHTTPSServerTrustEvaluation(value);
@@ -212,9 +228,13 @@ static WebKit::HTTPCookieAcceptPolicy toHTTPCookieAcceptPolicy(NSHTTPCookieAccep
 {
     auto copy = adoptNS([(NSObject *)object copy]);
 
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200)
     auto data = adoptNS([[NSMutableData alloc] init]);
     auto keyedArchiver = adoptNS([[NSKeyedArchiver alloc] initForWritingWithMutableData:data.get()]);
     [keyedArchiver setRequiresSecureCoding:YES];
+#else
+    auto keyedArchiver = secureArchiver();
+#endif
 
     @try {
         [keyedArchiver encodeObject:copy.get() forKey:@"parameter"];
@@ -228,6 +248,10 @@ static WebKit::HTTPCookieAcceptPolicy toHTTPCookieAcceptPolicy(NSHTTPCookieAccep
     else
         [_processPool->ensureBundleParameters() removeObjectForKey:parameter];
 
+#if (!PLATFORM(MAC) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101200)
+    auto data = keyedArchiver.get().encodedData;
+#endif
+
     _processPool->sendToAllProcesses(Messages::WebProcess::SetInjectedBundleParameter(parameter, IPC::DataReference(static_cast<const uint8_t*>([data bytes]), [data length])));
 }
 
@@ -235,9 +259,13 @@ static WebKit::HTTPCookieAcceptPolicy toHTTPCookieAcceptPolicy(NSHTTPCookieAccep
 {
     auto copy = adoptNS([[NSDictionary alloc] initWithDictionary:dictionary copyItems:YES]);
 
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200)
     auto data = adoptNS([[NSMutableData alloc] init]);
     auto keyedArchiver = adoptNS([[NSKeyedArchiver alloc] initForWritingWithMutableData:data.get()]);
     [keyedArchiver setRequiresSecureCoding:YES];
+#else
+    auto keyedArchiver = secureArchiver();
+#endif
 
     @try {
         [keyedArchiver encodeObject:copy.get() forKey:@"parameters"];
@@ -247,6 +275,10 @@ static WebKit::HTTPCookieAcceptPolicy toHTTPCookieAcceptPolicy(NSHTTPCookieAccep
     }
 
     [_processPool->ensureBundleParameters() setValuesForKeysWithDictionary:copy.get()];
+
+#if (!PLATFORM(MAC) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101200)
+    auto data = keyedArchiver.get().encodedData;
+#endif
 
     _processPool->sendToAllProcesses(Messages::WebProcess::SetInjectedBundleParameters(IPC::DataReference(static_cast<const uint8_t*>([data bytes]), [data length])));
 }
@@ -395,6 +427,11 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     _processPool->terminateNetworkProcess();
 }
 
+- (void)_terminateServiceWorkerProcess
+{
+    _processPool->terminateServiceWorkerProcess();
+}
+
 - (pid_t)_networkProcessIdentifier
 {
     return _processPool->networkProcessIdentifier();
@@ -413,6 +450,33 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 - (size_t)_webProcessCount
 {
     return _processPool->processes().size();
+}
+
+- (size_t)_webPageContentProcessCount
+{
+    auto allWebProcesses = _processPool->processes();
+#if ENABLE(SERVICE_WORKER)
+    auto* serviceWorkerProcess = _processPool->serviceWorkerProxy();
+    if (!serviceWorkerProcess)
+        return allWebProcesses.size();
+
+#if !ASSERT_DISABLED
+    bool serviceWorkerProcessWasFound = false;
+    for (auto& process : allWebProcesses) {
+        if (process == serviceWorkerProcess) {
+            serviceWorkerProcessWasFound = true;
+            break;
+        }
+    }
+
+    ASSERT(serviceWorkerProcessWasFound);
+    ASSERT(allWebProcesses.size() > 1);
+#endif
+
+    return allWebProcesses.size() - 1;
+#else
+    return allWebProcesses.size();
+#endif
 }
 
 - (void)_preconnectToServer:(NSURL *)serverURL
@@ -444,6 +508,23 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 - (void)_setCookieStoragePartitioningEnabled:(BOOL)enabled
 {
     _processPool->setCookieStoragePartitioningEnabled(enabled);
+}
+
+- (BOOL)_isStorageAccessAPIEnabled
+{
+    return _processPool->storageAccessAPIEnabled();
+}
+
+- (void)_setStorageAccessAPIEnabled:(BOOL)enabled
+{
+    _processPool->setStorageAccessAPIEnabled(enabled);
+}
+
+- (void)_setAllowsAnySSLCertificateForServiceWorker:(BOOL) allows
+{
+#if ENABLE(SERVICE_WORKER)
+    _processPool->setAllowsAnySSLCertificateForServiceWorker(allows);
+#endif
 }
 
 #if PLATFORM(IOS)

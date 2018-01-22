@@ -26,6 +26,7 @@
 #pragma once
 
 #include "DragImage.h"
+#include "PasteboardItemInfo.h"
 #include "URL.h"
 #include <wtf/HashMap.h>
 #include <wtf/ListHashSet.h>
@@ -71,6 +72,7 @@ struct PasteboardWebContent {
 #if PLATFORM(COCOA)
     WEBCORE_EXPORT PasteboardWebContent();
     WEBCORE_EXPORT ~PasteboardWebContent();
+    String contentOrigin;
     bool canSmartCopyOrDelete;
     RefPtr<SharedBuffer> dataInWebArchiveFormat;
     RefPtr<SharedBuffer> dataInRTFDFormat;
@@ -127,11 +129,13 @@ struct PasteboardImage {
 
 class PasteboardWebContentReader {
 public:
-    virtual ~PasteboardWebContentReader() { }
+    String contentOrigin;
 
-#if !(PLATFORM(GTK) || PLATFORM(WIN))
-    virtual bool readWebArchive(SharedBuffer*) = 0;
-    virtual bool readFilenames(const Vector<String>&) = 0;
+    virtual ~PasteboardWebContentReader() = default;
+
+#if PLATFORM(COCOA)
+    virtual bool readWebArchive(SharedBuffer&) = 0;
+    virtual bool readFilePaths(const Vector<String>&) = 0;
     virtual bool readHTML(const String&) = 0;
     virtual bool readRTFD(SharedBuffer&) = 0;
     virtual bool readRTF(SharedBuffer&) = 0;
@@ -189,32 +193,36 @@ public:
     WEBCORE_EXPORT static std::unique_ptr<Pasteboard> createForCopyAndPaste();
 
     static bool isSafeTypeForDOMToReadAndWrite(const String&);
+    static bool canExposeURLToDOMWhenPasteboardContainsFiles(const String&);
 
     virtual bool isStatic() const { return false; }
 
-    virtual bool hasData();
-    virtual Vector<String> typesSafeForBindings();
-    virtual Vector<String> typesForLegacyUnsafeBindings();
-    virtual String readString(const String& type);
-    virtual String readStringInCustomData(const String& type);
+    virtual WEBCORE_EXPORT bool hasData();
+    virtual WEBCORE_EXPORT Vector<String> typesSafeForBindings(const String& origin);
+    virtual WEBCORE_EXPORT Vector<String> typesForLegacyUnsafeBindings();
+    virtual WEBCORE_EXPORT String readOrigin();
+    virtual WEBCORE_EXPORT String readString(const String& type);
+    virtual WEBCORE_EXPORT String readStringInCustomData(const String& type);
 
-    virtual void writeString(const String& type, const String& data);
-    virtual void clear();
-    virtual void clear(const String& type);
+    virtual WEBCORE_EXPORT void writeString(const String& type, const String& data);
+    virtual WEBCORE_EXPORT void clear();
+    virtual WEBCORE_EXPORT void clear(const String& type);
 
-    virtual void read(PasteboardPlainText&);
-    virtual void read(PasteboardWebContentReader&);
-    virtual void read(PasteboardFileReader&);
+    virtual WEBCORE_EXPORT void read(PasteboardPlainText&);
+    virtual WEBCORE_EXPORT void read(PasteboardWebContentReader&);
+    virtual WEBCORE_EXPORT void read(PasteboardFileReader&);
 
-    virtual void write(const PasteboardURL&);
-    virtual void writeTrustworthyWebURLsPboardType(const PasteboardURL&);
-    virtual void write(const PasteboardImage&);
-    virtual void write(const PasteboardWebContent&);
+    virtual WEBCORE_EXPORT void write(const PasteboardURL&);
+    virtual WEBCORE_EXPORT void writeTrustworthyWebURLsPboardType(const PasteboardURL&);
+    virtual WEBCORE_EXPORT void write(const PasteboardImage&);
+    virtual WEBCORE_EXPORT void write(const PasteboardWebContent&);
 
-    virtual bool containsFiles();
-    virtual bool canSmartReplace();
+    virtual WEBCORE_EXPORT void writeCustomData(const PasteboardCustomData&);
 
-    virtual void writeMarkup(const String& markup);
+    virtual WEBCORE_EXPORT bool containsFiles();
+    virtual WEBCORE_EXPORT bool canSmartReplace();
+
+    virtual WEBCORE_EXPORT void writeMarkup(const String& markup);
     enum SmartReplaceOption { CanSmartReplace, CannotSmartReplace };
     virtual WEBCORE_EXPORT void writePlainText(const String&, SmartReplaceOption); // FIXME: Two separate functions would be clearer than one function with an argument.
 
@@ -250,6 +258,7 @@ public:
     WEBCORE_EXPORT static NSArray *supportedFileUploadPasteboardTypes();
     const String& name() const { return m_pasteboardName; }
     long changeCount() const;
+    const PasteboardCustomData& readCustomData();
 #endif
 
 #if PLATFORM(WIN)
@@ -261,12 +270,17 @@ public:
     void writeImageToDataObject(Element&, const URL&); // FIXME: Layering violation.
 #endif
 
-    void writeCustomData(const PasteboardCustomData&);
-
 private:
 #if PLATFORM(IOS)
     bool respectsUTIFidelities() const;
     void readRespectingUTIFidelities(PasteboardWebContentReader&);
+
+    enum class ReaderResult {
+        ReadType,
+        DidNotReadType,
+        PasteboardWasChangedExternally
+    };
+    ReaderResult readPasteboardWebContentDataForType(PasteboardWebContentReader&, PasteboardStrategy&, NSString *type, int itemIndex);
 #endif
 
 #if PLATFORM(WIN)
@@ -277,7 +291,7 @@ private:
 #endif
 
 #if PLATFORM(COCOA)
-    Vector<String> readFilenames();
+    Vector<String> readFilePaths();
     String readPlatformValueAsString(const String& domType, long changeCount, const String& pasteboardName);
     static void addHTMLClipboardTypesForCocoaType(ListHashSet<String>& resultTypes, const String& cocoaType);
     String readStringForPlatformType(const String&);
@@ -295,6 +309,7 @@ private:
 #if PLATFORM(COCOA)
     String m_pasteboardName;
     long m_changeCount;
+    std::optional<PasteboardCustomData> m_customDataCache;
 #endif
 
 #if PLATFORM(WIN)

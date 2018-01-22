@@ -245,6 +245,7 @@ CGDataProviderRef CGPDFDocumentGetDataProvider(CGPDFDocumentRef);
 
 CGFontAntialiasingStyle CGContextGetFontAntialiasingStyle(CGContextRef);
 void CGContextSetFontAntialiasingStyle(CGContextRef, CGFontAntialiasingStyle);
+bool CGContextGetAllowsFontSubpixelPositioning(CGContextRef);
 bool CGContextDrawsWithCorrectShadowOffsets(CGContextRef);
 CGPatternRef CGPatternCreateWithImage2(CGImageRef, CGAffineTransform, CGPatternTiling);
 
@@ -254,6 +255,7 @@ bool CGColorSpaceUsesExtendedRange(CGColorSpaceRef);
 typedef struct CGPDFAnnotation *CGPDFAnnotationRef;
 typedef bool (^CGPDFAnnotationDrawCallbackType)(CGContextRef context, CGPDFPageRef page, CGPDFAnnotationRef annotation);
 void CGContextDrawPDFPageWithAnnotations(CGContextRef, CGPDFPageRef, CGPDFAnnotationDrawCallbackType);
+void CGContextDrawPathDirect(CGContextRef, CGPathDrawingMode, CGPathRef, const CGRect* boundingBox);
 #endif
 
 #if USE(IOSURFACE)
@@ -294,6 +296,10 @@ CGError CGSGetScreenRectForWindow(CGSConnectionID, CGSWindowID, CGRect *);
 CGError CGSRegisterConnectionNotifyProc(CGSConnectionID, CGSNotifyConnectionProcPtr, CGSNotificationType, void* arg);
 CGError CGSRegisterNotifyProc(CGSNotifyProcPtr, CGSNotificationType, void* arg);
 bool ColorSyncProfileIsWideGamut(ColorSyncProfileRef);
+
+size_t CGDisplayModeGetPixelsWide(CGDisplayModeRef);
+size_t CGDisplayModeGetPixelsHigh(CGDisplayModeRef);
+
 #endif
 
 WTF_EXTERN_C_END

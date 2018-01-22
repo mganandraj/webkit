@@ -40,11 +40,12 @@ Structure* JSString::createStructure(VM& vm, JSGlobalObject* globalObject, JSVal
     return Structure::create(vm, globalObject, proto, TypeInfo(StringType, StructureFlags), info());
 }
 
-void JSRopeString::RopeBuilder::expand()
+template<>
+void JSRopeString::RopeBuilder<RecordOverflow>::expand()
 {
+    RELEASE_ASSERT(!this->hasOverflowed());
     ASSERT(m_index == JSRopeString::s_maxInternalRopeLength);
     JSString* jsString = m_jsString;
-    RELEASE_ASSERT(jsString);
     m_jsString = jsStringBuilder(&m_vm);
     m_index = 0;
     append(jsString);
@@ -116,8 +117,7 @@ static const unsigned maxLengthForOnStackResolve = 2048;
 void JSRopeString::resolveRopeInternal8(LChar* buffer) const
 {
     if (isSubstring()) {
-        StringImpl::copyChars(
-            buffer, substringBase()->m_value.characters8() + substringOffset(), length());
+        StringImpl::copyCharacters(buffer, substringBase()->m_value.characters8() + substringOffset(), length());
         return;
     }
     
@@ -137,7 +137,7 @@ void JSRopeString::resolveRopeInternal8NoSubstring(LChar* buffer) const
     for (size_t i = 0; i < s_maxInternalRopeLength && fiber(i); ++i) {
         const StringImpl& fiberString = *fiber(i)->m_value.impl();
         unsigned length = fiberString.length();
-        StringImpl::copyChars(position, fiberString.characters8(), length);
+        StringImpl::copyCharacters(position, fiberString.characters8(), length);
         position += length;
     }
     ASSERT((buffer + length()) == position);
@@ -146,7 +146,7 @@ void JSRopeString::resolveRopeInternal8NoSubstring(LChar* buffer) const
 void JSRopeString::resolveRopeInternal16(UChar* buffer) const
 {
     if (isSubstring()) {
-        StringImpl::copyChars(
+        StringImpl::copyCharacters(
             buffer, substringBase()->m_value.characters16() + substringOffset(), length());
         return;
     }
@@ -168,9 +168,9 @@ void JSRopeString::resolveRopeInternal16NoSubstring(UChar* buffer) const
         const StringImpl& fiberString = *fiber(i)->m_value.impl();
         unsigned length = fiberString.length();
         if (fiberString.is8Bit())
-            StringImpl::copyChars(position, fiberString.characters8(), length);
+            StringImpl::copyCharacters(position, fiberString.characters8(), length);
         else
-            StringImpl::copyChars(position, fiberString.characters16(), length);
+            StringImpl::copyCharacters(position, fiberString.characters16(), length);
         position += length;
     }
     ASSERT((buffer + length()) == position);
@@ -334,7 +334,7 @@ void JSRopeString::resolveRopeSlowCase8(LChar* buffer) const
         
         unsigned length = currentFiber->length();
         position -= length;
-        StringImpl::copyChars(position, characters, length);
+        StringImpl::copyCharacters(position, characters, length);
     }
 
     ASSERT(buffer == position);
@@ -362,9 +362,9 @@ void JSRopeString::resolveRopeSlowCase(UChar* buffer) const
                 unsigned length = currentFiberAsRope->length();
                 position -= length;
                 if (string->is8Bit())
-                    StringImpl::copyChars(position, string->characters8() + offset, length);
+                    StringImpl::copyCharacters(position, string->characters8() + offset, length);
                 else
-                    StringImpl::copyChars(position, string->characters16() + offset, length);
+                    StringImpl::copyCharacters(position, string->characters16() + offset, length);
                 continue;
             }
             for (size_t i = 0; i < s_maxInternalRopeLength && currentFiberAsRope->fiber(i); ++i)
@@ -376,9 +376,9 @@ void JSRopeString::resolveRopeSlowCase(UChar* buffer) const
         unsigned length = string->length();
         position -= length;
         if (string->is8Bit())
-            StringImpl::copyChars(position, string->characters8(), length);
+            StringImpl::copyCharacters(position, string->characters8(), length);
         else
-            StringImpl::copyChars(position, string->characters16(), length);
+            StringImpl::copyCharacters(position, string->characters16(), length);
     }
 
     ASSERT(buffer == position);

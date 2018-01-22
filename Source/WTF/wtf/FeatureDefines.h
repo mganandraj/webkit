@@ -139,7 +139,7 @@
 #endif
 
 /* FIXME: Remove the USE(APPLE_INTERNAL_SDK) conjunct once we support touch events when building against
-the public iOS SDK. We will also need to update the FeatureDefines.xcconfig files. */
+the public iOS SDK. See <https://webkit.org/b/179167>. */
 #if !defined(ENABLE_TOUCH_EVENTS) && USE(APPLE_INTERNAL_SDK)
 #define ENABLE_TOUCH_EVENTS 1
 #endif
@@ -209,14 +209,6 @@ the public iOS SDK. We will also need to update the FeatureDefines.xcconfig file
 
 #if !defined(ENABLE_CURSOR_VISIBILITY)
 #define ENABLE_CURSOR_VISIBILITY 1
-#endif
-
-#if !defined(ENABLE_INPUT_TYPE_COLOR)
-#define ENABLE_INPUT_TYPE_COLOR 1
-#endif
-
-#if !defined(ENABLE_INPUT_TYPE_COLOR_POPOVER)
-#define ENABLE_INPUT_TYPE_COLOR_POPOVER 1
 #endif
 
 #if !defined(ENABLE_PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
@@ -428,10 +420,6 @@ the public iOS SDK. We will also need to update the FeatureDefines.xcconfig file
 #define ENABLE_ICONDATABASE 1
 #endif
 
-#if !defined(ENABLE_IMAGE_DECODER_DOWN_SAMPLING)
-#define ENABLE_IMAGE_DECODER_DOWN_SAMPLING 0
-#endif
-
 #if !defined(ENABLE_INDEXED_DATABASE)
 #define ENABLE_INDEXED_DATABASE 0
 #endif
@@ -492,10 +480,6 @@ the public iOS SDK. We will also need to update the FeatureDefines.xcconfig file
 
 #if !defined(ENABLE_LEGACY_CSS_VENDOR_PREFIXES)
 #define ENABLE_LEGACY_CSS_VENDOR_PREFIXES 0
-#endif
-
-#if !defined(ENABLE_LEGACY_VENDOR_PREFIXES)
-#define ENABLE_LEGACY_VENDOR_PREFIXES 0
 #endif
 
 #if !defined(ENABLE_LETTERPRESS)
@@ -632,10 +616,6 @@ the public iOS SDK. We will also need to update the FeatureDefines.xcconfig file
 #define ENABLE_TOUCH_EVENTS 0
 #endif
 
-#if !defined(ENABLE_TOUCH_ICON_LOADING)
-#define ENABLE_TOUCH_ICON_LOADING 0
-#endif
-
 #if !defined(ENABLE_VIDEO)
 #define ENABLE_VIDEO 0
 #endif
@@ -654,10 +634,6 @@ the public iOS SDK. We will also need to update the FeatureDefines.xcconfig file
 
 #if !defined(ENABLE_GRAPHICS_CONTEXT_3D)
 #define ENABLE_GRAPHICS_CONTEXT_3D ENABLE_WEBGL
-#endif
-
-#if !defined(ENABLE_WEB_ANIMATIONS)
-#define ENABLE_WEB_ANIMATIONS 1
 #endif
 
 #if !defined(ENABLE_WEB_ARCHIVE)

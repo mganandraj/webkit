@@ -41,7 +41,7 @@ class StyledElement;
 class CSSStyleDeclaration : public ScriptWrappable {
     WTF_MAKE_NONCOPYABLE(CSSStyleDeclaration); WTF_MAKE_FAST_ALLOCATED;
 public:
-    virtual ~CSSStyleDeclaration() { }
+    virtual ~CSSStyleDeclaration() = default;
 
     virtual void ref() = 0;
     virtual void deref() = 0;
@@ -79,8 +79,9 @@ public:
     ExceptionOr<void> setNamedItem(const AtomicString& name, String value, bool& propertySupported);
     Vector<AtomicString> supportedPropertyNames() const;
 
+    static CSSPropertyID getCSSPropertyIDFromJavaScriptPropertyName(const AtomicString&);
 protected:
-    CSSStyleDeclaration() { }
+    CSSStyleDeclaration() = default;
 };
 
 } // namespace WebCore

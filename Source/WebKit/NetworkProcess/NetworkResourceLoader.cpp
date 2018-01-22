@@ -49,6 +49,11 @@
 #include <wtf/CurrentTime.h>
 #include <wtf/RunLoop.h>
 
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING) && !RELEASE_LOG_DISABLED
+#include <WebCore/NetworkStorageSession.h>
+#include <WebCore/PlatformCookieJar.h>
+#endif
+
 using namespace WebCore;
 
 #define RELEASE_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), Network, "%p - NetworkResourceLoader::" fmt, this, ##__VA_ARGS__)
@@ -82,13 +87,12 @@ static void sendReplyToSynchronousRequest(NetworkResourceLoader::SynchronousLoad
 }
 
 NetworkResourceLoader::NetworkResourceLoader(const NetworkResourceLoadParameters& parameters, NetworkConnectionToWebProcess& connection, RefPtr<Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply>&& synchronousReply)
-    : m_parameters(parameters)
-    , m_connection(connection)
-    , m_defersLoading(parameters.defersLoading)
-    , m_bufferingTimer(*this, &NetworkResourceLoader::bufferingTimerFired)
-#if ENABLE(NETWORK_CACHE)
-    , m_cache(sessionID().isEphemeral() ? nullptr : NetworkProcess::singleton().cache())
-#endif
+    : m_parameters { parameters }
+    , m_connection { connection }
+    , m_defersLoading { parameters.defersLoading }
+    , m_isAllowedToAskUserForCredentials { parameters.clientCredentialPolicy == ClientCredentialPolicy::MayAskClientForCredentials }
+    , m_bufferingTimer { *this, &NetworkResourceLoader::bufferingTimerFired }
+    , m_cache { sessionID().isEphemeral() ? nullptr : NetworkProcess::singleton().cache() }
 {
     ASSERT(RunLoop::isMain());
     // FIXME: This is necessary because of the existence of EmptyFrameLoaderClient in WebCore.
@@ -121,7 +125,6 @@ NetworkResourceLoader::~NetworkResourceLoader()
     ASSERT(!isSynchronous() || !m_synchronousLoadData->delayedReply);
 }
 
-#if ENABLE(NETWORK_CACHE)
 bool NetworkResourceLoader::canUseCache(const ResourceRequest& request) const
 {
     if (!m_cache)
@@ -148,7 +151,6 @@ bool NetworkResourceLoader::canUseCachedRedirect(const ResourceRequest& request)
 
     return true;
 }
-#endif
 
 bool NetworkResourceLoader::isSynchronous() const
 {
@@ -167,18 +169,15 @@ void NetworkResourceLoader::start()
     ASSERT(!m_wasStarted);
     m_wasStarted = true;
 
-#if ENABLE(NETWORK_CACHE)
     if (canUseCache(originalRequest())) {
         RELEASE_LOG_IF_ALLOWED("start: Checking cache for resource (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ", isMainResource = %d, isSynchronous = %d)", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier, isMainResource(), isSynchronous());
         retrieveCacheEntry(originalRequest());
         return;
     }
-#endif
 
     startNetworkLoad(originalRequest());
 }
 
-#if ENABLE(NETWORK_CACHE)
 void NetworkResourceLoader::retrieveCacheEntry(const ResourceRequest& request)
 {
     ASSERT(canUseCache(request));
@@ -213,7 +212,6 @@ void NetworkResourceLoader::retrieveCacheEntry(const ResourceRequest& request)
         loader->didRetrieveCacheEntry(WTFMove(entry));
     });
 }
-#endif
 
 void NetworkResourceLoader::startNetworkLoad(const ResourceRequest& request)
 {
@@ -224,10 +222,8 @@ void NetworkResourceLoader::startNetworkLoad(const ResourceRequest& request)
     if (isSynchronous() || m_parameters.maximumBufferingTime > 0_s)
         m_bufferedData = SharedBuffer::create();
 
-#if ENABLE(NETWORK_CACHE)
     if (canUseCache(request))
         m_bufferedDataForCache = SharedBuffer::create();
-#endif
 
     NetworkLoadParameters parameters = m_parameters;
     parameters.defersLoading = m_defersLoading;
@@ -306,13 +302,11 @@ void NetworkResourceLoader::abort()
         m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
 
     if (m_networkLoad) {
-#if ENABLE(NETWORK_CACHE)
         if (canUseCache(m_networkLoad->currentRequest())) {
             // We might already have used data from this incomplete load. Ensure older versions don't remain in the cache after cancel.
             if (!m_response.isNull())
                 m_cache->remove(m_networkLoad->currentRequest());
         }
-#endif
         m_networkLoad->cancel();
     }
 
@@ -329,8 +323,6 @@ auto NetworkResourceLoader::didReceiveResponse(ResourceResponse&& receivedRespon
     if (!isSynchronous() && m_response.isMultipart())
         m_bufferedData = nullptr;
 
-    bool shouldSendDidReceiveResponse = true;
-#if ENABLE(NETWORK_CACHE)
     if (m_response.isMultipart())
         m_bufferedDataForCache = nullptr;
 
@@ -344,8 +336,7 @@ auto NetworkResourceLoader::didReceiveResponse(ResourceResponse&& receivedRespon
         } else
             m_cacheEntryForValidation = nullptr;
     }
-    shouldSendDidReceiveResponse = !m_cacheEntryForValidation;
-#endif
+    bool shouldSendDidReceiveResponse = !m_cacheEntryForValidation;
 
     bool shouldWaitContinueDidReceiveResponse = isMainResource();
     if (shouldSendDidReceiveResponse) {
@@ -356,10 +347,7 @@ auto NetworkResourceLoader::didReceiveResponse(ResourceResponse&& receivedRespon
     }
 
     // For main resources, the web process is responsible for sending back a NetworkResourceLoader::ContinueDidReceiveResponse message.
-    bool shouldContinueDidReceiveResponse = !shouldWaitContinueDidReceiveResponse;
-#if ENABLE(NETWORK_CACHE)
-    shouldContinueDidReceiveResponse = shouldContinueDidReceiveResponse || m_cacheEntryForValidation;
-#endif
+    bool shouldContinueDidReceiveResponse = !shouldWaitContinueDidReceiveResponse || m_cacheEntryForValidation;
 
     if (shouldContinueDidReceiveResponse) {
         RELEASE_LOG_IF_ALLOWED("didReceiveResponse: Should not wait for message from WebContent process before continuing resource load (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
@@ -377,7 +365,6 @@ void NetworkResourceLoader::didReceiveBuffer(Ref<SharedBuffer>&& buffer, int rep
     }
     m_numBytesReceived += buffer->size();
 
-#if ENABLE(NETWORK_CACHE)
     ASSERT(!m_cacheEntryForValidation);
 
     if (m_bufferedDataForCache) {
@@ -388,7 +375,6 @@ void NetworkResourceLoader::didReceiveBuffer(Ref<SharedBuffer>&& buffer, int rep
         else
             m_bufferedDataForCache = nullptr;
     }
-#endif
     // FIXME: At least on OS X Yosemite we always get -1 from the resource handle.
     unsigned encodedDataLength = reportedEncodedDataLength >= 0 ? reportedEncodedDataLength : buffer->size();
 
@@ -406,7 +392,6 @@ void NetworkResourceLoader::didFinishLoading(const NetworkLoadMetrics& networkLo
 {
     RELEASE_LOG_IF_ALLOWED("didFinishLoading: (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ", length = %zd)", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier, m_numBytesReceived);
 
-#if ENABLE(NETWORK_CACHE)
     if (m_cacheEntryForValidation) {
         // 304 Not Modified
         ASSERT(m_response.httpStatusCode() == 304);
@@ -414,6 +399,10 @@ void NetworkResourceLoader::didFinishLoading(const NetworkLoadMetrics& networkLo
         didRetrieveCacheEntry(WTFMove(m_cacheEntryForValidation));
         return;
     }
+
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING) && !RELEASE_LOG_DISABLED
+    if (shouldLogCookieInformation())
+        logCookieInformation();
 #endif
 
     if (isSynchronous())
@@ -426,9 +415,7 @@ void NetworkResourceLoader::didFinishLoading(const NetworkLoadMetrics& networkLo
         send(Messages::WebResourceLoader::DidFinishResourceLoad(networkLoadMetrics));
     }
 
-#if ENABLE(NETWORK_CACHE)
     tryStoreAsCacheEntry();
-#endif
 
     cleanup();
 }
@@ -439,9 +426,7 @@ void NetworkResourceLoader::didFailLoading(const ResourceError& error)
 
     ASSERT(!error.isNull());
 
-#if ENABLE(NETWORK_CACHE)
     m_cacheEntryForValidation = nullptr;
-#endif
 
     if (isSynchronous()) {
         m_synchronousLoadData->error = error;
@@ -466,28 +451,27 @@ void NetworkResourceLoader::willSendRedirectedRequest(ResourceRequest&& request,
             m_networkLoad->clearCurrentRequest();
             overridenRequest = ResourceRequest();
         }
-        continueWillSendRequest(WTFMove(overridenRequest));
+        // We do not support prompting for credentials for synchronous loads. If we ever change this policy then
+        // we need to take care to prompt if and only if request and redirectRequest are not mixed content.
+        continueWillSendRequest(WTFMove(overridenRequest), false);
         return;
     }
     send(Messages::WebResourceLoader::WillSendRequest(redirectRequest, redirectResponse));
 
-#if ENABLE(NETWORK_CACHE)
     if (canUseCachedRedirect(request))
         m_cache->storeRedirect(request, redirectResponse, redirectRequest);
-#else
-    UNUSED_PARAM(request);
-#endif
 }
 
-void NetworkResourceLoader::continueWillSendRequest(ResourceRequest&& newRequest)
+void NetworkResourceLoader::continueWillSendRequest(ResourceRequest&& newRequest, bool isAllowedToAskUserForCredentials)
 {
     RELEASE_LOG_IF_ALLOWED("continueWillSendRequest: (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
+
+    m_isAllowedToAskUserForCredentials = isAllowedToAskUserForCredentials;
 
     // If there is a match in the network cache, we need to reuse the original cache policy and partition.
     newRequest.setCachePolicy(originalRequest().cachePolicy());
     newRequest.setCachePartition(originalRequest().cachePartition());
 
-#if ENABLE(NETWORK_CACHE)
     if (m_isWaitingContinueWillSendRequestForCachedRedirect) {
         m_isWaitingContinueWillSendRequestForCachedRedirect = false;
 
@@ -500,7 +484,6 @@ void NetworkResourceLoader::continueWillSendRequest(ResourceRequest&& newRequest
 
         return;
     }
-#endif
 
     if (m_networkLoad)
         m_networkLoad->continueWillSendRequest(WTFMove(newRequest));
@@ -554,7 +537,6 @@ void NetworkResourceLoader::sendBuffer(SharedBuffer& buffer, size_t encodedDataL
     send(Messages::WebResourceLoader::DidReceiveData(dataReference, encodedDataLength));
 }
 
-#if ENABLE(NETWORK_CACHE)
 void NetworkResourceLoader::tryStoreAsCacheEntry()
 {
     if (!canUseCache(m_networkLoad->currentRequest()))
@@ -624,6 +606,11 @@ void NetworkResourceLoader::sendResultForCacheEntry(std::unique_ptr<NetworkCache
     }
 #endif
 
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING) && !RELEASE_LOG_DISABLED
+    if (shouldLogCookieInformation())
+        logCookieInformation();
+#endif
+
     WebCore::NetworkLoadMetrics networkLoadMetrics;
     networkLoadMetrics.markComplete();
     networkLoadMetrics.requestHeaderBytesSent = 0;
@@ -668,7 +655,6 @@ void NetworkResourceLoader::dispatchWillSendRequestForCacheEntry(std::unique_ptr
     send(Messages::WebResourceLoader::WillSendRequest(*entry->redirectRequest(), entry->response()));
     m_isWaitingContinueWillSendRequestForCachedRedirect = true;
 }
-#endif
 
 IPC::Connection* NetworkResourceLoader::messageSenderConnection()
 {
@@ -729,5 +715,72 @@ bool NetworkResourceLoader::shouldCaptureExtraNetworkLoadMetrics() const
 {
     return m_connection->captureExtraNetworkLoadMetricsEnabled();
 }
+
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING) && !RELEASE_LOG_DISABLED
+bool NetworkResourceLoader::shouldLogCookieInformation() const
+{
+    return NetworkProcess::singleton().shouldLogCookieInformation();
+}
+
+void NetworkResourceLoader::logCookieInformation() const
+{
+    auto networkStorageSession = WebCore::NetworkStorageSession::storageSession(sessionID());
+    ASSERT(networkStorageSession);
+
+    auto url = originalRequest().url();
+    auto partition = WebCore::URL(ParsedURLString, networkStorageSession->cookieStoragePartition(originalRequest(), frameID(), pageID()));
+
+    Vector<WebCore::Cookie> cookies;
+    bool result = WebCore::getRawCookies(*networkStorageSession, partition, url, frameID(), pageID(), cookies);
+
+    if (result) {
+#define LOCAL_LOG(str, ...) \
+        RELEASE_LOG_IF_ALLOWED("logCookieInformation: pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ": " str, pageID(), frameID(), identifier(), ##__VA_ARGS__)
+
+        auto escapeForJSON = [](String s) {
+            s.replace('\\', "\\\\").replace('"', "\\\"");
+            return s;
+        };
+        auto escapedURL = escapeForJSON(url.string());
+        auto escapedPartition = escapeForJSON(partition.string());
+        auto escapedReferrer = escapeForJSON(originalRequest().httpReferrer());
+
+        LOCAL_LOG(R"({ "url": "%{public}s",)", escapedURL.utf8().data());
+        LOCAL_LOG(R"(  "partition": "%{public}s",)", escapedPartition.utf8().data());
+        LOCAL_LOG(R"(  "referer": "%{public}s",)", escapedReferrer.utf8().data());
+        LOCAL_LOG(R"(  "cookies": [)");
+
+        auto size = cookies.size();
+        decltype(size) count = 0;
+        for (const auto& cookie : cookies) {
+            const char* trailingComma = ",";
+            if (++count == size)
+                trailingComma = "";
+
+            auto escapedName = escapeForJSON(cookie.name);
+            auto escapedValue = escapeForJSON(cookie.value);
+            auto escapedDomain = escapeForJSON(cookie.domain);
+            auto escapedPath = escapeForJSON(cookie.path);
+            auto escapedComment = escapeForJSON(cookie.comment);
+            auto escapedCommentURL = escapeForJSON(cookie.commentURL.string());
+
+            LOCAL_LOG(R"(  { "name": "%{public}s",)", escapedName.utf8().data());
+            LOCAL_LOG(R"(    "value": "%{public}s",)", escapedValue.utf8().data());
+            LOCAL_LOG(R"(    "domain": "%{public}s",)", escapedDomain.utf8().data());
+            LOCAL_LOG(R"(    "path": "%{public}s",)", escapedPath.utf8().data());
+            LOCAL_LOG(R"(    "created": %f,)", cookie.created);
+            LOCAL_LOG(R"(    "expires": %f,)", cookie.expires);
+            LOCAL_LOG(R"(    "httpOnly": %{public}s,)", cookie.httpOnly ? "true" : "false");
+            LOCAL_LOG(R"(    "secure": %{public}s,)", cookie.secure ? "true" : "false");
+            LOCAL_LOG(R"(    "session": %{public}s,)", cookie.session ? "true" : "false");
+            LOCAL_LOG(R"(    "comment": "%{public}s",)", escapedComment.utf8().data());
+            LOCAL_LOG(R"(    "commentURL": "%{public}s")", escapedCommentURL.utf8().data());
+            LOCAL_LOG(R"(  }%{public}s)", trailingComma);
+        }
+        LOCAL_LOG(R"(]})");
+#undef LOCAL_LOG
+    }
+}
+#endif
 
 } // namespace WebKit

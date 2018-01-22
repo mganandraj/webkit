@@ -32,10 +32,16 @@ namespace WebCore {
 
 ServiceWorkerRegistrationData ServiceWorkerRegistrationData::isolatedCopy() const
 {
-    ServiceWorkerRegistrationData result;
-    result.key = key.isolatedCopy();
-    result.identifier = identifier;
-    return result;
+    return {
+        key.isolatedCopy(),
+        identifier,
+        scopeURL.isolatedCopy(),
+        updateViaCache,
+        lastUpdateTime,
+        installingWorker ? std::optional<ServiceWorkerData>(installingWorker->isolatedCopy()) : std::nullopt,
+        waitingWorker ? std::optional<ServiceWorkerData>(waitingWorker->isolatedCopy()) : std::nullopt,
+        activeWorker ? std::optional<ServiceWorkerData>(activeWorker->isolatedCopy()) : std::nullopt,
+    };
 }
 
 } // namespace WTF

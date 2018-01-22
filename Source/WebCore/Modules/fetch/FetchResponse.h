@@ -53,7 +53,7 @@ public:
         std::optional<FetchHeaders::Init> headers;
     };
 
-    static Ref<FetchResponse> create(ScriptExecutionContext&, std::optional<FetchBody>&&, Ref<FetchHeaders>&&, ResourceResponse&&);
+    WEBCORE_EXPORT static Ref<FetchResponse> create(ScriptExecutionContext&, std::optional<FetchBody>&&, Ref<FetchHeaders>&&, ResourceResponse&&);
 
     static ExceptionOr<Ref<FetchResponse>> create(ScriptExecutionContext&, std::optional<FetchBody::Init>&&, Init&&);
     static Ref<FetchResponse> error(ScriptExecutionContext&);
@@ -68,12 +68,12 @@ public:
     void finishConsumingStream(Ref<DeferredPromise>&&);
 #endif
 
-    Type type() const { return m_response.type(); }
+    Type type() const { return filteredResponse().type(); }
     const String& url() const;
-    bool redirected() const { return m_response.isRedirected(); }
-    int status() const { return m_response.httpStatusCode(); }
-    bool ok() const { return m_response.isSuccessful(); }
-    const String& statusText() const { return m_response.httpStatusText(); }
+    bool redirected() const { return filteredResponse().isRedirected(); }
+    int status() const { return filteredResponse().httpStatusCode(); }
+    bool ok() const { return filteredResponse().isSuccessful(); }
+    const String& statusText() const { return filteredResponse().httpStatusText(); }
 
     const FetchHeaders& headers() const { return m_headers; }
     FetchHeaders& headers() { return m_headers; }
@@ -87,7 +87,7 @@ public:
 
     using ResponseData = Variant<std::nullptr_t, Ref<FormData>, Ref<SharedBuffer>>;
     ResponseData consumeBody();
-    void setBodyData(ResponseData&&);
+    void setBodyData(ResponseData&&, uint64_t bodySizeWithPadding);
 
     bool isLoading() const { return !!m_bodyLoader; }
 
@@ -95,7 +95,13 @@ public:
     void consumeBodyWhenLoaded(ConsumeDataCallback&&);
     void consumeBodyFromReadableStream(ConsumeDataCallback&&);
 
-    const ResourceResponse& resourceResponse() const { return m_response; }
+    WEBCORE_EXPORT ResourceResponse resourceResponse() const;
+
+    uint64_t bodySizeWithPadding() const { return m_bodySizeWithPadding; }
+    void setBodySizeWithPadding(uint64_t size) { m_bodySizeWithPadding = size; }
+    uint64_t opaqueLoadIdentifier() const { return m_opaqueLoadIdentifier; }
+
+    void initializeOpaqueLoadIdentifierForTesting() { m_opaqueLoadIdentifier = 1; }
 
 private:
     FetchResponse(ScriptExecutionContext&, std::optional<FetchBody>&&, Ref<FetchHeaders>&&, ResourceResponse&&);
@@ -103,6 +109,8 @@ private:
     void stop() final;
     const char* activeDOMObjectName() const final;
     bool canSuspendForDocumentSuspension() const final;
+
+    const ResourceResponse& filteredResponse() const;
 
 #if ENABLE(STREAMS_API)
     void closeStream();
@@ -135,14 +143,13 @@ private:
         std::unique_ptr<FetchLoader> m_loader;
     };
 
-    ResourceResponse m_response;
+    mutable std::optional<ResourceResponse> m_filteredResponse;
+    ResourceResponse m_internalResponse;
     std::optional<BodyLoader> m_bodyLoader;
     mutable String m_responseURL;
+    // Opaque responses will padd their body size when used with Cache API.
+    uint64_t m_bodySizeWithPadding { 0 };
+    uint64_t m_opaqueLoadIdentifier { 0 };
 };
-
-inline Ref<FetchResponse> FetchResponse::create(ScriptExecutionContext& context, std::optional<FetchBody>&& body, Ref<FetchHeaders>&& headers, ResourceResponse&& response)
-{
-    return adoptRef(*new FetchResponse(context, WTFMove(body), WTFMove(headers), WTFMove(response)));
-}
 
 } // namespace WebCore

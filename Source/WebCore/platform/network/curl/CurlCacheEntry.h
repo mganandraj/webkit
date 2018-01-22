@@ -24,8 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CurlCacheEntry_h
-#define CurlCacheEntry_h
+#pragma once
 
 #include "FileSystem.h"
 #include "HTTPHeaderMap.h"
@@ -76,10 +75,10 @@ private:
     String m_headerFilename;
     String m_contentFilename;
 
-    PlatformFileHandle m_contentFile;
+    FileSystem::PlatformFileHandle m_contentFile;
 
     size_t m_entrySize;
-    double m_expireDate;
+    WallTime m_expireDate;
     bool m_headerParsed;
     bool m_isLoading;
     ListHashSet<ResourceHandle*> m_clients;
@@ -97,6 +96,4 @@ private:
     bool closeContentFile();
 };
 
-}
-
-#endif // CurlCacheEntry_h
+} // namespace WebCore

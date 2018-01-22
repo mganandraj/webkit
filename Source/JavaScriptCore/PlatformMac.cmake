@@ -5,9 +5,14 @@ list(APPEND JavaScriptCore_LIBRARIES
     ${SECURITY_LIBRARY}
 )
 
+list(APPEND JavaScriptCore_UNIFIED_SOURCE_LIST_FILES
+    "SourcesCocoa.txt"
+)
+
 list(APPEND JavaScriptCore_INCLUDE_DIRECTORIES
     ${JAVASCRIPTCORE_DIR}/disassembler/udis86
     ${JAVASCRIPTCORE_DIR}/icu
+    ${JAVASCRIPTCORE_DIR}/inspector/cocoa
     ${JAVASCRIPTCORE_DIR}/inspector/remote/cocoa
 )
 

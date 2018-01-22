@@ -293,10 +293,8 @@ void NetscapePluginInstanceProxy::layerHostingModeChanged(bool hostsLayersInWind
 
 void NetscapePluginInstanceProxy::stopAllStreams()
 {
-    Vector<RefPtr<HostedNetscapePluginStream>> streamsCopy;
-    copyValuesToVector(m_streams, streamsCopy);
-    for (size_t i = 0; i < streamsCopy.size(); i++)
-        streamsCopy[i]->stop();
+    for (auto& stream : copyToVector(m_streams.values()))
+        stream->stop();
 }
 
 void NetscapePluginInstanceProxy::cleanup()
@@ -930,6 +928,7 @@ bool NetscapePluginInstanceProxy::invoke(uint32_t objectID, const Identifier& me
 
     MarkedArgumentBuffer argList;
     demarshalValues(exec, argumentsData, argumentsLength, argList);
+    RELEASE_ASSERT(!argList.hasOverflowed());
 
     JSValue value = call(exec, function, callType, callData, object, argList);
         
@@ -965,6 +964,7 @@ bool NetscapePluginInstanceProxy::invokeDefault(uint32_t objectID, data_t argume
 
     MarkedArgumentBuffer argList;
     demarshalValues(exec, argumentsData, argumentsLength, argList);
+    RELEASE_ASSERT(!argList.hasOverflowed());
 
     JSValue value = call(exec, object, callType, callData, object, argList);
     
@@ -1001,6 +1001,7 @@ bool NetscapePluginInstanceProxy::construct(uint32_t objectID, data_t argumentsD
 
     MarkedArgumentBuffer argList;
     demarshalValues(exec, argumentsData, argumentsLength, argList);
+    RELEASE_ASSERT(!argList.hasOverflowed());
 
     JSValue value = JSC::construct(exec, object, constructType, constructData, argList);
     

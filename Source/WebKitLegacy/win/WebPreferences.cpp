@@ -58,7 +58,7 @@ using std::numeric_limits;
 
 static const String& oldPreferencesPath()
 {
-    static String path = pathByAppendingComponent(roamingUserSpecificStorageDirectory(), "WebKitPreferences.plist");
+    static String path = FileSystem::pathByAppendingComponent(FileSystem::roamingUserSpecificStorageDirectory(), "WebKitPreferences.plist");
     return path;
 }
 
@@ -322,6 +322,8 @@ void WebPreferences::initializeDefaultSettings()
 
     CFDictionaryAddValue(defaults, CFSTR(WebKitInspectorAdditionsEnabledPreferenceKey), kCFBooleanFalse);
 
+    CFDictionaryAddValue(defaults, CFSTR(WebKitVisualViewportAPIEnabledPreferenceKey), kCFBooleanFalse);
+
     defaultSettings = defaults;
 }
 
@@ -516,7 +518,7 @@ void WebPreferences::migrateWebKitPreferencesToCFPreferences()
 
     copyWebKitPreferencesToCFPreferences(static_cast<CFDictionaryRef>(plist.get()));
 
-    deleteFile(oldPreferencesPath());
+    FileSystem::deleteFile(oldPreferencesPath());
 }
 
 void WebPreferences::copyWebKitPreferencesToCFPreferences(CFDictionaryRef dict)
@@ -2011,6 +2013,20 @@ HRESULT WebPreferences::modernMediaControlsEnabled(_Out_ BOOL* enabled)
     return S_OK;
 }
 
+HRESULT WebPreferences::fetchAPIKeepAliveEnabled(_Out_ BOOL* enabled)
+{
+    if (!enabled)
+        return E_POINTER;
+    *enabled = boolValueForKey(WebKitFetchAPIKeepAliveEnabledPreferenceKey);
+    return S_OK;
+}
+
+HRESULT WebPreferences::setFetchAPIKeepAliveEnabled(BOOL enabled)
+{
+    setBoolValue(WebKitFetchAPIKeepAliveEnabledPreferenceKey, enabled);
+    return S_OK;
+}
+
 HRESULT WebPreferences::setLinkPreloadEnabled(BOOL enabled)
 {
     setBoolValue(WebKitLinkPreloadEnabledPreferenceKey, enabled);
@@ -2090,6 +2106,20 @@ HRESULT WebPreferences::inspectorAdditionsEnabled(_Out_ BOOL* enabled)
 HRESULT WebPreferences::setInspectorAdditionsEnabled(BOOL enabled)
 {
     setBoolValue(WebKitInspectorAdditionsEnabledPreferenceKey, enabled);
+    return S_OK;
+}
+
+HRESULT WebPreferences::visualViewportAPIEnabled(_Out_ BOOL* enabled)
+{
+    if (!enabled)
+        return E_POINTER;
+    *enabled = boolValueForKey(WebKitVisualViewportAPIEnabledPreferenceKey);
+    return S_OK;
+}
+
+HRESULT WebPreferences::setVisualViewportAPIEnabled(BOOL enabled)
+{
+    setBoolValue(WebKitVisualViewportAPIEnabledPreferenceKey, enabled);
     return S_OK;
 }
 

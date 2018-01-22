@@ -25,8 +25,6 @@ list(APPEND WebCore_SOURCES
     platform/graphics/win/MediaPlayerPrivateMediaFoundation.cpp
     platform/graphics/win/SimpleFontDataCairoWin.cpp
 
-    platform/network/NetworkStorageSessionStub.cpp
-
     platform/text/win/LocaleWin.cpp
 
     platform/win/DelayLoadedModulesEnumerator.cpp
@@ -37,12 +35,12 @@ list(APPEND WebCore_SOURCES
 )
 
 list(APPEND WebCore_LIBRARIES
+    ${CURL_LIBRARY}
     ${DirectX_LIBRARIES}
     CFLite
     comctl32
     crypt32
     iphlpapi
-    libcurl_imp
     rpcrt4
     shlwapi
     usp10

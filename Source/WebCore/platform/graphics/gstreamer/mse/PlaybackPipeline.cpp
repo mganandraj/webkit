@@ -25,7 +25,7 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(MEDIA_SOURCE)
 
 #include "AudioTrackPrivateGStreamer.h"
-#include "GStreamerMediaSample.h"
+#include "MediaSampleGStreamer.h"
 #include "GStreamerUtilities.h"
 #include "GUniquePtrGStreamer.h"
 #include "MediaSample.h"
@@ -235,7 +235,10 @@ void PlaybackPipeline::attachTrack(RefPtr<SourceBufferPrivateGStreamer> sourceBu
 
         pad = adoptGRef(gst_element_get_static_pad(parser, "src"));
         gst_element_add_pad(stream->parser, gst_ghost_pad_new("src", pad.get()));
-    } else if (!g_strcmp0(mediaType, "video/x-vp9"))
+    } else if (!g_strcmp0(mediaType, "video/x-vp8")
+        || !g_strcmp0(mediaType, "video/x-vp9")
+        || !g_strcmp0(mediaType, "audio/x-opus")
+        || !g_strcmp0(mediaType, "audio/x-vorbis"))
         stream->parser = nullptr;
     else {
         GST_ERROR_OBJECT(stream->parent, "Unsupported media format: %s", mediaType);
@@ -498,11 +501,11 @@ void PlaybackPipeline::enqueueSample(Ref<MediaSample>&& mediaSample)
     // Only modified by the main thread, no need to lock.
     MediaTime lastEnqueuedTime = stream->lastEnqueuedTime;
 
-    GStreamerMediaSample* sample = static_cast<GStreamerMediaSample*>(mediaSample.ptr());
-    if (sample->sample() && gst_sample_get_buffer(sample->sample())) {
-        GRefPtr<GstSample> gstSample = sample->sample();
+    ASSERT(mediaSample->platformSample().type == PlatformSample::GStreamerSampleType);
+    GRefPtr<GstSample> gstSample = mediaSample->platformSample().sample.gstSample;
+    if (gstSample && gst_sample_get_buffer(gstSample.get())) {
         GstBuffer* buffer = gst_sample_get_buffer(gstSample.get());
-        lastEnqueuedTime = sample->presentationTime();
+        lastEnqueuedTime = mediaSample->presentationTime();
 
         GST_BUFFER_FLAG_UNSET(buffer, GST_BUFFER_FLAG_DECODE_ONLY);
         pushSample(GST_APP_SRC(appsrc), gstSample.get());

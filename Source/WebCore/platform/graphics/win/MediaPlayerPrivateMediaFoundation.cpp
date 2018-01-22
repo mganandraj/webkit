@@ -34,6 +34,7 @@
 #include "HostWindow.h"
 #include "NotImplemented.h"
 #if USE(CAIRO)
+#include "CairoOperations.h"
 #include "PlatformContextCairo.h"
 #include <cairo.h>
 #endif
@@ -535,6 +536,15 @@ bool MediaPlayerPrivateMediaFoundation::endGetEvent(IMFAsyncResult* asyncResult)
         break;
     }
 
+    case MESessionStarted: {
+        callOnMainThread([weakPtr = m_weakPtrFactory.createWeakPtr(*this)] {
+            if (!weakPtr)
+                return;
+            weakPtr->onSessionStarted();
+        });
+        break;
+    }
+
     case MEBufferingStarted: {
         callOnMainThread([weakPtr = m_weakPtrFactory.createWeakPtr(*this)] {
             if (!weakPtr)
@@ -917,6 +927,11 @@ void MediaPlayerPrivateMediaFoundation::onBufferingStarted()
 }
 
 void MediaPlayerPrivateMediaFoundation::onBufferingStopped()
+{
+    updateReadyState();
+}
+
+void MediaPlayerPrivateMediaFoundation::onSessionStarted()
 {
     updateReadyState();
 }
@@ -2688,9 +2703,7 @@ MediaPlayerPrivateMediaFoundation::Direct3DPresenter::Direct3DPresenter()
     createD3DDevice();
 }
 
-MediaPlayerPrivateMediaFoundation::Direct3DPresenter::~Direct3DPresenter()
-{
-}
+MediaPlayerPrivateMediaFoundation::Direct3DPresenter::~Direct3DPresenter() = default;
 
 HRESULT MediaPlayerPrivateMediaFoundation::Direct3DPresenter::getService(REFGUID guidService, REFIID riid, void** ppv)
 {
@@ -2961,7 +2974,8 @@ void MediaPlayerPrivateMediaFoundation::Direct3DPresenter::paintCurrentFrame(Web
         FloatRect srcRect(0, 0, width, height);
         if (image) {
             WebCore::PlatformContextCairo* ctxt = context.platformContext();
-            ctxt->drawSurfaceToContext(image, destRect, srcRect, context);
+            auto& state = context.state();
+            ctxt->drawSurfaceToContext(image, destRect, srcRect, state.imageInterpolationQuality, state.alpha, Cairo::ShadowState(state), context);
             cairo_surface_destroy(image);
         }
 #else

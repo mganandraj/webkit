@@ -60,6 +60,9 @@ WI.ContentView = class ContentView extends WI.View
         if (representedObject instanceof WI.Canvas)
             return new WI.CanvasContentView(representedObject, extraArguments);
 
+        if (representedObject instanceof WI.CanvasCollection)
+            return new WI.CanvasOverviewContentView(representedObject, extraArguments);
+
         if (representedObject instanceof WI.ShaderProgram)
             return new WI.ShaderProgramContentView(representedObject, extraArguments);
 
@@ -438,6 +441,11 @@ WI.ContentView = class ContentView extends WI.View
     }
 
     performSearch(query)
+    {
+        // Implemented by subclasses.
+    }
+
+    searchHidden()
     {
         // Implemented by subclasses.
     }

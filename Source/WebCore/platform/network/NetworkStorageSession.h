@@ -28,6 +28,7 @@
 #include "CredentialStorage.h"
 #include <pal/SessionID.h>
 #include <wtf/Function.h>
+#include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/text/WTFString.h>
 
@@ -63,7 +64,6 @@ class NetworkStorageSession {
 public:
     WEBCORE_EXPORT static NetworkStorageSession& defaultStorageSession();
     WEBCORE_EXPORT static NetworkStorageSession* storageSession(PAL::SessionID);
-    WEBCORE_EXPORT static void ensurePrivateBrowsingSession(PAL::SessionID, const String& identifierBase = String());
     WEBCORE_EXPORT static void ensureSession(PAL::SessionID, const String& identifierBase = String());
     WEBCORE_EXPORT static void destroySession(PAL::SessionID);
     WEBCORE_EXPORT static void forEach(const WTF::Function<void(const WebCore::NetworkStorageSession&)>&);
@@ -74,11 +74,13 @@ public:
     CredentialStorage& credentialStorage() { return m_credentialStorage; }
 
 #ifdef __OBJC__
-    NSHTTPCookieStorage *nsCookieStorage() const;
+    WEBCORE_EXPORT NSHTTPCookieStorage *nsCookieStorage() const;
 #endif
 
     const String& cacheStorageDirectory() const { return m_cacheStorageDirectory; }
     void setCacheStorageDirectory(String&& path) { m_cacheStorageDirectory = WTFMove(path); }
+    uint64_t cacheStoragePerOriginQuota() const { return m_cacheStoragePerOriginQuota; }
+    void setCacheStoragePerOriginQuota(uint64_t quota) { m_cacheStoragePerOriginQuota = quota; }
 
 #if PLATFORM(COCOA) || USE(CFURLCONNECTION)
     WEBCORE_EXPORT static void ensureSession(PAL::SessionID, const String& identifierBase, RetainPtr<CFHTTPCookieStorageRef>&&);
@@ -88,13 +90,18 @@ public:
     CFURLStorageSessionRef platformSession() { return m_platformSession.get(); }
     WEBCORE_EXPORT RetainPtr<CFHTTPCookieStorageRef> cookieStorage() const;
     WEBCORE_EXPORT static void setCookieStoragePartitioningEnabled(bool);
+    WEBCORE_EXPORT static void setStorageAccessAPIEnabled(bool);
 #if HAVE(CFNETWORK_STORAGE_PARTITIONING)
-    WEBCORE_EXPORT String cookieStoragePartition(const ResourceRequest&) const;
+    WEBCORE_EXPORT String cookieStoragePartition(const ResourceRequest&, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID) const;
     WEBCORE_EXPORT bool shouldBlockCookies(const ResourceRequest&) const;
     bool shouldBlockCookies(const URL& firstPartyForCookies, const URL& resource) const;
-    String cookieStoragePartition(const URL& firstPartyForCookies, const URL& resource) const;
+    String cookieStoragePartition(const URL& firstPartyForCookies, const URL& resource, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID) const;
     WEBCORE_EXPORT void setPrevalentDomainsToPartitionOrBlockCookies(const Vector<String>& domainsToPartition, const Vector<String>& domainsToBlock, const Vector<String>& domainsToNeitherPartitionNorBlock, bool clearFirst);
     WEBCORE_EXPORT void removePrevalentDomains(const Vector<String>& domains);
+    WEBCORE_EXPORT bool hasStorageAccessForFrame(const String& resourceDomain, const String& firstPartyDomain, uint64_t frameID, uint64_t pageID) const;
+    WEBCORE_EXPORT void grantStorageAccessForFrame(const String& resourceDomain, const String& firstPartyDomain, uint64_t frameID, uint64_t pageID);
+    WEBCORE_EXPORT void removeStorageAccessForFrame(uint64_t frameID, uint64_t pageID);
+    WEBCORE_EXPORT void removeStorageAccessForAllFramesOnPage(uint64_t pageID);
 #endif
 #elif USE(SOUP)
     NetworkStorageSession(PAL::SessionID, std::unique_ptr<SoupNetworkSession>&&);
@@ -146,12 +153,14 @@ private:
     CredentialStorage m_credentialStorage;
 
     String m_cacheStorageDirectory;
+    uint64_t m_cacheStoragePerOriginQuota { 0 };
 
 #if HAVE(CFNETWORK_STORAGE_PARTITIONING)
     bool shouldPartitionCookies(const String& topPrivatelyControlledDomain) const;
     bool shouldBlockThirdPartyCookies(const String& topPrivatelyControlledDomain) const;
     HashSet<String> m_topPrivatelyControlledDomainsToPartition;
     HashSet<String> m_topPrivatelyControlledDomainsToBlock;
+    HashMap<uint64_t, HashMap<uint64_t, String, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>>, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> m_framesGrantedStorageAccess;
 #endif
 
 #if PLATFORM(COCOA)

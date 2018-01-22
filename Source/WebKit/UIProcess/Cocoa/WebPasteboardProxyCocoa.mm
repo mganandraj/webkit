@@ -29,6 +29,7 @@
 #import "SandboxExtension.h"
 #import "WebProcessProxy.h"
 #import <WebCore/Color.h>
+#import <WebCore/PasteboardItemInfo.h>
 #import <WebCore/PlatformPasteboard.h>
 #import <WebCore/SharedBuffer.h>
 #import <WebCore/URL.h>
@@ -159,9 +160,9 @@ void WebPasteboardProxy::getNumberOfFiles(const String& pasteboardName, uint64_t
     numberOfFiles = PlatformPasteboard(pasteboardName).numberOfFiles();
 }
 
-void WebPasteboardProxy::typesSafeForDOMToReadAndWrite(const String& pasteboardName, Vector<String>& types)
+void WebPasteboardProxy::typesSafeForDOMToReadAndWrite(const String& pasteboardName, const String& origin, Vector<String>& types)
 {
-    types = PlatformPasteboard(pasteboardName).typesSafeForDOMToReadAndWrite();
+    types = PlatformPasteboard(pasteboardName).typesSafeForDOMToReadAndWrite(origin);
 }
 
 void WebPasteboardProxy::writeCustomData(const WebCore::PasteboardCustomData& data, const String& pasteboardName, uint64_t& newChangeCount)
@@ -225,9 +226,9 @@ void WebPasteboardProxy::getPasteboardItemsCount(const String& pasteboardName, u
     itemsCount = PlatformPasteboard(pasteboardName).count();
 }
 
-void WebPasteboardProxy::getFilenamesForDataInteraction(const String& pasteboardName, Vector<String>& filenames)
+void WebPasteboardProxy::informationForItemAtIndex(int index, const String& pasteboardName, PasteboardItemInfo& info)
 {
-    filenames = PlatformPasteboard(pasteboardName).filenamesForDataInteraction();
+    info = PlatformPasteboard(pasteboardName).informationForItemAtIndex(index);
 }
 
 void WebPasteboardProxy::updateSupportedTypeIdentifiers(const Vector<String>& identifiers, const String& pasteboardName)

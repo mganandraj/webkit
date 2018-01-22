@@ -41,11 +41,12 @@ public:
         copy.statusCode = statusCode;
         copy.expectedContentLength = expectedContentLength;
 
-        for (auto header : headers)
+        for (const auto& header : headers)
             copy.headers.append(header.isolatedCopy());
 
         copy.connectPort = connectPort;
         copy.availableHttpAuth = availableHttpAuth;
+        copy.httpVersion = httpVersion;
 
         return copy;
     }
@@ -57,6 +58,7 @@ public:
 
     uint16_t connectPort { 0 };
     long availableHttpAuth { 0 };
+    long httpVersion { 0 };
 };
 
-}
+} // namespace WebCore

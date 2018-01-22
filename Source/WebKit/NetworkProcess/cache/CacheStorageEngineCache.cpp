@@ -52,8 +52,6 @@ namespace WebKit {
 
 namespace CacheStorage {
 
-static std::optional<std::pair<Record, double>> decodeRecordHeader(const Storage::Record&);
-
 static inline String computeKeyURL(const URL& url)
 {
     URL keyURL { url };
@@ -100,7 +98,7 @@ static inline void updateVaryInformation(RecordInformation& recordInformation, c
 RecordInformation Cache::toRecordInformation(const Record& record)
 {
     Key key { ASCIILiteral("record"), m_uniqueName, { }, createCanonicalUUIDString(), m_caches.salt() };
-    RecordInformation recordInformation { WTFMove(key), monotonicallyIncreasingTimeMS(), record.identifier, 0 , record.request.url(), false, { } };
+    RecordInformation recordInformation { WTFMove(key), monotonicallyIncreasingTimeMS(), record.identifier, 0 , record.responseBodySize, record.request.url(), false, { } };
 
     updateVaryInformation(recordInformation, record.request, record.response);
 
@@ -130,7 +128,7 @@ void Cache::clearMemoryRepresentation()
 
 static RecordInformation isolatedCopy(const RecordInformation& information)
 {
-    auto result = RecordInformation { information.key, information.insertionTime, information.identifier, information.updateResponseCounter, information.url.isolatedCopy(), information.hasVaryStar, { } };
+    auto result = RecordInformation { information.key, information.insertionTime, information.identifier, information.updateResponseCounter, information.size, information.url.isolatedCopy(), information.hasVaryStar, { } };
     HashMap<String, String> varyHeaders;
     for (const auto& keyValue : information.varyHeaders)
         varyHeaders.set(keyValue.key.isolatedCopy(), keyValue.value.isolatedCopy());
@@ -175,7 +173,7 @@ void Cache::open(CompletionCallback&& callback)
         if (!storageRecord) {
             RunLoop::main().dispatch([caches = WTFMove(caches), callback = WTFMove(callback), traversalResult = isolatedCopy(WTFMove(traversalResult)) ]() mutable {
                 for (auto& key : traversalResult.failedRecords)
-                    caches->removeRecord(key);
+                    caches->removeCacheEntry(key);
 
                 auto* cache = caches->find(traversalResult.cacheIdentifier);
                 if (!cache) {
@@ -194,10 +192,10 @@ void Cache::open(CompletionCallback&& callback)
             return;
         }
 
-        auto& record = decoded->first;
-        auto insertionTime = decoded->second;
+        auto& record = decoded->record;
+        auto insertionTime = decoded->insertionTime;
 
-        RecordInformation recordInformation { storageRecord->key, insertionTime, 0, 0, record.request.url(), false, { } };
+        RecordInformation recordInformation { storageRecord->key, insertionTime, 0, 0, record.responseBodySize, record.request.url(), false, { } };
         updateVaryInformation(recordInformation, record.request, record.response);
 
         auto& sameURLRecords = traversalResult.records.ensure(computeKeyURL(recordInformation.url), [] { return Vector<RecordInformation> { }; }).iterator->value;
@@ -253,7 +251,7 @@ public:
     void appendRecord(Expected<Record, Error>&& result, uint64_t recordIdentifier, uint64_t updateCounter)
     {
         ASSERT(RunLoop::isMain());
-        if (!result.hasValue()) {
+        if (!result.has_value()) {
             m_failedRecords.append(recordIdentifier);
             return;
         }
@@ -377,34 +375,65 @@ private:
     Vector<uint64_t> m_recordIdentifiers;
 };
 
-void Cache::put(Vector<Record>&& records, RecordIdentifiersCallback&& callback)
+void Cache::storeRecords(Vector<Record>&& records, RecordIdentifiersCallback&& callback)
 {
-    ASSERT(m_state == State::Open);
-
     auto taskCounter = AsynchronousPutTaskCounter::create(WTFMove(callback));
 
     WebCore::CacheQueryOptions options;
     for (auto& record : records) {
         auto* sameURLRecords = recordsFromURL(record.request.url());
-
         auto matchingRecords = queryCache(sameURLRecords, record.request, options);
-        if (matchingRecords.isEmpty()) {
+
+        auto position = !matchingRecords.isEmpty() ? sameURLRecords->findMatching([&](const auto& item) { return item.identifier == matchingRecords[0]; }) : notFound;
+
+        if (position == notFound) {
             record.identifier = ++m_nextRecordIdentifier;
             taskCounter->addRecordIdentifier(record.identifier);
 
             auto& recordToWrite = addRecord(sameURLRecords, record);
-            writeRecordToDisk(recordToWrite, WTFMove(record), taskCounter.copyRef());
+            writeRecordToDisk(recordToWrite, WTFMove(record), taskCounter.copyRef(), 0);
         } else {
-            auto identifier = matchingRecords[0];
-            auto position = sameURLRecords->findMatching([&](const auto& item) { return item.identifier == identifier; });
-            ASSERT(position != notFound);
-            if (position != notFound) {
-                auto& existingRecord = sameURLRecords->at(position);
-                taskCounter->addRecordIdentifier(identifier);
-                updateRecordToDisk(existingRecord, WTFMove(record), taskCounter.copyRef());
-            }
+            auto& existingRecord = sameURLRecords->at(position);
+            taskCounter->addRecordIdentifier(existingRecord.identifier);
+            updateRecordToDisk(existingRecord, WTFMove(record), taskCounter.copyRef());
         }
     }
+}
+
+void Cache::put(Vector<Record>&& records, RecordIdentifiersCallback&& callback)
+{
+    ASSERT(m_state == State::Open);
+
+    WebCore::CacheQueryOptions options;
+    uint64_t spaceRequired = 0;
+
+    for (auto& record : records) {
+        auto* sameURLRecords = recordsFromURL(record.request.url());
+        auto matchingRecords = queryCache(sameURLRecords, record.request, options);
+
+        auto position = (sameURLRecords && !matchingRecords.isEmpty()) ? sameURLRecords->findMatching([&](const auto& item) { return item.identifier == matchingRecords[0]; }) : notFound;
+
+        spaceRequired += record.responseBodySize;
+        if (position != notFound)
+            spaceRequired -= sameURLRecords->at(position).size;
+    }
+
+    if (m_caches.hasEnoughSpace(spaceRequired)) {
+        storeRecords(WTFMove(records), WTFMove(callback));
+        return;
+    }
+
+    m_caches.requestSpace(spaceRequired, [caches = makeRef(m_caches), identifier = m_identifier, records = WTFMove(records), callback = WTFMove(callback)](std::optional<DOMCacheEngine::Error>&& error) mutable {
+        if (error) {
+            callback(makeUnexpected(error.value()));
+            return;
+        }
+        auto* cache = caches->find(identifier);
+        if (!cache)
+            return;
+
+        cache->storeRecords(WTFMove(records), WTFMove(callback));
+    });
 }
 
 void Cache::remove(WebCore::ResourceRequest&& request, WebCore::CacheQueryOptions&& options, RecordIdentifiersCallback&& callback)
@@ -446,9 +475,9 @@ void Cache::removeFromRecordList(const Vector<uint64_t>& recordIdentifiers)
     }
 }
 
-void Cache::writeRecordToDisk(const RecordInformation& recordInformation, Record&& record, Ref<AsynchronousPutTaskCounter>&& taskCounter)
+void Cache::writeRecordToDisk(const RecordInformation& recordInformation, Record&& record, Ref<AsynchronousPutTaskCounter>&& taskCounter, uint64_t previousRecordSize)
 {
-    m_caches.writeRecord(*this, recordInformation, WTFMove(record), [taskCounter = WTFMove(taskCounter)](std::optional<Error>&& error) {
+    m_caches.writeRecord(*this, recordInformation, WTFMove(record), previousRecordSize, [taskCounter = WTFMove(taskCounter)](std::optional<Error>&& error) {
         if (error)
             taskCounter->setError(error.value());
     });
@@ -458,7 +487,7 @@ void Cache::updateRecordToDisk(RecordInformation& existingRecord, Record&& recor
 {
     ++existingRecord.updateResponseCounter;
     readRecordFromDisk(existingRecord, [caches = makeRef(m_caches), identifier = m_identifier, recordIdentifier = existingRecord.identifier, record = WTFMove(record), taskCounter = WTFMove(taskCounter)](Expected<Record, Error>&& result) mutable {
-        if (!result.hasValue())
+        if (!result.has_value())
             return;
 
         auto* cache = caches->find(identifier);
@@ -473,6 +502,8 @@ void Cache::updateRecordToDisk(RecordInformation& existingRecord, Record&& recor
         if (position == notFound)
             return;
         auto& recordInfo = sameURLRecords->at(position);
+        auto previousSize = recordInfo.size;
+        recordInfo.size = record.responseBodySize;
 
         auto& recordFromDisk = result.value();
         record.requestHeadersGuard = recordFromDisk.requestHeadersGuard;
@@ -482,7 +513,7 @@ void Cache::updateRecordToDisk(RecordInformation& existingRecord, Record&& recor
 
         updateVaryInformation(recordInfo, record.request, record.response);
 
-        cache->writeRecordToDisk(recordInfo, WTFMove(record), WTFMove(taskCounter));
+        cache->writeRecordToDisk(recordInfo, WTFMove(record), WTFMove(taskCounter), previousSize);
     });
 }
 
@@ -493,20 +524,22 @@ void Cache::readRecordFromDisk(const RecordInformation& record, WTF::Function<vo
 
 void Cache::removeRecordFromDisk(const RecordInformation& record)
 {
-    m_caches.removeRecord(record.key);
+    m_caches.removeRecord(record);
 }
 
 Storage::Record Cache::encode(const RecordInformation& recordInformation, const Record& record)
 {
     WTF::Persistence::Encoder encoder;
     encoder << recordInformation.insertionTime;
+    encoder << recordInformation.size;
     encoder << record.requestHeadersGuard;
     record.request.encodeWithoutPlatformData(encoder);
-    encoder << record.options;
+    record.options.encodePersistent(encoder);
     encoder << record.referrer;
 
     encoder << record.responseHeadersGuard;
     encoder << record.response;
+    encoder << record.responseBodySize;
 
     encoder.encodeChecksum();
 
@@ -522,7 +555,7 @@ Storage::Record Cache::encode(const RecordInformation& recordInformation, const 
     return { recordInformation.key, { }, header, body, { } };
 }
 
-static inline std::optional<std::pair<Record, double>> decodeRecordHeader(const Storage::Record& storage)
+std::optional<Cache::DecodedRecord> Cache::decodeRecordHeader(const Storage::Record& storage)
 {
     WTF::Persistence::Decoder decoder(storage.header.data(), storage.header.size());
 
@@ -532,13 +565,17 @@ static inline std::optional<std::pair<Record, double>> decodeRecordHeader(const 
     if (!decoder.decode(insertionTime))
         return std::nullopt;
 
+    uint64_t size;
+    if (!decoder.decode(size))
+        return std::nullopt;
+
     if (!decoder.decode(record.requestHeadersGuard))
         return std::nullopt;
 
     if (!record.request.decodeWithoutPlatformData(decoder))
         return std::nullopt;
 
-    if (!decoder.decode(record.options))
+    if (!FetchOptions::decodePersistent(decoder, record.options))
         return std::nullopt;
 
     if (!decoder.decode(record.referrer))
@@ -550,10 +587,13 @@ static inline std::optional<std::pair<Record, double>> decodeRecordHeader(const 
     if (!decoder.decode(record.response))
         return std::nullopt;
 
+    if (!decoder.decode(record.responseBodySize))
+        return std::nullopt;
+
     if (!decoder.verifyChecksum())
         return std::nullopt;
 
-    return std::make_pair(WTFMove(record), insertionTime);
+    return DecodedRecord { insertionTime, size, WTFMove(record) };
 }
 
 std::optional<Record> Cache::decode(const Storage::Record& storage)
@@ -563,7 +603,7 @@ std::optional<Record> Cache::decode(const Storage::Record& storage)
     if (!result)
         return std::nullopt;
 
-    auto record = WTFMove(result->first);
+    auto record = WTFMove(result->record);
     record.responseBody = WebCore::SharedBuffer::create(storage.body.data(), storage.body.size());
 
     return WTFMove(record);

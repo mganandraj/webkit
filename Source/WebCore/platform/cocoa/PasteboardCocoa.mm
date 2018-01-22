@@ -26,6 +26,7 @@
 #include "config.h"
 #include "Pasteboard.h"
 
+#include "LegacyNSPasteboardTypes.h"
 #include "PasteboardStrategy.h"
 #include "PlatformStrategies.h"
 #include "SharedBuffer.h"
@@ -38,6 +39,17 @@
 #endif
 
 namespace WebCore {
+
+#if PLATFORM(MAC)
+static NSBitmapImageFileType bitmapPNGFileType()
+{
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+    return NSBitmapImageFileTypePNG;
+#else
+    return NSPNGFileType;
+#endif
+}
+#endif // PLATFORM(MAC)
 
 // Making this non-inline so that WebKit 2's decoding doesn't have to include SharedBuffer.h.
 PasteboardWebContent::PasteboardWebContent() = default;
@@ -59,7 +71,7 @@ enum class ImageType {
 static ImageType cocoaTypeToImageType(const String& cocoaType)
 {
 #if PLATFORM(MAC)
-    if (cocoaType == String(NSTIFFPboardType))
+    if (cocoaType == String(legacyTIFFPasteboardType()))
         return ImageType::TIFF;
 #endif
     if (cocoaType == String(kUTTypeTIFF))
@@ -107,7 +119,7 @@ static const char* imageTypeToFakeFilename(ImageType type)
         return nullptr;
     case ImageType::TIFF:
 #if PLATFORM(MAC)
-        return "image/png"; // For Web compatibility, we pretend to have PNG instead.
+        return "image.png"; // For Web compatibility, we pretend to have PNG instead.
 #else
         ASSERT_NOT_REACHED();
         return nullptr;
@@ -143,9 +155,9 @@ bool Pasteboard::containsFiles()
     return true;
 }
 
-Vector<String> Pasteboard::typesSafeForBindings()
+Vector<String> Pasteboard::typesSafeForBindings(const String& origin)
 {
-    Vector<String> types = platformStrategies()->pasteboardStrategy()->typesSafeForDOMToReadAndWrite(m_pasteboardName);
+    Vector<String> types = platformStrategies()->pasteboardStrategy()->typesSafeForDOMToReadAndWrite(m_pasteboardName, origin);
 
     // Enforce changeCount ourselves for security. We check after reading instead of before to be
     // sure it doesn't change between our testing the change count and accessing the data.
@@ -165,23 +177,21 @@ Vector<String> Pasteboard::typesForLegacyUnsafeBindings()
     for (auto& cocoaType : cocoaTypes)
         addHTMLClipboardTypesForCocoaType(result, cocoaType);
 
-    Vector<String> types;
-    copyToVector(result, types);
-    return types;
+    return copyToVector(result);
 }
 
 #if PLATFORM(MAC)
 static Ref<SharedBuffer> convertTIFFToPNG(SharedBuffer& tiffBuffer)
 {
     auto image = adoptNS([[NSBitmapImageRep alloc] initWithData: tiffBuffer.createNSData().get()]);
-    NSData *pngData = [image representationUsingType:NSPNGFileType properties:@{ }];
+    NSData *pngData = [image representationUsingType:bitmapPNGFileType() properties:@{ }];
     return SharedBuffer::create(pngData);
 }
 #endif
 
 void Pasteboard::read(PasteboardFileReader& reader)
 {
-    auto filenames = readFilenames();
+    auto filenames = readFilePaths();
     if (!filenames.isEmpty()) {
         for (auto& filename : filenames)
             reader.readFilename(filename);
@@ -195,7 +205,7 @@ void Pasteboard::read(PasteboardFileReader& reader)
         const char* mimeType = imageTypeToMIMEType(imageType);
         if (!mimeType)
             continue;
-        if (!existingMIMEs.add(mimeType).isNewEntry)
+        if (existingMIMEs.contains(mimeType))
             continue;
         auto buffer = readBufferForTypeWithSecurityCheck(cocoaType);
 #if PLATFORM(MAC)
@@ -204,6 +214,7 @@ void Pasteboard::read(PasteboardFileReader& reader)
 #endif
         if (!buffer)
             continue;
+        existingMIMEs.add(mimeType);
         reader.readBuffer(imageTypeToFakeFilename(imageType), mimeType, buffer.releaseNonNull());
     }
 }
@@ -215,16 +226,24 @@ String Pasteboard::readString(const String& type)
 
 String Pasteboard::readStringInCustomData(const String& type)
 {
-    auto buffer = readBufferForTypeWithSecurityCheck(PasteboardCustomData::cocoaType());
-    if (!buffer)
-        return { };
+    return readCustomData().sameOriginCustomData.get(type);
+}
 
-    // Enforce changeCount ourselves for security. We check after reading instead of before to be
-    // sure it doesn't change between our testing the change count and accessing the data.
-    if (m_changeCount != platformStrategies()->pasteboardStrategy()->changeCount(m_pasteboardName))
-        return { };
+String Pasteboard::readOrigin()
+{
+    return readCustomData().origin;
+}
 
-    return PasteboardCustomData::fromSharedBuffer(*buffer).sameOriginCustomData.get(type);
+const PasteboardCustomData& Pasteboard::readCustomData()
+{
+    if (m_customDataCache)
+        return *m_customDataCache;
+
+    if (auto buffer = readBufferForTypeWithSecurityCheck(PasteboardCustomData::cocoaType()))
+        m_customDataCache = PasteboardCustomData::fromSharedBuffer(*buffer);
+    else
+        m_customDataCache = PasteboardCustomData { };
+    return *m_customDataCache; 
 }
 
 void Pasteboard::writeCustomData(const PasteboardCustomData& data)

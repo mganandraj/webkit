@@ -211,10 +211,10 @@ void HTMLObjectElement::parametersForPlugin(Vector<String>& paramNames, Vector<S
 
 bool HTMLObjectElement::hasFallbackContent() const
 {
-    for (Node* child = firstChild(); child; child = child->nextSibling()) {
+    for (RefPtr<Node> child = firstChild(); child; child = child->nextSibling()) {
         // Ignore whitespace-only text, and <param> tags, any other content is fallback content.
         if (is<Text>(*child)) {
-            if (!downcast<Text>(*child).containsOnlyWhitespace())
+            if (!downcast<Text>(*child).data().isAllSpecialCharacters<isHTMLSpace>())
                 return true;
         } else if (!is<HTMLParamElement>(*child))
             return true;
@@ -238,7 +238,7 @@ bool HTMLObjectElement::shouldAllowQuickTimeClassIdQuirk()
         return false;
 
     for (auto& metaElement : descendantsOfType<HTMLMetaElement>(document())) {
-        if (equalLettersIgnoringASCIICase(metaElement.name(), "generator") && metaElement.content().startsWith("Mac OS X Server Web Services Server", false))
+        if (equalLettersIgnoringASCIICase(metaElement.name(), "generator") && startsWithLettersIgnoringASCIICase(metaElement.content(), "mac os x server web services server"))
             return true;
     }
 
@@ -247,7 +247,7 @@ bool HTMLObjectElement::shouldAllowQuickTimeClassIdQuirk()
     
 bool HTMLObjectElement::hasValidClassId()
 {
-    if (MIMETypeRegistry::isJavaAppletMIMEType(serviceType()) && attributeWithoutSynchronization(classidAttr).startsWith("java:", false))
+    if (MIMETypeRegistry::isJavaAppletMIMEType(serviceType()) && protocolIs(attributeWithoutSynchronization(classidAttr), "java"))
         return true;
     
     if (shouldAllowQuickTimeClassIdQuirk())
@@ -313,22 +313,22 @@ void HTMLObjectElement::updateWidget(CreatePlugins createPlugins)
         renderFallbackContent();
 }
 
-Node::InsertionNotificationRequest HTMLObjectElement::insertedInto(ContainerNode& insertionPoint)
+Node::InsertedIntoAncestorResult HTMLObjectElement::insertedIntoAncestor(InsertionType insertionType, ContainerNode& parentOfInsertedTree)
 {
-    HTMLPlugInImageElement::insertedInto(insertionPoint);
-    FormAssociatedElement::insertedInto(insertionPoint);
-    return InsertionShouldCallFinishedInsertingSubtree;
+    HTMLPlugInImageElement::insertedIntoAncestor(insertionType, parentOfInsertedTree);
+    FormAssociatedElement::insertedIntoAncestor(insertionType, parentOfInsertedTree);
+    return InsertedIntoAncestorResult::NeedsPostInsertionCallback;
 }
 
-void HTMLObjectElement::finishedInsertingSubtree()
+void HTMLObjectElement::didFinishInsertingNode()
 {
     resetFormOwner();
 }
 
-void HTMLObjectElement::removedFrom(ContainerNode& insertionPoint)
+void HTMLObjectElement::removedFromAncestor(RemovalType removalType, ContainerNode& oldParentOfRemovedTree)
 {
-    HTMLPlugInImageElement::removedFrom(insertionPoint);
-    FormAssociatedElement::removedFrom(insertionPoint);
+    HTMLPlugInImageElement::removedFromAncestor(removalType, oldParentOfRemovedTree);
+    FormAssociatedElement::removedFromAncestor(removalType, oldParentOfRemovedTree);
 }
 
 void HTMLObjectElement::childrenChanged(const ChildChange& change)
@@ -409,7 +409,7 @@ static inline bool preventsParentObjectFromExposure(const Node& child)
     if (is<Element>(child))
         return preventsParentObjectFromExposure(downcast<Element>(child));
     if (is<Text>(child))
-        return !downcast<Text>(child).containsOnlyWhitespace();
+        return !downcast<Text>(child).data().isAllSpecialCharacters<isHTMLSpace>();
     return true;
 }
 
@@ -422,7 +422,7 @@ static inline bool shouldBeExposed(const HTMLObjectElement& element)
     // with no children other than param elements, unknown elements and whitespace can be found
     // by name in a document, and other object elements cannot".
 
-    for (auto* child = element.firstChild(); child; child = child->nextSibling()) {
+    for (auto child = makeRefPtr(element.firstChild()); child; child = child->nextSibling()) {
         if (preventsParentObjectFromExposure(*child))
             return false;
     }
@@ -498,7 +498,7 @@ bool HTMLObjectElement::appendFormData(DOMFormData& formData, bool)
 
     // Use PluginLoadingPolicy::DoNotLoad here or it would fire JS events synchronously
     // which would not be safe here.
-    auto* widget = pluginWidget(PluginLoadingPolicy::DoNotLoad);
+    auto widget = makeRefPtr(pluginWidget(PluginLoadingPolicy::DoNotLoad));
     if (!is<PluginViewBase>(widget))
         return false;
     String value;

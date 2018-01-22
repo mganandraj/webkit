@@ -37,8 +37,9 @@
 #include "HTMLBodyElement.h"
 #include "InspectorInstrumentation.h"
 #include "JSEventListener.h"
-#include "NoEventDispatchAssertion.h"
 #include "ScriptController.h"
+#include "ScriptDisallowedScope.h"
+#include "Settings.h"
 #include "WebKitAnimationEvent.h"
 #include "WebKitTransitionEvent.h"
 #include <wtf/MainThread.h>
@@ -48,21 +49,11 @@
 #include <wtf/StdLibExtras.h>
 #include <wtf/Vector.h>
 
-using namespace WTF;
-
 namespace WebCore {
 
-Node* EventTarget::toNode()
-{
-    return nullptr;
-}
+using namespace WTF;
 
-DOMWindow* EventTarget::toDOMWindow()
-{
-    return nullptr;
-}
-
-bool EventTarget::isMessagePort() const
+bool EventTarget::isNode() const
 {
     return false;
 }
@@ -72,11 +63,14 @@ bool EventTarget::addEventListener(const AtomicString& eventType, Ref<EventListe
     auto passive = options.passive;
 
     if (!passive.has_value() && eventNames().isTouchScrollBlockingEventType(eventType)) {
-        if (toDOMWindow())
-            passive = true;
-        else if (auto* node = toNode()) {
-            if (node->isDocumentNode() || node->document().documentElement() == node || node->document().body() == node)
-                passive = true;
+        if (is<DOMWindow>(*this)) {
+            auto& window = downcast<DOMWindow>(*this);
+            if (auto* document = window.document())
+                passive = document->settings().passiveTouchListenersAsDefaultOnDocument();
+        } else if (is<Node>(*this)) {
+            auto& node = downcast<Node>(*this);
+            if (is<Document>(node) || node.document().documentElement() == &node || node.document().body() == &node)
+                passive = node.document().settings().passiveTouchListenersAsDefaultOnDocument();
         }
     }
 
@@ -181,10 +175,11 @@ ExceptionOr<bool> EventTarget::dispatchEventForBindings(Event& event)
     if (!scriptExecutionContext())
         return false;
 
-    return dispatchEvent(event);
+    dispatchEvent(event);
+    return event.legacyReturnValue();
 }
 
-bool EventTarget::dispatchEvent(Event& event)
+void EventTarget::dispatchEvent(Event& event)
 {
     ASSERT(event.isInitialized());
     ASSERT(!event.isBeingDispatched());
@@ -192,10 +187,8 @@ bool EventTarget::dispatchEvent(Event& event)
     event.setTarget(this);
     event.setCurrentTarget(this);
     event.setEventPhase(Event::AT_TARGET);
-    bool defaultPrevented = fireEventListeners(event);
-    event.resetPropagationFlags();
-    event.setEventPhase(Event::NONE);
-    return defaultPrevented;
+    fireEventListeners(event);
+    event.resetAfterDispatch();
 }
 
 void EventTarget::uncaughtExceptionInEventHandler()
@@ -223,25 +216,25 @@ static const AtomicString& legacyType(const Event& event)
     return nullAtom();
 }
 
-bool EventTarget::fireEventListeners(Event& event)
+void EventTarget::fireEventListeners(Event& event)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(NoEventDispatchAssertion::isEventAllowedInMainThread());
+    ASSERT_WITH_SECURITY_IMPLICATION(ScriptDisallowedScope::isEventAllowedInMainThread());
     ASSERT(event.isInitialized());
 
     auto* data = eventTargetData();
     if (!data)
-        return true;
+        return;
 
     SetForScope<bool> firingEventListenersScope(data->isFiringEventListeners, true);
 
     if (auto* listenersVector = data->eventListenerMap.find(event.type())) {
         fireEventListeners(event, *listenersVector);
-        return !event.defaultPrevented();
+        return;
     }
 
     // Only fall back to legacy types for trusted events.
     if (!event.isTrusted())
-        return !event.defaultPrevented();
+        return;
 
     const AtomicString& legacyTypeName = legacyType(event);
     if (!legacyTypeName.isNull()) {
@@ -252,7 +245,6 @@ bool EventTarget::fireEventListeners(Event& event)
             event.setType(typeName);
         }
     }
-    return !event.defaultPrevented();
 }
 
 // Intentionally creates a copy of the listeners vector to avoid event listeners added after this point from being run.
@@ -276,6 +268,9 @@ void EventTarget::fireEventListeners(Event& event, EventListenerVector listeners
         if (event.eventPhase() == Event::CAPTURING_PHASE && !registeredListener->useCapture())
             continue;
         if (event.eventPhase() == Event::BUBBLING_PHASE && registeredListener->useCapture())
+            continue;
+
+        if (InspectorInstrumentation::isEventListenerDisabled(*this, event.type(), registeredListener->callback(), registeredListener->useCapture()))
             continue;
 
         // If stopImmediatePropagation has been called, we just break out immediately, without

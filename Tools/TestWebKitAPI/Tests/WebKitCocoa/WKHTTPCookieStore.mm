@@ -29,6 +29,7 @@
 #import "TestNavigationDelegate.h"
 #import <WebKit/WKFoundation.h>
 #import <WebKit/WKHTTPCookieStore.h>
+#import <WebKit/WKProcessPoolPrivate.h>
 #import <WebKit/WKWebsiteDataStorePrivate.h>
 #import <WebKit/_WKWebsiteDataStoreConfiguration.h>
 #import <wtf/RetainPtr.h>
@@ -70,6 +71,10 @@ static void runTestWithWebsiteDataStore(WKWebsiteDataStore* dataStore)
 
     TestWebKitAPI::Util::run(&gotFlag);
     gotFlag = false;
+
+    // Triggering removeData when we don't have plugin data to remove should not trigger the plugin process to launch.
+    id pool = [WKProcessPool _sharedProcessPool];
+    EXPECT_EQ([pool _pluginProcessCount], static_cast<size_t>(0));
 
     globalCookieStore = dataStore.httpCookieStore;
     RetainPtr<CookieObserver> observer1 = adoptNS([[CookieObserver alloc] init]);
@@ -187,6 +192,8 @@ TEST(WebKit, WKHTTPCookieStore)
     runTestWithWebsiteDataStore([WKWebsiteDataStore defaultDataStore]);
 }
 
+// FIXME: This should be removed once <rdar://problem/35344202> is resolved and bots are updated.
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MAX_ALLOWED <= 101301) || (PLATFORM(IOS) && __IPHONE_OS_VERSION_MAX_ALLOWED <= 110102)
 TEST(WebKit, WKHTTPCookieStoreNonPersistent)
 {
     RetainPtr<WKWebsiteDataStore> nonPersistentDataStore;
@@ -215,6 +222,7 @@ TEST(WebKit, WKHTTPCookieStoreCustom)
     auto customDataStore = adoptNS([[WKWebsiteDataStore alloc] _initWithConfiguration:websiteDataStoreConfiguration.get()]);
     runTestWithWebsiteDataStore(customDataStore.get());
 }
+#endif // (PLATFORM(MAC) && __MAC_OS_X_VERSION_MAX_ALLOWED <= 101301) || (PLATFORM(IOS) && __IPHONE_OS_VERSION_MAX_ALLOWED <= 110102)
 
 TEST(WebKit, CookieObserverCrash)
 {
@@ -256,6 +264,8 @@ static bool finished;
 }
 @end
 
+// FIXME: This should be removed once <rdar://problem/35344202> is resolved and bots are updated.
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MAX_ALLOWED <= 101301) || (PLATFORM(IOS) && __IPHONE_OS_VERSION_MAX_ALLOWED <= 110102)
 TEST(WebKit, WKHTTPCookieStoreWithoutProcessPool)
 {
     NSHTTPCookie *cookie = [NSHTTPCookie cookieWithProperties:[NSDictionary dictionaryWithObjectsAndKeys:@"127.0.0.1", NSHTTPCookieDomain, @"/", NSHTTPCookiePath, @"cookiename", NSHTTPCookieName, @"cookievalue", NSHTTPCookieValue, [NSDate distantFuture], NSHTTPCookieExpires, nil]];
@@ -305,4 +315,5 @@ TEST(WebKit, WKHTTPCookieStoreWithoutProcessPool)
     TestWebKitAPI::Util::run(&finished);
 #endif
 }
+#endif // (PLATFORM(MAC) && __MAC_OS_X_VERSION_MAX_ALLOWED <= 101301) || (PLATFORM(IOS) && __IPHONE_OS_VERSION_MAX_ALLOWED <= 110102)
 #endif

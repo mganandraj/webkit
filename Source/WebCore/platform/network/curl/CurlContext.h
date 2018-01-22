@@ -83,7 +83,7 @@ public:
 private:
     static void lockCallback(CURL*, curl_lock_data, curl_lock_access, void*);
     static void unlockCallback(CURL*, curl_lock_data, void*);
-    static Lock* mutexFor(curl_lock_data);
+    static StaticLock* mutexFor(curl_lock_data);
 
     CURLSH* m_shareHandle { nullptr };
 };
@@ -92,7 +92,7 @@ private:
 
 class CurlContext : public CurlGlobal {
     WTF_MAKE_NONCOPYABLE(CurlContext);
-
+    friend NeverDestroyed<CurlContext>;
 public:
     struct ProxyInfo {
         String host;
@@ -104,11 +104,7 @@ public:
         const String url() const;
     };
 
-    static CurlContext& singleton()
-    {
-        static CurlContext shared;
-        return shared;
-    }
+    static CurlContext& singleton();
 
     virtual ~CurlContext();
 
@@ -127,6 +123,9 @@ public:
     // SSL
     CurlSSLHandle& sslHandle() { return m_sslHandle; }
 
+    // HTTP/2
+    bool isHttp2Enabled() const;
+
 #ifndef NDEBUG
     FILE* getLogFile() const { return m_logFile; }
     bool isVerbose() const { return m_verbose; }
@@ -141,7 +140,6 @@ private:
 
     CurlContext();
     void initCookieSession();
-
 
 #ifndef NDEBUG
     FILE* m_logFile { nullptr };
@@ -235,6 +233,7 @@ public:
     void appendRequestHeader(const String& name);
     void removeRequestHeader(const String& name);
 
+    void enableHttp();
     void enableHttpGetRequest();
     void enableHttpHeadRequest();
     void enableHttpPostRequest();
@@ -264,6 +263,7 @@ public:
     void enableProxyIfExists();
 
     void enableTimeout();
+    void setTimeout(long timeoutMilliseconds);
 
     // Callback function
     void setHeaderCallbackFunction(curl_write_callback, void*);
@@ -277,6 +277,7 @@ public:
     std::optional<long> getHttpConnectCode();
     std::optional<long long> getContentLength();
     std::optional<long> getHttpAuthAvail();
+    std::optional<long> getHttpVersion();
     std::optional<NetworkLoadMetrics> getNetworkLoadMetrics();
 
     static long long maxCurlOffT();
@@ -296,4 +297,4 @@ private:
     CurlSList m_requestHeaders;
 };
 
-}
+} // namespace WebCore

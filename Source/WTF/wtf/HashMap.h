@@ -22,6 +22,7 @@
 #define WTF_HashMap_h
 
 #include <initializer_list>
+#include <wtf/Forward.h>
 #include <wtf/HashTable.h>
 #include <wtf/IteratorRange.h>
 
@@ -31,13 +32,12 @@ template<typename T> struct KeyValuePairKeyExtractor {
     static const typename T::KeyType& extract(const T& p) { return p.key; }
 };
 
-template<typename KeyArg, typename MappedArg, typename HashArg = typename DefaultHash<KeyArg>::Hash,
-    typename KeyTraitsArg = HashTraits<KeyArg>, typename MappedTraitsArg = HashTraits<MappedArg>>
+template<typename KeyArg, typename MappedArg, typename HashArg, typename KeyTraitsArg, typename MappedTraitsArg>
 class HashMap final {
     WTF_MAKE_FAST_ALLOCATED;
 private:
-    typedef KeyTraitsArg KeyTraits;
-    typedef MappedTraitsArg MappedTraits;
+    using KeyTraits = KeyTraitsArg;
+    using MappedTraits = MappedTraitsArg;
 
     struct KeyValuePairTraits : KeyValuePairHashTraits<KeyTraits, MappedTraits> {
         static const bool hasIsEmptyValueFunction = true;
@@ -48,18 +48,17 @@ private:
     };
 
 public:
-    typedef typename KeyTraits::TraitType KeyType;
-    typedef typename MappedTraits::TraitType MappedType;
-    typedef typename KeyValuePairTraits::TraitType KeyValuePairType;
+    using KeyType = typename KeyTraits::TraitType;
+    using MappedType = typename MappedTraits::TraitType;
+    using KeyValuePairType = typename KeyValuePairTraits::TraitType;
 
 private:
-    typedef typename MappedTraits::PeekType MappedPeekType;
-    typedef typename MappedTraits::TakeType MappedTakeType;
+    using MappedPeekType = typename MappedTraits::PeekType;
+    using MappedTakeType = typename MappedTraits::TakeType;
 
-    typedef HashArg HashFunctions;
+    using HashFunctions = HashArg;
 
-    typedef HashTable<KeyType, KeyValuePairType, KeyValuePairKeyExtractor<KeyValuePairType>,
-        HashFunctions, KeyValuePairTraits, KeyTraits> HashTableType;
+    using HashTableType = HashTable<KeyType, KeyValuePairType, KeyValuePairKeyExtractor<KeyValuePairType>, HashFunctions, KeyValuePairTraits, KeyTraits>;
 
     class HashMapKeysProxy;
     class HashMapValuesProxy;
@@ -67,9 +66,15 @@ private:
     using IdentityTranslatorType = typename HashTableType::IdentityTranslatorType;
 
 public:
-    typedef HashTableIteratorAdapter<HashTableType, KeyValuePairType> iterator;
-    typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePairType> const_iterator;
-    typedef typename HashTableType::AddResult AddResult;
+    using iterator = HashTableIteratorAdapter<HashTableType, KeyValuePairType>;
+    using const_iterator = HashTableConstIteratorAdapter<HashTableType, KeyValuePairType>;
+
+    using KeysIteratorRange = SizedIteratorRange<HashMap, typename iterator::Keys>;
+    using KeysConstIteratorRange = SizedIteratorRange<HashMap, typename const_iterator::Keys>;
+    using ValuesIteratorRange = SizedIteratorRange<HashMap, typename iterator::Values>;
+    using ValuesConstIteratorRange = SizedIteratorRange<HashMap, typename const_iterator::Values>;
+
+    using AddResult = typename HashTableType::AddResult;
 
 public:
     HashMap()
@@ -93,12 +98,12 @@ public:
     iterator end();
     const_iterator begin() const;
     const_iterator end() const;
+    
+    KeysIteratorRange keys() { return makeSizedIteratorRange(*this, begin().keys(), end().keys()); }
+    const KeysConstIteratorRange keys() const { return makeSizedIteratorRange(*this, begin().keys(), end().keys()); }
 
-    IteratorRange<typename iterator::Keys> keys() { return makeIteratorRange(begin().keys(), end().keys()); }
-    const IteratorRange<typename const_iterator::Keys> keys() const { return makeIteratorRange(begin().keys(), end().keys()); }
-
-    IteratorRange<typename iterator::Values> values() { return makeIteratorRange(begin().values(), end().values()); }
-    const IteratorRange<typename const_iterator::Values> values() const { return makeIteratorRange(begin().values(), end().values()); }
+    ValuesIteratorRange values() { return makeSizedIteratorRange(*this, begin().values(), end().values()); }
+    const ValuesConstIteratorRange values() const { return makeSizedIteratorRange(*this, begin().values(), end().values()); }
 
     iterator find(const KeyType&);
     const_iterator find(const KeyType&) const;
@@ -130,7 +135,7 @@ public:
     bool remove(const KeyType&);
     bool remove(iterator);
     template<typename Functor>
-    void removeIf(Functor&&);
+    bool removeIf(Functor&&);
     void clear();
 
     MappedTakeType take(const KeyType&); // efficient combination of get with remove
@@ -438,9 +443,9 @@ inline bool HashMap<T, U, V, W, X>::remove(iterator it)
 
 template<typename T, typename U, typename V, typename W, typename X>
 template<typename Functor>
-inline void HashMap<T, U, V, W, X>::removeIf(Functor&& functor)
+inline bool HashMap<T, U, V, W, X>::removeIf(Functor&& functor)
 {
-    m_impl.removeIf(std::forward<Functor>(functor));
+    return m_impl.removeIf(std::forward<Functor>(functor));
 }
 
 template<typename T, typename U, typename V, typename W, typename X>
@@ -570,45 +575,6 @@ inline bool operator!=(const HashMap<T, U, V, W, X>& a, const HashMap<T, U, V, W
 {
     return !(a == b);
 }
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-inline void copyToVector(const HashMap<T, U, V, W, X>& collection, Y& vector)
-{
-    typedef typename HashMap<T, U, V, W, X>::const_iterator iterator;
-
-    vector.resize(collection.size());
-
-    iterator it = collection.begin();
-    iterator end = collection.end();
-    for (unsigned i = 0; it != end; ++it, ++i)
-        vector[i] = { (*it).key, (*it).value };
-}
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-inline void copyKeysToVector(const HashMap<T, U, V, W, X>& collection, Y& vector)
-{
-    typedef typename HashMap<T, U, V, W, X>::const_iterator::Keys iterator;
-    
-    vector.resize(collection.size());
-    
-    iterator it = collection.begin().keys();
-    iterator end = collection.end().keys();
-    for (unsigned i = 0; it != end; ++it, ++i)
-        vector[i] = *it;
-}  
-
-template<typename T, typename U, typename V, typename W, typename X, typename Y>
-inline void copyValuesToVector(const HashMap<T, U, V, W, X>& collection, Y& vector)
-{
-    typedef typename HashMap<T, U, V, W, X>::const_iterator::Values iterator;
-    
-    vector.resize(collection.size());
-    
-    iterator it = collection.begin().values();
-    iterator end = collection.end().values();
-    for (unsigned i = 0; it != end; ++it, ++i)
-        vector[i] = *it;
-}   
 
 } // namespace WTF
 

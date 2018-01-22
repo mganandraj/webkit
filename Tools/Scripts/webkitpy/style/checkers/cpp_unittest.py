@@ -1528,6 +1528,16 @@ class CppStyleTest(CppStyleTestBase):
                          ' for improved thread safety.'
                          '  [runtime/threadsafe_fn] [2]')
 
+    def test_debug_security_assertion(self):
+        self.assert_lint(
+            'ASSERT_WITH_SECURITY_IMPLICATION(value)',
+            'Please replace ASSERT_WITH_SECURITY_IMPLICATION() with '
+            'RELEASE_ASSERT_WITH_SECURITY_IMPLICATION().'
+            '  [security/assertion] [5]')
+        self.assert_lint(
+            'RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(value)',
+            '')
+
     # Test for insecure string functions like strcpy()/strcat().
     def test_insecure_string_operations(self):
         self.assert_lint(
@@ -1914,6 +1924,7 @@ class CppStyleTest(CppStyleTestBase):
         self.assert_lint('dispatch_async(dispatch_get_main_queue(), ^{', '')
         self.assert_lint('[outOfBandTracks.get() addObject:@{', '')
         self.assert_lint('EXPECT_DEBUG_DEATH({', '')
+        self.assert_lint('LOCAL_LOG(R"({ "url": "%{public}s",)", url.string().utf8().data());', '')
 
     def test_spacing_between_braces(self):
         self.assert_lint('    { }', '')
@@ -2868,7 +2879,7 @@ class OrderOfIncludesTest(CppStyleTestBase):
                                          '#else\n'
                                          '#include "foobar.h"\n'
                                          '#endif"\n'
-                                         '#include "bar.h"\n', # No flag because previous is in preprocessor section
+                                         '#include "bar.h"\n',  # No flag because previous is in preprocessor section.
                                          '')
 
         self.assert_language_rules_check('foo.cpp',
@@ -2879,7 +2890,7 @@ class OrderOfIncludesTest(CppStyleTestBase):
                                          '#include "baz.h"\n'
                                          '#endif"\n'
                                          '#include "bar.h"\n'
-                                         '#include "a.h"\n', # Should still flag this.
+                                         '#include "a.h"\n',  # Should still flag this.
                                          'Alphabetical sorting problem.  [build/include_order] [4]')
 
         self.assert_language_rules_check('foo.cpp',
@@ -2888,7 +2899,7 @@ class OrderOfIncludesTest(CppStyleTestBase):
                                          '\n'
                                          '#ifdef BAZ\n'
                                          '#include "baz.h"\n'
-                                         '#include "bar.h"\n' #Should still flag this
+                                         '#include "bar.h"\n'  # Should still flag this.
                                          '#endif"\n',
                                          'Alphabetical sorting problem.  [build/include_order] [4]')
 
@@ -2903,7 +2914,7 @@ class OrderOfIncludesTest(CppStyleTestBase):
                                          '#include "foobar.h"\n'
                                          '#endif"\n'
                                          '#include "bar.h"\n'
-                                         '#include "a.h"\n', # Should still flag this.
+                                         '#include "a.h"\n',  # Should still flag this.
                                          'Alphabetical sorting problem.  [build/include_order] [4]')
 
         # Check that after an already included error, the sorting rules still work.
@@ -5422,6 +5433,12 @@ class WebKitStyleTest(CppStyleTestBase):
         self.assert_lint('::ShowWindow(m_overlay);', '')
         self.assert_lint('o = foo(b ? bar() : baz());', '')
         self.assert_lint('MYMACRO(a ? b() : c);', '')
+
+    def test_min_versions_of_wk_api_available(self):
+        self.assert_lint('WK_API_AVAILABLE(macosx(1.2.3), ios(3.4.5))', '')  # version numbers are OK.
+        self.assert_lint('WK_API_AVAILABLE(macosx(WK_MAC_TBA), ios(WK_IOS_TBA))', '')  # WK_MAC_TBA and WK_IOS_TBA are OK.
+        self.assert_lint('WK_API_AVAILABLE(macosx(WK_IOS_TBA), ios(3.4.5))', 'WK_IOS_TBA is neither a version number nor WK_MAC_TBA  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macosx(1.2.3), ios(WK_MAC_TBA))', 'WK_MAC_TBA is neither a version number nor WK_IOS_TBA  [build/wk_api_available] [5]')
 
     def test_other(self):
         # FIXME: Implement this.

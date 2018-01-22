@@ -79,9 +79,9 @@
 #endif
 #endif
 
-using namespace WTF;
 
 namespace WebCore {
+using namespace WTF;
 
 static ThreadSpecific<ShaderNameHash*>& getCurrentNameHashMapForShader()
 {
@@ -130,19 +130,6 @@ static uint64_t nameHashForShader(const char* name, size_t length)
 
     currentNameHashMapForShader->set(nameAsCString, result);
     return result;
-}
-
-RefPtr<GraphicsContext3D> GraphicsContext3D::createForCurrentGLContext()
-{
-    auto context = adoptRef(*new GraphicsContext3D({ }, 0, GraphicsContext3D::RenderToCurrentGLContext));
-#if USE(TEXTURE_MAPPER)
-    if (!context->m_texmapLayer)
-        return nullptr;
-#else
-    if (!context->m_private)
-        return nullptr;
-#endif
-    return WTFMove(context);
 }
 
 void GraphicsContext3D::validateDepthStencil(const char* packedDepthStencilExtension)
@@ -198,7 +185,7 @@ void GraphicsContext3D::paintRenderingResultsToCanvas(ImageBuffer* imageBuffer)
 #endif
 
 #if PLATFORM(IOS)
-    endPaint();
+    presentRenderbuffer();
 #endif
 }
 
@@ -261,8 +248,8 @@ void GraphicsContext3D::prepareTexture()
 #endif
 
     ::glActiveTexture(GL_TEXTURE0);
-    ::glBindTexture(GL_TEXTURE_2D, m_state.boundTexture0);
-    ::glActiveTexture(m_state.activeTexture);
+    ::glBindTexture(GL_TEXTURE_2D, m_state.boundTarget(GL_TEXTURE0) == GL_TEXTURE_2D ? m_state.boundTexture(GL_TEXTURE0) : 0);
+    ::glActiveTexture(m_state.activeTextureUnit);
     if (m_state.boundFBO != m_fbo)
         ::glBindFramebufferEXT(GraphicsContext3D::FRAMEBUFFER, m_state.boundFBO);
     ::glFlush();
@@ -410,7 +397,7 @@ bool GraphicsContext3D::checkVaryingsPacking(Platform3DObject vertexShader, Plat
         variables.push_back(varyingSymbol);
 
     GC3Dint maxVaryingVectors = 0;
-#if !PLATFORM(IOS) && !((PLATFORM(WIN) || PLATFORM(GTK) || PLATFORM(WPE)) && USE(OPENGL_ES_2))
+#if !PLATFORM(IOS) && !USE(OPENGL_ES_2)
     GC3Dint maxVaryingFloats = 0;
     ::glGetIntegerv(GL_MAX_VARYING_FLOATS, &maxVaryingFloats);
     maxVaryingVectors = maxVaryingFloats / 4;
@@ -452,7 +439,7 @@ IntSize GraphicsContext3D::getInternalFramebufferSize() const
 void GraphicsContext3D::activeTexture(GC3Denum texture)
 {
     makeContextCurrent();
-    m_state.activeTexture = texture;
+    m_state.activeTextureUnit = texture;
     ::glActiveTexture(texture);
 }
 
@@ -505,8 +492,7 @@ void GraphicsContext3D::bindRenderbuffer(GC3Denum target, Platform3DObject rende
 void GraphicsContext3D::bindTexture(GC3Denum target, Platform3DObject texture)
 {
     makeContextCurrent();
-    if (m_state.activeTexture == GL_TEXTURE0 && target == GL_TEXTURE_2D)
-        m_state.boundTexture0 = texture;
+    m_state.setBoundTexture(m_state.activeTextureUnit, texture, target);
     ::glBindTexture(target, texture);
 }
 
@@ -582,12 +568,14 @@ void GraphicsContext3D::texStorage2D(GC3Denum target, GC3Dsizei levels, GC3Denum
 {
     makeContextCurrent();
     ::glTexStorage2D(target, levels, internalformat, width, height);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 void GraphicsContext3D::texStorage3D(GC3Denum target, GC3Dsizei levels, GC3Denum internalformat, GC3Dsizei width, GC3Dsizei height, GC3Dsizei depth)
 {
     makeContextCurrent();
     ::glTexStorage3D(target, levels, internalformat, width, height, depth);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 void GraphicsContext3D::getActiveUniforms(Platform3DObject program, const Vector<GC3Duint>& uniformIndices, GC3Denum pname, Vector<GC3Dint>& params)
@@ -838,6 +826,7 @@ void GraphicsContext3D::framebufferTexture2D(GC3Denum target, GC3Denum attachmen
 {
     makeContextCurrent();
     ::glFramebufferTexture2DEXT(target, attachment, textarget, texture, level);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 void GraphicsContext3D::frontFace(GC3Denum mode)
@@ -1666,7 +1655,7 @@ String GraphicsContext3D::getUnmangledInfoLog(Platform3DObject shaders[2], GC3Ds
 {
     LOG(WebGL, "Original ShaderInfoLog:\n%s", log.utf8().data());
 
-    JSC::Yarr::RegularExpression regExp("webgl_[0123456789abcdefABCDEF]+", TextCaseSensitive);
+    JSC::Yarr::RegularExpression regExp("webgl_[0123456789abcdefABCDEF]+");
 
     StringBuilder processedLog;
     
@@ -1866,26 +1855,40 @@ void GraphicsContext3D::texSubImage2D(GC3Denum target, GC3Dint level, GC3Dint xo
         type = GL_HALF_FLOAT_ARB;
 #endif
 
-    if (m_usingCoreProfile && format == ALPHA) {
-        // We are using a core profile. This means that GL_ALPHA, which is a valid format in WebGL for texSubImage2D
-        // is not supported in OpenGL. We are using GL_RED to back GL_ALPHA, so do it here as well.
-        format = RED;
+    if (m_usingCoreProfile)  {
+        // There are some format values used in WebGL that are deprecated when using a core profile, so we need
+        // to adapt them, as we do in GraphicsContext3D::texImage2D().
+        switch (format) {
+        case ALPHA:
+            // We are using GL_RED to back GL_ALPHA, so do it here as well.
+            format = RED;
+            break;
+        case LUMINANCE_ALPHA:
+            // We are using GL_RG to back GL_LUMINANCE_ALPHA, so do it here as well.
+            format = RG;
+            break;
+        default:
+            break;
+        }
     }
 
     // FIXME: we will need to deal with PixelStore params when dealing with image buffers that differ from the subimage size.
     ::glTexSubImage2D(target, level, xoff, yoff, width, height, format, type, pixels);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 void GraphicsContext3D::compressedTexImage2D(GC3Denum target, GC3Dint level, GC3Denum internalformat, GC3Dsizei width, GC3Dsizei height, GC3Dint border, GC3Dsizei imageSize, const void* data)
 {
     makeContextCurrent();
     ::glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 void GraphicsContext3D::compressedTexSubImage2D(GC3Denum target, GC3Dint level, GC3Dint xoffset, GC3Dint yoffset, GC3Dsizei width, GC3Dsizei height, GC3Denum format, GC3Dsizei imageSize, const void* data)
 {
     makeContextCurrent();
     ::glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 Platform3DObject GraphicsContext3D::createBuffer()
@@ -1929,6 +1932,7 @@ Platform3DObject GraphicsContext3D::createTexture()
     makeContextCurrent();
     GLuint o = 0;
     glGenTextures(1, &o);
+    m_state.textureSeedCount.add(o);
     return o;
 }
 
@@ -1971,9 +1975,11 @@ void GraphicsContext3D::deleteShader(Platform3DObject shader)
 void GraphicsContext3D::deleteTexture(Platform3DObject texture)
 {
     makeContextCurrent();
-    if (m_state.boundTexture0 == texture)
-        m_state.boundTexture0 = 0;
+    m_state.boundTextureMap.removeIf([texture] (auto& keyValue) {
+        return keyValue.value.first == texture;
+    });
     glDeleteTextures(1, &texture);
+    m_state.textureSeedCount.removeAll(texture);
 }
 
 void GraphicsContext3D::synthesizeGLError(GC3Denum error)
@@ -2028,6 +2034,7 @@ void GraphicsContext3D::texImage2DDirect(GC3Denum target, GC3Dint level, GC3Denu
 {
     makeContextCurrent();
     ::glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+    m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }
 
 void GraphicsContext3D::drawArraysInstanced(GC3Denum mode, GC3Dint first, GC3Dsizei count, GC3Dsizei primcount)

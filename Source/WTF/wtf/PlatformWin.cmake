@@ -1,5 +1,6 @@
 list(APPEND WTF_HEADERS
     cf/TypeCastsCF.h
+    text/win/WCharStringExtras.h
 )
 
 list(APPEND WTF_SOURCES
@@ -11,6 +12,7 @@ list(APPEND WTF_SOURCES
     win/MemoryFootprintWin.cpp
     win/MemoryPressureHandlerWin.cpp
     win/RunLoopWin.cpp
+    win/WorkItemContext.cpp
     win/WorkQueueWin.cpp
 )
 
@@ -25,8 +27,23 @@ if (USE_CF)
     list(APPEND WTF_LIBRARIES ${COREFOUNDATION_LIBRARY})
 endif ()
 
-set(WTF_PRE_BUILD_COMMAND "${CMAKE_BINARY_DIR}/DerivedSources/WTF/preBuild.cmd")
-file(WRITE "${WTF_PRE_BUILD_COMMAND}" "@xcopy /y /s /d /f \"${WTF_DIR}/wtf/*.h\" \"${DERIVED_SOURCES_DIR}/ForwardingHeaders/WTF\" >nul 2>nul\n@xcopy /y /s /d /f \"${DERIVED_SOURCES_DIR}/WTF/*.h\" \"${DERIVED_SOURCES_DIR}/ForwardingHeaders/WTF\" >nul 2>nul\n")
-file(MAKE_DIRECTORY ${DERIVED_SOURCES_DIR}/ForwardingHeaders/WTF)
+set(WTF_FORWARDING_HEADERS_DIRECTORIES
+    .
+    cf
+    dtoa
+    generic
+    persistence
+    spi
+    text
+    text/cf
+    text/icu
+    text/win
+    threads
+    unicode
+    win
+)
+WEBKIT_MAKE_FORWARDING_HEADERS(WTF
+    DESTINATION ${FORWARDING_HEADERS_DIR}/wtf
+    DIRECTORIES ${WTF_FORWARDING_HEADERS_DIRECTORIES})
 
 set(WTF_OUTPUT_NAME WTF${DEBUG_SUFFIX})

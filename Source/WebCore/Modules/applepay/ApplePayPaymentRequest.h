@@ -29,17 +29,18 @@
 
 #include "ApplePayLineItem.h"
 #include "ApplePayPaymentContact.h"
-#include "ApplePayRequest.h"
+#include "ApplePayRequestBase.h"
 #include "ApplePaySessionPaymentRequest.h"
 #include "ApplePayShippingMethod.h"
 
 namespace WebCore {
 
-struct ApplePayPaymentRequest : ApplePayRequest {
+struct ApplePayPaymentRequest : ApplePayRequestBase {
     using ShippingType = ApplePaySessionPaymentRequest::ShippingType;
 
+    String currencyCode;
+
     std::optional<Vector<ApplePayContactField>> requiredShippingContactFields;
-    std::optional<ApplePayPaymentContact> shippingContact;
 
     ShippingType shippingType { ShippingType::Shipping };
     std::optional<Vector<ApplePayShippingMethod>> shippingMethods;

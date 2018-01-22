@@ -1370,7 +1370,7 @@ private:
     
     ALWAYS_INLINE bool matchContextualKeyword(const Identifier& identifier)
     {
-        return m_token.m_type == IDENT && *m_token.m_data.ident == identifier;
+        return m_token.m_type == IDENT && *m_token.m_data.ident == identifier && !m_token.m_data.escaped;
     }
 
     ALWAYS_INLINE bool matchIdentifierOrKeyword()
@@ -1611,6 +1611,8 @@ private:
     template <class TreeBuilder> NEVER_INLINE typename TreeBuilder::TemplateLiteral parseTemplateLiteral(TreeBuilder&, typename LexerType::RawStringsBuildMode);
 
     template <class TreeBuilder> ALWAYS_INLINE bool shouldCheckPropertyForUnderscoreProtoDuplicate(TreeBuilder&, const TreeProperty&);
+
+    template <class TreeBuilder> NEVER_INLINE const char* metaPropertyName(TreeBuilder&, TreeExpression);
 
     ALWAYS_INLINE int isBinaryOperator(JSTokenType);
     bool allowAutomaticSemicolon();

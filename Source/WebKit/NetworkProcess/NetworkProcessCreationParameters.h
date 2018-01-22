@@ -27,6 +27,7 @@
 
 #include "Attachment.h"
 #include "CacheModel.h"
+#include "NetworkSessionCreationParameters.h"
 #include "SandboxExtension.h"
 #include <wtf/ProcessID.h>
 #include <wtf/Vector.h>
@@ -50,21 +51,21 @@ struct NetworkProcessCreationParameters {
     void encode(IPC::Encoder&) const;
     static bool decode(IPC::Decoder&, NetworkProcessCreationParameters&);
 
+    NetworkSessionCreationParameters defaultSessionParameters;
     bool privateBrowsingEnabled { false };
     CacheModel cacheModel { CacheModelDocumentViewer };
     int64_t diskCacheSizeOverride { -1 };
     bool canHandleHTTPSServerTrustEvaluation { true };
 
     String cacheStorageDirectory;
+    uint64_t cacheStoragePerOriginQuota;
     SandboxExtension::Handle cacheStorageDirectoryExtensionHandle;
     String diskCacheDirectory;
     SandboxExtension::Handle diskCacheDirectoryExtensionHandle;
-#if ENABLE(NETWORK_CACHE)
     bool shouldEnableNetworkCache { false };
     bool shouldEnableNetworkCacheEfficacyLogging { false };
 #if ENABLE(NETWORK_CACHE_SPECULATIVE_REVALIDATION)
     bool shouldEnableNetworkCacheSpeculativeRevalidation { false };
-#endif
 #endif
 #if PLATFORM(MAC)
     Vector<uint8_t> uiProcessCookieStorageIdentifier;
@@ -88,7 +89,6 @@ struct NetworkProcessCreationParameters {
     uint64_t nsURLCacheDiskCapacity;
     String sourceApplicationBundleIdentifier;
     String sourceApplicationSecondaryIdentifier;
-    bool allowsCellularAccess { true };
 #if PLATFORM(IOS)
     String ctDataConnectionServiceType;
 #endif
@@ -98,6 +98,7 @@ struct NetworkProcessCreationParameters {
     RetainPtr<CFDataRef> networkATSContext;
 #endif
     bool cookieStoragePartitioningEnabled;
+    bool storageAccessAPIEnabled;
 #endif
 
 #if USE(SOUP)
@@ -107,6 +108,10 @@ struct NetworkProcessCreationParameters {
     bool ignoreTLSErrors { false };
     Vector<String> languages;
     WebCore::SoupNetworkProxySettings proxySettings;
+#endif
+
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING) && !RELEASE_LOG_DISABLED
+    bool logCookieInformation { false };
 #endif
 
 #if OS(LINUX)

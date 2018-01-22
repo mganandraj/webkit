@@ -32,7 +32,7 @@
 #import <wtf/Assertions.h>
 #import <wtf/MathExtras.h>
 
-using namespace WebCore;
+namespace WebCore {
 
 static const CGFloat slowMotionFactor = 10;
 
@@ -58,6 +58,12 @@ static CGFloat squaredDistance(NSPoint point1, NSPoint point2)
     return deltaX * deltaX + deltaY * deltaY;
 }
 
+}
+
+using WebCore::WebWindowAnimationDurationFromDuration;
+using WebCore::narrowPrecisionToFloat;
+using WebCore::scaledRect;
+using WebCore::squaredDistance;
 @implementation WebWindowScaleAnimation
 
 - (id)init
@@ -125,7 +131,10 @@ static CGSConnectionID mainWindowServerConnectionID()
 static void setScaledFrameForWindow(NSWindow *window, NSRect scaleFrame, NSRect nonScaledFrame)
 {
     if (NSEqualRects(scaleFrame, nonScaledFrame)) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
         CGSSetWindowWarp(mainWindowServerConnectionID(), window.windowNumber, 0, 0, nullptr);
+#pragma clang diagnostic pop
         return;
     }
     

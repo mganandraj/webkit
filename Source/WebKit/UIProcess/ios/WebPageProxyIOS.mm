@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,14 +68,9 @@ void WebPageProxy::platformInitialize()
 {
 }
 
-static String webKitBundleVersionString()
-{
-    return [[NSBundle bundleForClass:NSClassFromString(@"WKWebView")] objectForInfoDictionaryKey:(NSString *)kCFBundleVersionKey];
-}
-
 String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent)
 {
-    return standardUserAgentWithApplicationName(applicationNameForUserAgent, webKitBundleVersionString());
+    return standardUserAgentWithApplicationName(applicationNameForUserAgent);
 }
 
 void WebPageProxy::getIsSpeaking(bool&)
@@ -338,7 +333,10 @@ void WebPageProxy::synchronizeDynamicViewportUpdate()
 
 void WebPageProxy::setViewportConfigurationMinimumLayoutSize(const WebCore::FloatSize& size)
 {
-    m_process->send(Messages::WebPage::SetViewportConfigurationMinimumLayoutSize(size), m_pageID);
+    m_viewportConfigurationMinimumLayoutSize = size;
+
+    if (isValid())
+        m_process->send(Messages::WebPage::SetViewportConfigurationMinimumLayoutSize(size), m_pageID);
 }
 
 void WebPageProxy::setForceAlwaysUserScalable(bool userScalable)
@@ -346,12 +344,17 @@ void WebPageProxy::setForceAlwaysUserScalable(bool userScalable)
     if (m_forceAlwaysUserScalable == userScalable)
         return;
     m_forceAlwaysUserScalable = userScalable;
-    m_process->send(Messages::WebPage::SetForceAlwaysUserScalable(userScalable), m_pageID);
+
+    if (isValid())
+        m_process->send(Messages::WebPage::SetForceAlwaysUserScalable(userScalable), m_pageID);
 }
 
 void WebPageProxy::setMaximumUnobscuredSize(const WebCore::FloatSize& size)
 {
-    m_process->send(Messages::WebPage::SetMaximumUnobscuredSize(size), m_pageID);
+    m_maximumUnobscuredSize = size;
+
+    if (isValid())
+        m_process->send(Messages::WebPage::SetMaximumUnobscuredSize(size), m_pageID);
 }
 
 void WebPageProxy::setDeviceOrientation(int32_t deviceOrientation)
@@ -395,7 +398,8 @@ void WebPageProxy::didCommitLayerTree(const WebKit::RemoteLayerTreeTransaction& 
     }
 
     if (m_hasDeferredStartAssistingNode) {
-        m_pageClient.startAssistingNode(m_deferredNodeAssistanceArguments->m_nodeInformation, m_deferredNodeAssistanceArguments->m_userIsInteracting, m_deferredNodeAssistanceArguments->m_blurPreviousNode, m_deferredNodeAssistanceArguments->m_userData.get());
+        m_pageClient.startAssistingNode(m_deferredNodeAssistanceArguments->m_nodeInformation, m_deferredNodeAssistanceArguments->m_userIsInteracting, m_deferredNodeAssistanceArguments->m_blurPreviousNode,
+            m_deferredNodeAssistanceArguments->m_changingActivityState, m_deferredNodeAssistanceArguments->m_userData.get());
         m_hasDeferredStartAssistingNode = false;
         m_deferredNodeAssistanceArguments = nullptr;
     }
@@ -616,11 +620,6 @@ void WebPageProxy::selectWithTwoTouches(const WebCore::IntPoint from, const WebC
     m_process->send(Messages::WebPage::SelectWithTwoTouches(from, to, gestureType, gestureState, callbackID), m_pageID);
 }
 
-void WebPageProxy::updateBlockSelectionWithTouch(const WebCore::IntPoint point, uint32_t touch, uint32_t handlePosition)
-{
-    m_process->send(Messages::WebPage::UpdateBlockSelectionWithTouch(point, touch, handlePosition), m_pageID);
-}
-
 void WebPageProxy::didReceivePositionInformation(const InteractionInformationAtPosition& info)
 {
     m_pageClient.positionInformationDidChange(info);
@@ -651,11 +650,6 @@ void WebPageProxy::saveImageToLibrary(const SharedMemory::Handle& imageHandle, u
     auto sharedMemoryBuffer = SharedMemory::map(imageHandle, SharedMemory::Protection::ReadOnly);
     auto buffer = SharedBuffer::create(static_cast<unsigned char*>(sharedMemoryBuffer->data()), imageSize);
     m_pageClient.saveImageToLibrary(WTFMove(buffer));
-}
-
-void WebPageProxy::didUpdateBlockSelectionWithTouch(uint32_t touch, uint32_t flags, float growThreshold, float shrinkThreshold)
-{
-    m_pageClient.didUpdateBlockSelectionWithTouch(touch, flags, growThreshold, shrinkThreshold);
 }
 
 void WebPageProxy::applicationDidEnterBackground()
@@ -721,6 +715,21 @@ void WebPageProxy::requestRectsAtSelectionOffsetWithText(int32_t offset, const S
     
     auto callbackID = m_callbacks.put(WTFMove(callbackFunction), m_process->throttler().backgroundActivityToken());
     m_process->send(Messages::WebPage::GetRectsAtSelectionOffsetWithText(offset, text, callbackID), m_pageID);
+}
+
+void WebPageProxy::storeSelectionForAccessibility(bool shouldStore)
+{
+    m_process->send(Messages::WebPage::StoreSelectionForAccessibility(shouldStore), m_pageID);
+}
+
+void WebPageProxy::startAutoscrollAtPosition(const WebCore::FloatPoint& position)
+{
+    m_process->send(Messages::WebPage::StartAutoscrollAtPosition(position), m_pageID);
+}
+    
+void WebPageProxy::cancelAutoscroll()
+{
+    m_process->send(Messages::WebPage::CancelAutoscroll(), m_pageID);
 }
 
 void WebPageProxy::moveSelectionByOffset(int32_t offset, WTF::Function<void (CallbackBase::Error)>&& callbackFunction)
@@ -889,16 +898,16 @@ void WebPageProxy::didGetTapHighlightGeometries(uint64_t requestID, const WebCor
     m_pageClient.didGetTapHighlightGeometries(requestID, color, highlightedQuads, topLeftRadius, topRightRadius, bottomLeftRadius, bottomRightRadius);
 }
 
-void WebPageProxy::startAssistingNode(const AssistedNodeInformation& information, bool userIsInteracting, bool blurPreviousNode, const UserData& userData)
+void WebPageProxy::startAssistingNode(const AssistedNodeInformation& information, bool userIsInteracting, bool blurPreviousNode, bool changingActivityState, const UserData& userData)
 {
     API::Object* userDataObject = process().transformHandlesToObjects(userData.object()).get();
     if (m_editorState.isMissingPostLayoutData) {
-        m_deferredNodeAssistanceArguments = std::make_unique<NodeAssistanceArguments>(NodeAssistanceArguments { information, userIsInteracting, blurPreviousNode, userDataObject });
+        m_deferredNodeAssistanceArguments = std::make_unique<NodeAssistanceArguments>(NodeAssistanceArguments { information, userIsInteracting, blurPreviousNode, changingActivityState, userDataObject });
         m_hasDeferredStartAssistingNode = true;
         return;
     }
 
-    m_pageClient.startAssistingNode(information, userIsInteracting, blurPreviousNode, userDataObject);
+    m_pageClient.startAssistingNode(information, userIsInteracting, blurPreviousNode, changingActivityState, userDataObject);
 }
 
 void WebPageProxy::stopAssistingNode()

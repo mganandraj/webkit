@@ -54,6 +54,9 @@ namespace WebKit {
 NetworkProcessConnection::NetworkProcessConnection(IPC::Connection::Identifier connectionIdentifier)
     : m_connection(IPC::Connection::createClientConnection(connectionIdentifier, *this))
 {
+    // The WebProcess never processes incoming messages while waiting for a synchronous message reply as it would not be safe.
+    m_connection->setShouldProcessIncomingMessagesWhileWaitingForSyncReply(false);
+
     m_connection->open();
 }
 
@@ -126,7 +129,7 @@ void NetworkProcessConnection::writeBlobsToTemporaryFiles(const Vector<String>& 
 
     m_writeBlobToFileCompletionHandlers.set(requestIdentifier, WTFMove(completionHandler));
 
-    WebProcess::singleton().networkConnection().connection().send(Messages::NetworkConnectionToWebProcess::WriteBlobsToTemporaryFiles(blobURLs, requestIdentifier), 0);
+    WebProcess::singleton().ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::WriteBlobsToTemporaryFiles(blobURLs, requestIdentifier), 0);
 }
 
 void NetworkProcessConnection::didWriteBlobsToTemporaryFiles(uint64_t requestIdentifier, const Vector<String>& filenames)

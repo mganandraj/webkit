@@ -228,6 +228,7 @@ public:
         return registerStructure(structure, ignored);
     }
     RegisteredStructure registerStructure(Structure*, StructureRegistrationResult&);
+    void registerAndWatchStructureTransition(Structure*);
     void assertIsRegistered(Structure* structure);
     
     // CodeBlock is optional, but may allow additional information to be dumped (e.g. Identifier names).
@@ -468,12 +469,12 @@ public:
     
     bool hasGlobalExitSite(const CodeOrigin& codeOrigin, ExitKind exitKind)
     {
-        return baselineCodeBlockFor(codeOrigin)->hasExitSite(FrequentExitSite(exitKind));
+        return baselineCodeBlockFor(codeOrigin)->unlinkedCodeBlock()->hasExitSite(FrequentExitSite(exitKind));
     }
     
     bool hasExitSite(const CodeOrigin& codeOrigin, ExitKind exitKind)
     {
-        return baselineCodeBlockFor(codeOrigin)->hasExitSite(FrequentExitSite(codeOrigin.bytecodeIndex, exitKind));
+        return baselineCodeBlockFor(codeOrigin)->unlinkedCodeBlock()->hasExitSite(FrequentExitSite(codeOrigin.bytecodeIndex, exitKind));
     }
     
     bool hasExitSite(Node* node, ExitKind exitKind)
@@ -1029,7 +1030,6 @@ public:
     SegmentedVector<VariableAccessData, 16> m_variableAccessData;
     SegmentedVector<ArgumentPosition, 8> m_argumentPositions;
     Bag<Transition> m_transitions;
-    SegmentedVector<NewArrayBufferData, 4> m_newArrayBufferData;
     Bag<BranchData> m_branchData;
     Bag<SwitchData> m_switchData;
     Bag<MultiGetByOffsetData> m_multiGetByOffsetData;

@@ -32,24 +32,28 @@
 
 namespace WebCore {
 
+struct ClientOrigin;
+class FetchResponse;
+
 class CacheStorageConnection : public ThreadSafeRefCounted<CacheStorageConnection> {
 public:
     static Ref<CacheStorageConnection> create() { return adoptRef(*new CacheStorageConnection()); }
     virtual ~CacheStorageConnection() = default;
 
-    void open(const String& origin, const String& cacheName, DOMCacheEngine::CacheIdentifierCallback&&);
+    void open(const ClientOrigin&, const String& cacheName, DOMCacheEngine::CacheIdentifierCallback&&);
     void remove(uint64_t cacheIdentifier, DOMCacheEngine::CacheIdentifierCallback&&);
-    void retrieveCaches(const String& origin, uint64_t updateCounter, DOMCacheEngine::CacheInfosCallback&&);
+    void retrieveCaches(const ClientOrigin&, uint64_t updateCounter, DOMCacheEngine::CacheInfosCallback&&);
 
     void retrieveRecords(uint64_t cacheIdentifier, const URL&, DOMCacheEngine::RecordsCallback&&);
     void batchDeleteOperation(uint64_t cacheIdentifier, const ResourceRequest&, CacheQueryOptions&&, DOMCacheEngine::RecordIdentifiersCallback&&);
     void batchPutOperation(uint64_t cacheIdentifier, Vector<DOMCacheEngine::Record>&&, DOMCacheEngine::RecordIdentifiersCallback&&);
+    uint64_t computeRecordBodySize(const FetchResponse&, const DOMCacheEngine::ResponseBody&, ResourceResponse::Tainting);
 
     virtual void reference(uint64_t /* cacheIdentifier */) { }
     virtual void dereference(uint64_t /* cacheIdentifier */) { }
 
     // Used only for testing purposes.
-    virtual void clearMemoryRepresentation(const String& /* origin */, DOMCacheEngine::CompletionCallback&& callback) { callback(DOMCacheEngine::Error::NotImplemented); }
+    virtual void clearMemoryRepresentation(const ClientOrigin&, DOMCacheEngine::CompletionCallback&& callback) { callback(DOMCacheEngine::Error::NotImplemented); }
     virtual void engineRepresentation(WTF::Function<void(const String&)>&& callback) { callback(String { }); }
 
 protected:
@@ -64,9 +68,9 @@ protected:
     WEBCORE_EXPORT void putRecordsCompleted(uint64_t requestIdentifier, DOMCacheEngine::RecordIdentifiersOrError&&);
 
 private:
-    virtual void doOpen(uint64_t requestIdentifier, const String& /* origin */, const String& /* cacheName */) { openCompleted(requestIdentifier, makeUnexpected(DOMCacheEngine::Error::NotImplemented)); }
+    virtual void doOpen(uint64_t requestIdentifier, const ClientOrigin&, const String& /* cacheName */) { openCompleted(requestIdentifier, makeUnexpected(DOMCacheEngine::Error::NotImplemented)); }
     virtual void doRemove(uint64_t requestIdentifier, uint64_t /* cacheIdentifier */) { removeCompleted(requestIdentifier, makeUnexpected(DOMCacheEngine::Error::NotImplemented)); }
-    virtual void doRetrieveCaches(uint64_t requestIdentifier, const String& /* origin */, uint64_t /* updateCounter */) { updateCaches(requestIdentifier, { }); }
+    virtual void doRetrieveCaches(uint64_t requestIdentifier, const ClientOrigin&, uint64_t /* updateCounter */) { updateCaches(requestIdentifier, { }); }
 
     virtual void doRetrieveRecords(uint64_t requestIdentifier, uint64_t /* cacheIdentifier */, const URL& /* url */) { updateRecords(requestIdentifier, { }); }
     virtual void doBatchDeleteOperation(uint64_t requestIdentifier, uint64_t /* cacheIdentifier */, const ResourceRequest&, CacheQueryOptions&&) { deleteRecordsCompleted(requestIdentifier, makeUnexpected(DOMCacheEngine::Error::NotImplemented)); }
@@ -78,6 +82,7 @@ private:
     HashMap<uint64_t, DOMCacheEngine::CacheInfosCallback> m_retrieveCachesPendingRequests;
     HashMap<uint64_t, DOMCacheEngine::RecordsCallback> m_retrieveRecordsPendingRequests;
     HashMap<uint64_t, DOMCacheEngine::RecordIdentifiersCallback> m_batchDeleteAndPutPendingRequests;
+    HashMap<uint64_t, uint64_t> m_opaqueResponseToSizeWithPaddingMap;
 
     uint64_t m_lastRequestIdentifier { 0 };
 };

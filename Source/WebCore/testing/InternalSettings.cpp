@@ -28,6 +28,7 @@
 #include "InternalSettings.h"
 
 #include "CaptionUserPreferences.h"
+#include "DeprecatedGlobalSettings.h"
 #include "Document.h"
 #include "FontCache.h"
 #include "FrameView.h"
@@ -59,7 +60,7 @@ InternalSettings::Backup::Backup(Settings& settings)
 #endif
     , m_originalMediaTypeOverride(settings.mediaTypeOverride())
     , m_originalCanvasUsesAcceleratedDrawing(settings.canvasUsesAcceleratedDrawing())
-    , m_originalMockScrollbarsEnabled(settings.mockScrollbarsEnabled())
+    , m_originalMockScrollbarsEnabled(DeprecatedGlobalSettings::mockScrollbarsEnabled())
     , m_imagesEnabled(settings.areImagesEnabled())
     , m_preferMIMETypeForImages(settings.preferMIMETypeForImages())
     , m_minimumDOMTimerInterval(settings.minimumDOMTimerInterval())
@@ -111,11 +112,14 @@ InternalSettings::Backup::Backup(Settings& settings)
     , m_webGPUEnabled(RuntimeEnabledFeatures::sharedFeatures().webGPUEnabled())
 #endif
     , m_webVREnabled(RuntimeEnabledFeatures::sharedFeatures().webVREnabled())
+#if ENABLE(MEDIA_STREAM)
+    , m_setScreenCaptureEnabled(RuntimeEnabledFeatures::sharedFeatures().screenCaptureEnabled())
+#endif
     , m_shouldMockBoldSystemFontForAccessibility(RenderTheme::singleton().shouldMockBoldSystemFontForAccessibility())
 #if USE(AUDIO_SESSION)
-    , m_shouldManageAudioSessionCategory(Settings::shouldManageAudioSessionCategory())
+    , m_shouldManageAudioSessionCategory(DeprecatedGlobalSettings::shouldManageAudioSessionCategory())
 #endif
-    , m_customPasteboardDataEnabled(Settings::customPasteboardDataEnabled())
+    , m_customPasteboardDataEnabled(DeprecatedGlobalSettings::customPasteboardDataEnabled())
 {
 }
 
@@ -193,7 +197,7 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
     settings.setForcedDisplayIsMonochromeAccessibilityValue(m_forcedDisplayIsMonochromeAccessibilityValue);
     settings.setForcedPrefersReducedMotionAccessibilityValue(m_forcedPrefersReducedMotionAccessibilityValue);
     settings.setFontLoadTimingOverride(m_fontLoadTimingOverride);
-    Settings::setAllowsAnySSLCertificate(false);
+    DeprecatedGlobalSettings::setAllowsAnySSLCertificate(false);
     RenderTheme::singleton().setShouldMockBoldSystemFontForAccessibility(m_shouldMockBoldSystemFontForAccessibility);
     FontCache::singleton().setShouldMockBoldSystemFontForAccessibility(m_shouldMockBoldSystemFontForAccessibility);
     settings.setFrameFlattening(m_frameFlattening);
@@ -209,11 +213,14 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
     RuntimeEnabledFeatures::sharedFeatures().setWebGPUEnabled(m_webGPUEnabled);
 #endif
     RuntimeEnabledFeatures::sharedFeatures().setWebVREnabled(m_webVREnabled);
+#if ENABLE(MEDIA_STREAM)
+    RuntimeEnabledFeatures::sharedFeatures().setScreenCaptureEnabled(m_setScreenCaptureEnabled);
+#endif
 
 #if USE(AUDIO_SESSION)
-    Settings::setShouldManageAudioSessionCategory(m_shouldManageAudioSessionCategory);
+    DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(m_shouldManageAudioSessionCategory);
 #endif
-    Settings::setCustomPasteboardDataEnabled(m_customPasteboardDataEnabled);
+    DeprecatedGlobalSettings::setCustomPasteboardDataEnabled(m_customPasteboardDataEnabled);
 }
 
 class InternalSettingsWrapper : public Supplement<Page> {
@@ -445,7 +452,7 @@ ExceptionOr<void> InternalSettings::setMediaCaptureRequiresSecureConnection(bool
     if (!m_page)
         return Exception { InvalidAccessError };
 #if ENABLE(MEDIA_STREAM)
-    settings().setMediaCaptureRequiresSecureConnection(requires);
+    DeprecatedGlobalSettings::setMediaCaptureRequiresSecureConnection(requires);
 #else
     UNUSED_PARAM(requires);
 #endif
@@ -761,6 +768,15 @@ void InternalSettings::setWebVREnabled(bool enabled)
     RuntimeEnabledFeatures::sharedFeatures().setWebVREnabled(enabled);
 }
 
+void InternalSettings::setScreenCaptureEnabled(bool enabled)
+{
+#if ENABLE(MEDIA_STREAM)
+    RuntimeEnabledFeatures::sharedFeatures().setScreenCaptureEnabled(enabled);
+#else
+    UNUSED_PARAM(enabled);
+#endif
+}
+
 ExceptionOr<String> InternalSettings::userInterfaceDirectionPolicy()
 {
     if (!m_page)
@@ -819,32 +835,17 @@ ExceptionOr<void> InternalSettings::setSystemLayoutDirection(const String& direc
     return Exception { InvalidAccessError };
 }
 
-static FrameFlattening internalSettingsToWebCoreValue(InternalSettings::FrameFlatteningValue value)
-{
-    switch (value) {
-    case InternalSettings::FrameFlatteningValue::Disabled:
-        return FrameFlatteningDisabled;
-    case InternalSettings::FrameFlatteningValue::EnabledForNonFullScreenIFrames:
-        return FrameFlatteningEnabledForNonFullScreenIFrames;
-    case InternalSettings::FrameFlatteningValue::FullyEnabled:
-        return FrameFlatteningFullyEnabled;
-    }
-
-    ASSERT_NOT_REACHED();
-    return FrameFlatteningDisabled;
-}
-
-ExceptionOr<void> InternalSettings::setFrameFlattening(const FrameFlatteningValue& frameFlattening)
+ExceptionOr<void> InternalSettings::setFrameFlattening(FrameFlatteningValue frameFlattening)
 {
     if (!m_page)
         return Exception { InvalidAccessError };
-    settings().setFrameFlattening(internalSettingsToWebCoreValue(frameFlattening));
+    settings().setFrameFlattening(frameFlattening);
     return { };
 }
 
 void InternalSettings::setAllowsAnySSLCertificate(bool allowsAnyCertificate)
 {
-    Settings::setAllowsAnySSLCertificate(allowsAnyCertificate);
+    DeprecatedGlobalSettings::setAllowsAnySSLCertificate(allowsAnyCertificate);
 #if USE(SOUP)
     SoupNetworkSession::setShouldIgnoreTLSErrors(allowsAnyCertificate);
 #endif
@@ -868,7 +869,7 @@ ExceptionOr<void> InternalSettings::setDeferredCSSParserEnabled(bool enabled)
 ExceptionOr<void> InternalSettings::setShouldManageAudioSessionCategory(bool should)
 {
 #if USE(AUDIO_SESSION)
-    Settings::setShouldManageAudioSessionCategory(should);
+    DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(should);
     return { };
 #else
     UNUSED_PARAM(should);
@@ -878,7 +879,7 @@ ExceptionOr<void> InternalSettings::setShouldManageAudioSessionCategory(bool sho
 
 ExceptionOr<void> InternalSettings::setCustomPasteboardDataEnabled(bool enabled)
 {
-    Settings::setCustomPasteboardDataEnabled(enabled);
+    DeprecatedGlobalSettings::setCustomPasteboardDataEnabled(enabled);
     return { };
 }
 

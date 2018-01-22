@@ -40,7 +40,7 @@ namespace WebCore {
 CurlDownload::~CurlDownload()
 {
     if (m_curlRequest)
-        m_curlRequest->setDelegate(nullptr);
+        m_curlRequest->setClient(nullptr);
 }
 
 void CurlDownload::init(CurlDownloadListener& listener, const URL& url)
@@ -55,15 +55,13 @@ void CurlDownload::init(CurlDownloadListener& listener, ResourceHandle*, const R
     m_request = request.isolatedCopy();
 }
 
-bool CurlDownload::start()
+void CurlDownload::start()
 {
     ASSERT(isMainThread());
 
     m_curlRequest = createCurlRequest(m_request);
     m_curlRequest->enableDownloadToFile();
     m_curlRequest->start();
-
-    return true;
 }
 
 bool CurlDownload::cancel()
@@ -122,7 +120,7 @@ void CurlDownload::curlDidComplete()
 
     if (!m_destination.isEmpty()) {
         if (m_curlRequest && !m_curlRequest->getDownloadedFilePath().isEmpty())
-            moveFile(m_curlRequest->getDownloadedFilePath(), m_destination);
+            FileSystem::moveFile(m_curlRequest->getDownloadedFilePath(), m_destination);
     }
 
     if (m_listener)
@@ -137,7 +135,7 @@ void CurlDownload::curlDidFailWithError(const ResourceError& resourceError)
         return;
 
     if (m_deletesFileUponFailure && m_curlRequest && !m_curlRequest->getDownloadedFilePath().isEmpty())
-        deleteFile(m_curlRequest->getDownloadedFilePath());
+        FileSystem::deleteFile(m_curlRequest->getDownloadedFilePath());
 
     if (m_listener)
         m_listener->didFail();
@@ -196,7 +194,7 @@ void CurlDownload::willSendRequest()
     }
 
     m_curlRequest->cancel();
-    m_curlRequest->setDelegate(nullptr);
+    m_curlRequest->setClient(nullptr);
 
     m_curlRequest = createCurlRequest(newRequest);
     m_curlRequest->start();

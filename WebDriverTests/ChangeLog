@@ -1,0 +1,293 @@
+2018-01-19  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed GTK+ gardening. Skip imported/w3c/webdriver/tests/sessions/new_session/response.py.
+
+        It's causing a crash in the driver process and affecting all other tests.
+
+        * TestExpectations.json:
+
+2018-01-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update Selenium WebDriver imported tests.
+
+        * imported/selenium/importer.json:
+        * imported/selenium/py/test/selenium/webdriver/common/executing_async_javascript_tests.py:
+        (reset_timeouts):
+
+2018-01-17  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: ignore the driver in selenium test names when getting expectations
+        https://bugs.webkit.org/show_bug.cgi?id=181738
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Add some expectations for selenium tests.
+
+        * TestExpectations.json:
+
+2018-01-17  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add support for test expectations
+        https://bugs.webkit.org/show_bug.cgi?id=180420
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Add initial test expectations. For now I'm only adding the W3C test expectations, selenium ones will be added in
+        a follow up patch.
+
+        * TestExpectations.json: Added.
+
+2018-01-11  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update Selenium WebDriver imported tests.
+
+        * imported/selenium/importer.json:
+        * imported/selenium/py/conftest.py:
+        * imported/selenium/py/selenium/__init__.py:
+        * imported/selenium/py/selenium/webdriver/__init__.py:
+        * imported/selenium/py/selenium/webdriver/common/action_chains.py:
+        * imported/selenium/py/selenium/webdriver/common/service.py:
+        * imported/selenium/py/selenium/webdriver/remote/remote_connection.py:
+        * imported/selenium/py/selenium/webdriver/remote/switch_to.py:
+        * imported/selenium/py/selenium/webdriver/remote/webdriver.py:
+        * imported/selenium/py/selenium/webdriver/remote/webelement.py:
+        * imported/selenium/py/selenium/webdriver/support/expected_conditions.py:
+        * imported/selenium/py/selenium/webdriver/webkitgtk/options.py:
+        * imported/selenium/py/test/selenium/webdriver/common/alerts_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/api_example_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/appcache_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/driver_element_finding_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/executing_async_javascript_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/frame_switching_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/interactions_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/page_load_timeout_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/position_and_size_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/rendered_webelement_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/select_class_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/visibility_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/w3c_interaction_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/webdriverwait_tests.py:
+        * imported/selenium/py/test/selenium/webdriver/common/window_tests.py:
+
+2018-01-10  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * imported/w3c/importer.json:
+        * imported/w3c/webdriver/tests/sessions/new_session/invalid_capabilities.py:
+        * imported/w3c/webdriver/tests/sessions/new_session/support/create.py:
+
+2018-01-10  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * imported/w3c/importer.json:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/firefox.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/servo.py:
+        * imported/w3c/tools/wptrunner/wptrunner/environment.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/base.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executormarionette.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executorservo.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/pytestrunner/runner.py:
+        * imported/w3c/tools/wptrunner/wptrunner/testrunner.py:
+        * imported/w3c/tools/wptrunner/wptrunner/update/update.py:
+        * imported/w3c/tools/wptrunner/wptrunner/webdriver_server.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptlogging.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptrunner.py:
+        * imported/w3c/webdriver/OWNERS:
+        * imported/w3c/webdriver/interface/interface.html: Removed.
+        * imported/w3c/webdriver/tests/actions/modifier_click.py:
+        * imported/w3c/webdriver/tests/actions/mouse.py:
+        * imported/w3c/webdriver/tests/actions/mouse_dblclick.py: Added.
+        * imported/w3c/webdriver/tests/actions/sequence.py:
+        * imported/w3c/webdriver/tests/actions/support/mouse.py: Added.
+        * imported/w3c/webdriver/tests/cookies/add_cookie.py:
+        * imported/w3c/webdriver/tests/cookies/get_named_cookie.py:
+        * imported/w3c/webdriver/tests/element_retrieval/__init__.py: Copied from WebDriverTests/imported/w3c/webdriver/tests/retrieval/__init__.py.
+        * imported/w3c/webdriver/tests/element_retrieval/find_element.py: Renamed from WebDriverTests/imported/w3c/webdriver/tests/retrieval/find_element.py.
+        * imported/w3c/webdriver/tests/element_retrieval/find_element_from_element.py: Renamed from WebDriverTests/imported/w3c/webdriver/tests/retrieval/find_element_from_element.py.
+        * imported/w3c/webdriver/tests/element_retrieval/find_elements.py: Renamed from WebDriverTests/imported/w3c/webdriver/tests/retrieval/find_elements.py.
+        * imported/w3c/webdriver/tests/element_retrieval/find_elements_from_element.py: Renamed from WebDriverTests/imported/w3c/webdriver/tests/retrieval/find_element_from_elements.py.
+        * imported/w3c/webdriver/tests/element_send_keys/__init__.py: Renamed from WebDriverTests/imported/w3c/webdriver/tests/retrieval/__init__.py.
+        * imported/w3c/webdriver/tests/element_send_keys/interactability.py: Added.
+        * imported/w3c/webdriver/tests/element_send_keys/scroll_into_view.py: Added.
+        * imported/w3c/webdriver/tests/execute_script/cyclic.py: Added.
+        * imported/w3c/webdriver/tests/get_window_rect.py:
+        * imported/w3c/webdriver/tests/interface.html:
+        * imported/w3c/webdriver/tests/navigation/current_url.py:
+        * imported/w3c/webdriver/tests/support/asserts.py:
+        * imported/w3c/webdriver/tests/support/fixtures.py:
+
+2017-12-14  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add a common way to run tests with pytest
+        https://bugs.webkit.org/show_bug.cgi?id=180800
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Remove conftest.py since pytest_timeout plugin is now always loaded from the command line.
+
+        * imported/w3c/conftest.py: Removed.
+
+2017-12-04  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * imported/w3c/importer.json:
+        * imported/w3c/tools/webdriver/webdriver/client.py:
+        * imported/w3c/tools/webdriver/webdriver/error.py:
+        * imported/w3c/webdriver/tests/element_retrieval/get_active_element.py:
+        * imported/w3c/webdriver/tests/interaction/element_clear.py:
+        * imported/w3c/webdriver/tests/sessions/status.py:
+        * imported/w3c/webdriver/tests/support/wait.py:
+
+2017-12-01  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: auto-install pytest instead of importing it from wpt tools directory
+        https://bugs.webkit.org/show_bug.cgi?id=180243
+
+        Reviewed by Brian Burg.
+
+        * imported/selenium/py/conftest.py: Stop patching this to use yield_fixture, new pytest supports this.
+        * imported/selenium/py/setup.cfg: Stop patching this, since pytest supports tool:pytest as group name.
+        * imported/selenium/py/test/selenium/webdriver/common/alerts_tests.py: Stop patching this to use yield_fixture,
+        new pytest supports this.
+        * imported/selenium/py/test/selenium/webdriver/common/cookie_tests.py: Ditto.
+        * imported/selenium/py/test/selenium/webdriver/common/frame_switching_tests.py: Ditto.
+        * imported/selenium/py/test/selenium/webdriver/common/page_load_timeout_tests.py: Ditto.
+        * imported/selenium/py/test/selenium/webdriver/common/window_switching_tests.py: Ditto.
+        * imported/selenium/py/test/selenium/webdriver/safari/conftest.py: Ditto.
+        * imported/selenium/py/test/selenium/webdriver/support/event_firing_webdriver_tests.py: Ditto.
+        * imported/w3c/importer.json: Stop importing pytest.
+        * imported/w3c/pytest.ini: Added.
+        * imported/w3c/tools/pytest/: Removed.
+
+2017-11-30  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add support for importing and running selenium tests
+        https://bugs.webkit.org/show_bug.cgi?id=180145
+
+        Reviewed by Brian Burg.
+
+        * imported/selenium/importer.json: Added.
+        * imported/selenium/common/: Added.
+        * imported/selenium/py/: Added.
+
+2017-11-28  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * imported/w3c/importer.json:
+        * imported/w3c/tools/webdriver/webdriver/client.py:
+        * imported/w3c/tools/webdriver/webdriver/error.py:
+        * imported/w3c/tools/wptrunner/docs/conf.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/ie.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/base.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/pytestrunner/runner.py:
+        * imported/w3c/tools/wptrunner/wptrunner/stability.py:
+        * imported/w3c/tools/wptrunner/wptrunner/testdriver-vendor.js: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/update/sync.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptcommandline.py:
+        * imported/w3c/webdriver/interface/interface.html:
+        * imported/w3c/webdriver/tests/document_handling/page_source.py: Added.
+        * imported/w3c/webdriver/tests/element_click/bubbling.py: Added.
+        * imported/w3c/webdriver/tests/element_retrieval/get_active_element.py:
+        * imported/w3c/webdriver/tests/execute_async_script/user_prompts.py: Added.
+        * imported/w3c/webdriver/tests/execute_script/user_prompts.py: Added.
+        * imported/w3c/webdriver/tests/sessions/status.py: Added.
+        * imported/w3c/webdriver/tests/status.py: Removed.
+        * imported/w3c/webdriver/tests/support/fixtures.py:
+        * imported/w3c/webdriver/tests/support/wait.py:
+        * imported/w3c/webdriver/tests/user_prompts/accept_alert.py:
+        * imported/w3c/webdriver/tests/user_prompts/dismiss_alert.py:
+        * imported/w3c/webdriver/tests/user_prompts/get_alert_text.py:
+        * imported/w3c/webdriver/tests/user_prompts/send_alert_text.py:
+
+2017-11-28  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add timeout option to run-webdriver-tests script
+        https://bugs.webkit.org/show_bug.cgi?id=179940
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Add a base conftest.py to load pytest_timeout plugin.
+
+        * imported/w3c/conftest.py: Added.
+
+2017-11-21  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * imported/w3c/importer.json:
+        * imported/w3c/tools/webdriver/webdriver/client.py:
+        * imported/w3c/tools/webdriver/webdriver/error.py:
+        * imported/w3c/tools/webdriver/webdriver/protocol.py: Added.
+        * imported/w3c/tools/webdriver/webdriver/transport.py:
+        * imported/w3c/tools/wptrunner/MANIFEST.in:
+        * imported/w3c/tools/wptrunner/requirements_firefox.txt:
+        * imported/w3c/tools/wptrunner/requirements_opera.txt: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/__init__.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/edge.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/firefox.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/opera.py: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/environment.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/base.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executoredge.py: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executormarionette.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executoropera.py: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executorselenium.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/pytestrunner/runner.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/testharness_webdriver.js:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/testharness_webdriver_resume.js: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/stability.py: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/testdriver-extra.js: Added.
+        * imported/w3c/tools/wptrunner/wptrunner/testloader.py:
+        * imported/w3c/tools/wptrunner/wptrunner/testrunner.py:
+        * imported/w3c/tools/wptrunner/wptrunner/update/state.py:
+        * imported/w3c/tools/wptrunner/wptrunner/update/sync.py:
+        * imported/w3c/tools/wptrunner/wptrunner/webdriver_server.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptcommandline.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptlogging.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptrunner.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wpttest.py:
+        * imported/w3c/webdriver/tests/actions/conftest.py:
+        * imported/w3c/webdriver/tests/actions/key.py:
+        * imported/w3c/webdriver/tests/actions/key_shortcuts.py: Added.
+        * imported/w3c/webdriver/tests/actions/modifier_click.py: Added.
+        * imported/w3c/webdriver/tests/actions/mouse.py:
+        * imported/w3c/webdriver/tests/actions/sequence.py:
+        * imported/w3c/webdriver/tests/actions/special_keys.py:
+        * imported/w3c/webdriver/tests/actions/support/keys.py:
+        * imported/w3c/webdriver/tests/actions/support/test_actions_wdspec.html:
+        * imported/w3c/webdriver/tests/cookies/add_cookie.py:
+        * imported/w3c/webdriver/tests/cookies/get_named_cookie.py:
+        * imported/w3c/webdriver/tests/element_click/stale.py: Added.
+        * imported/w3c/webdriver/tests/element_retrieval/get_active_element.py:
+        * imported/w3c/webdriver/tests/interaction/element_clear.py: Added.
+        * imported/w3c/webdriver/tests/navigation/get_title.py:
+        * imported/w3c/webdriver/tests/retrieval/find_element.py:
+        * imported/w3c/webdriver/tests/retrieval/find_element_from_element.py:
+        * imported/w3c/webdriver/tests/retrieval/find_element_from_elements.py:
+        * imported/w3c/webdriver/tests/retrieval/find_elements.py:
+        * imported/w3c/webdriver/tests/sessions/new_session/support/__init__.py:
+        * imported/w3c/webdriver/tests/state/get_element_attribute.py:
+        * imported/w3c/webdriver/tests/state/get_element_property.py:
+        * imported/w3c/webdriver/tests/state/get_element_tag_name.py:
+        * imported/w3c/webdriver/tests/state/is_element_selected.py:
+        * imported/w3c/webdriver/tests/support/asserts.py:
+        * imported/w3c/webdriver/tests/user_prompts/send_alert_text.py: Added.
+
+2017-09-21  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: Add support to import and run W3C tests
+        https://bugs.webkit.org/show_bug.cgi?id=177304
+
+        Reviewed by Brian Burg.
+
+        Add json file used by the importer and the result of running the importer.
+
+        * imported/w3c/importer.json: Added.
+        * imported/w3c/tools/pytest/: Added.
+        * imported/w3c/tools/webdriver/: Added.
+        * imported/w3c/tools/wptrunner/: Added.
+        * imported/w3c/webdriver/: Added.

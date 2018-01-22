@@ -29,17 +29,16 @@
 #if USE(CURL)
 
 #include "Credential.h"
-#include "CurlRequestDelegate.h"
+#include "CurlRequestClient.h"
 #include "ResourceRequest.h"
 
 namespace WebCore {
 
 class CurlRequest;
-class MultipartHandle;
 class ResourceHandle;
 class ResourceResponse;
 
-class ResourceHandleCurlDelegate final : public ThreadSafeRefCounted<ResourceHandleCurlDelegate>, public CurlRequestDelegate {
+class ResourceHandleCurlDelegate final : public ThreadSafeRefCounted<ResourceHandleCurlDelegate>, public CurlRequestClient {
 public:
     ResourceHandleCurlDelegate(ResourceHandle*);
     ~ResourceHandleCurlDelegate();
@@ -47,7 +46,7 @@ public:
     bool hasHandle() const;
     void releaseHandle();
 
-    bool start();
+    void start();
     void cancel();
 
     void setDefersLoading(bool);
@@ -84,7 +83,6 @@ private:
 
     // Used by main thread.
     ResourceHandle* m_handle;
-    std::unique_ptr<MultipartHandle> m_multipartHandle;
     unsigned m_authFailureCount { 0 };
     unsigned m_redirectCount { 0 };
 

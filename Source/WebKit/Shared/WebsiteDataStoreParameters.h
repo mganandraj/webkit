@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "NetworkSessionCreationParameters.h"
 #include "SandboxExtension.h"
 #include <WebCore/Cookie.h>
 #include <pal/SessionID.h>
@@ -41,17 +42,20 @@ namespace WebKit {
 struct WebsiteDataStoreParameters {
     WebsiteDataStoreParameters() = default;
     WebsiteDataStoreParameters(WebsiteDataStoreParameters&&) = default;
+    WebsiteDataStoreParameters& operator=(WebsiteDataStoreParameters&&) = default;
     ~WebsiteDataStoreParameters();
+    static WebsiteDataStoreParameters legacyPrivateSessionParameters();
     
     void encode(IPC::Encoder&) const;
-    static bool decode(IPC::Decoder&, WebsiteDataStoreParameters&);
+    static std::optional<WebsiteDataStoreParameters> decode(IPC::Decoder&);
 
-    PAL::SessionID sessionID;
     Vector<uint8_t> uiProcessCookieStorageIdentifier;
     SandboxExtension::Handle cookieStoragePathExtensionHandle;
     Vector<WebCore::Cookie> pendingCookies;
     String cacheStorageDirectory;
+    uint64_t cacheStoragePerOriginQuota { 0 };
     SandboxExtension::Handle cacheStorageDirectoryExtensionHandle;
+    NetworkSessionCreationParameters networkSessionParameters;
 };
 
 } // namespace WebKit

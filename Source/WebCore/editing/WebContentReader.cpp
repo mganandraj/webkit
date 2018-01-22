@@ -26,9 +26,18 @@
 #include "config.h"
 #include "WebContentReader.h"
 
+#include "Document.h"
 #include "DocumentFragment.h"
 
 namespace WebCore {
+
+DocumentFragment& WebContentReader::ensureFragment()
+{
+    ASSERT(frame.document());
+    if (!fragment)
+        fragment = frame.document()->createDocumentFragment();
+    return *fragment;
+}
 
 void WebContentReader::addFragment(Ref<DocumentFragment>&& newFragment)
 {
@@ -36,6 +45,12 @@ void WebContentReader::addFragment(Ref<DocumentFragment>&& newFragment)
         fragment = WTFMove(newFragment);
     else
         fragment->appendChild(newFragment.get());
+}
+
+bool FrameWebContentReader::shouldSanitize() const
+{
+    ASSERT(frame.document());
+    return frame.document()->originIdentifierForPasteboard() != contentOrigin;
 }
 
 }

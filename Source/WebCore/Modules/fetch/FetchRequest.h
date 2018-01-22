@@ -51,8 +51,6 @@ public:
     using Destination = FetchOptions::Destination;
     using Mode = FetchOptions::Mode;
     using Redirect = FetchOptions::Redirect;
-    using Type = FetchOptions::Type;
-
 
     static ExceptionOr<Ref<FetchRequest>> create(ScriptExecutionContext&, Info&&, Init&&);
     static Ref<FetchRequest> create(ScriptExecutionContext& context, std::optional<FetchBody>&& body, Ref<FetchHeaders>&& headers, ResourceRequest&& request, FetchOptions&& options, String&& referrer) { return adoptRef(*new FetchRequest(context, WTFMove(body), WTFMove(headers), WTFMove(request), WTFMove(options), WTFMove(referrer))); }
@@ -62,7 +60,6 @@ public:
     FetchHeaders& headers() { return m_headers.get(); }
     const FetchHeaders& headers() const { return m_headers.get(); }
 
-    Type type() const { return m_options.type; }
     Destination destination() const { return m_options.destination; }
     String referrer() const;
     ReferrerPolicy referrerPolicy() const { return m_options.referrerPolicy; }
@@ -95,7 +92,6 @@ private:
     const char* activeDOMObjectName() const final;
     bool canSuspendForDocumentSuspension() const final;
 
-
     ResourceRequest m_request;
     FetchOptions m_options;
     String m_referrer;
@@ -108,6 +104,7 @@ inline FetchRequest::FetchRequest(ScriptExecutionContext& context, std::optional
     , m_options(WTFMove(options))
     , m_referrer(WTFMove(referrer))
 {
+    updateContentType();
 }
 
 } // namespace WebCore

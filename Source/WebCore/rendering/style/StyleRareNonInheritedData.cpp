@@ -135,7 +135,7 @@ inline StyleRareNonInheritedData::StyleRareNonInheritedData(const StyleRareNonIn
     , scrollSnapArea(o.scrollSnapArea)
 #endif
     , content(o.content ? o.content->clone() : nullptr)
-    , counterDirectives(o.counterDirectives ? clone(*o.counterDirectives) : nullptr)
+    , counterDirectives(o.counterDirectives ? std::make_unique<CounterDirectiveMap>(*o.counterDirectives) : nullptr)
     , altText(o.altText)
     , boxShadow(o.boxShadow ? std::make_unique<ShadowData>(*o.boxShadow) : nullptr)
     , willChange(o.willChange)
@@ -203,9 +203,7 @@ Ref<StyleRareNonInheritedData> StyleRareNonInheritedData::copy() const
     return adoptRef(*new StyleRareNonInheritedData(*this));
 }
 
-StyleRareNonInheritedData::~StyleRareNonInheritedData()
-{
-}
+StyleRareNonInheritedData::~StyleRareNonInheritedData() = default;
 
 bool StyleRareNonInheritedData::operator==(const StyleRareNonInheritedData& o) const
 {

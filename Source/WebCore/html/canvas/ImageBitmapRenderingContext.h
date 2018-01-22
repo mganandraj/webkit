@@ -27,18 +27,45 @@
 
 #include "CanvasRenderingContext.h"
 
+#include "ExceptionOr.h"
+#include "ImageBitmapRenderingContextSettings.h"
+#include "ImageBufferData.h"
+#include <memory>
+#include <wtf/RefPtr.h>
+
 namespace WebCore {
+
+class ImageBitmap;
+class ImageBuffer;
 
 class ImageBitmapRenderingContext final : public CanvasRenderingContext {
 public:
-    struct Settings {
-        bool alpha = true;
+    static std::unique_ptr<ImageBitmapRenderingContext> create(CanvasBase&, ImageBitmapRenderingContextSettings&&);
+
+    enum class BitmapMode {
+        Valid,
+        Blank
     };
 
-    ImageBitmapRenderingContext(HTMLCanvasElement&);
+    ~ImageBitmapRenderingContext();
+
+    HTMLCanvasElement* canvas() const;
+
+    ExceptionOr<void> transferFromImageBitmap(RefPtr<ImageBitmap>);
+
+    BitmapMode bitmapMode() { return m_bitmapMode; }
+    bool hasAlpha() { return m_settings.alpha; }
 
 private:
+    ImageBitmapRenderingContext(CanvasBase&, ImageBitmapRenderingContextSettings&&);
+
     bool isBitmapRenderer() const final { return true; }
+    bool isAccelerated() const override;
+
+    void setOutputBitmap(RefPtr<ImageBitmap>);
+
+    BitmapMode m_bitmapMode { BitmapMode::Blank };
+    ImageBitmapRenderingContextSettings m_settings;
 };
 
 }

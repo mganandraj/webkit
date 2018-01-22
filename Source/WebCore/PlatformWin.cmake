@@ -144,6 +144,7 @@ list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
 set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     .
     accessibility
+    animation
     bindings
     bridge
     contentextensions
@@ -235,6 +236,8 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     svg/properties
 
     svg/graphics/filters
+
+    workers/service
 )
 
 if (USE_CF)
@@ -270,7 +273,7 @@ if (USE_CF)
 endif ()
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
-    list(APPEND WebCore_DERIVED_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/makesafeseh.obj)
+    list(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/makesafeseh.obj)
     add_custom_command(
         OUTPUT ${DERIVED_SOURCES_WEBCORE_DIR}/makesafeseh.obj
         DEPENDS ${WEBCORE_DIR}/platform/win/makesafeseh.asm
@@ -297,26 +300,25 @@ file(COPY
     DESTINATION
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebKit.resources
 )
-if (WTF_PLATFORM_WIN_CAIRO AND EXISTS ${WEBKIT_LIBRARIES_DIR}/cacert.pem)
+if (WTF_PLATFORM_WIN_CAIRO AND EXISTS ${WEBKIT_LIBRARIES_DIR}/etc/ssl/cert.pem)
     make_directory(${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebKit.resources/certificates)
     file(COPY
-        ${WEBKIT_LIBRARIES_DIR}/cacert.pem
+        ${WEBKIT_LIBRARIES_DIR}/etc/ssl/cert.pem
         DESTINATION
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebKit.resources/certificates
     )
+    file(RENAME
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebKit.resources/certificates/cert.pem
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebKit.resources/certificates/cacert.pem
+    )
 endif ()
 
-file(MAKE_DIRECTORY ${FORWARDING_HEADERS_DIR}/WebCore)
-
-set(WebCore_DERIVED_SOURCES_PRE_BUILD_COMMAND "${CMAKE_BINARY_DIR}/DerivedSources/WebCore/preBuild.cmd")
-file(WRITE "${WebCore_DERIVED_SOURCES_PRE_BUILD_COMMAND}" "@xcopy /y /s /d /f \"${WEBCORE_DIR}/ForwardingHeaders/*.h\" \"${FORWARDING_HEADERS_DIR}/WebCore\" >nul 2>nul\n")
-foreach (_directory ${WebCore_FORWARDING_HEADERS_DIRECTORIES})
-    file(APPEND "${WebCore_DERIVED_SOURCES_PRE_BUILD_COMMAND}" "@xcopy /y /d /f \"${WEBCORE_DIR}/${_directory}/*.h\" \"${FORWARDING_HEADERS_DIR}/WebCore\" >nul 2>nul\n")
-endforeach ()
-
-set(WebCore_POST_BUILD_COMMAND "${CMAKE_BINARY_DIR}/DerivedSources/WebCore/postBuild.cmd")
-file(WRITE "${WebCore_POST_BUILD_COMMAND}" "@xcopy /y /s /d /f \"${DERIVED_SOURCES_WEBCORE_DIR}/*.h\" \"${FORWARDING_HEADERS_DIR}/WebCore\" >nul 2>nul\n")
-file(APPEND "${WebCore_POST_BUILD_COMMAND}" "@xcopy /y /s /d /f \"${DERIVED_SOURCES_PAL_DIR}/*.h\" \"${FORWARDING_HEADERS_DIR}/WebCore\" >nul 2>nul\n")
+WEBKIT_MAKE_FORWARDING_HEADERS(WebCore
+    DIRECTORIES ${WebCore_FORWARDING_HEADERS_DIRECTORIES}
+    EXTRA_DIRECTORIES ForwardingHeaders
+    DERIVED_SOURCE_DIRECTORIES ${DERIVED_SOURCES_WEBCORE_DIR} ${DERIVED_SOURCES_PAL_DIR}
+    FLATTENED
+)
 
 set(WebCore_OUTPUT_NAME
     WebCore${DEBUG_SUFFIX}

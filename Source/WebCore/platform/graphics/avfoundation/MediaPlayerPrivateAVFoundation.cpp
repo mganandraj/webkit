@@ -29,6 +29,7 @@
 
 #include "MediaPlayerPrivateAVFoundation.h"
 
+#include "DeprecatedGlobalSettings.h"
 #include "DocumentLoader.h"
 #include "FloatConversion.h"
 #include "GraphicsContext.h"
@@ -41,7 +42,6 @@
 #include "URL.h"
 #include <CoreMedia/CoreMedia.h>
 #include <heap/HeapInlines.h>
-#include <pal/Logger.h>
 #include <runtime/DataView.h>
 #include <runtime/TypedArrayInlines.h>
 #include <runtime/Uint16Array.h>
@@ -171,7 +171,8 @@ void MediaPlayerPrivateAVFoundation::load(const String& url)
     setNetworkState(m_preload == MediaPlayer::None ? MediaPlayer::Idle : MediaPlayer::Loading);
     setReadyState(MediaPlayer::HaveNothing);
 
-    m_assetURL = url;
+    m_assetURL = URL(ParsedURLString, url);
+    m_requestedOrigin = SecurityOrigin::create(m_assetURL);
 
     // Don't do any more work if the url is empty.
     if (!url.length())
@@ -399,10 +400,8 @@ MediaTime MediaPlayerPrivateAVFoundation::maxMediaTimeSeekable() const
     if (!metaDataAvailable())
         return MediaTime::zeroTime();
 
-    if (!m_cachedMaxTimeSeekable) {
+    if (!m_cachedMaxTimeSeekable)
         m_cachedMaxTimeSeekable = platformMaxTimeSeekable();
-        INFO_LOG(LOGIDENTIFIER, "caching ", m_cachedMaxTimeSeekable);
-    }
 
     return m_cachedMaxTimeSeekable;
 }
@@ -412,10 +411,8 @@ MediaTime MediaPlayerPrivateAVFoundation::minMediaTimeSeekable() const
     if (!metaDataAvailable())
         return MediaTime::zeroTime();
 
-    if (!m_cachedMinTimeSeekable) {
+    if (!m_cachedMinTimeSeekable)
         m_cachedMinTimeSeekable = platformMinTimeSeekable();
-        INFO_LOG(LOGIDENTIFIER, "caching ", m_cachedMinTimeSeekable);
-    }
 
     return m_cachedMinTimeSeekable;
 }
@@ -474,11 +471,24 @@ bool MediaPlayerPrivateAVFoundation::supportsFullscreen() const
 #else
     // FIXME: WebVideoFullscreenController assumes a QTKit/QuickTime media engine
 #if PLATFORM(IOS)
-    if (Settings::avKitEnabled())
+    if (DeprecatedGlobalSettings::avKitEnabled())
         return true;
 #endif
     return false;
 #endif
+}
+
+bool MediaPlayerPrivateAVFoundation::hasSingleSecurityOrigin() const
+{
+    if (m_resolvedOrigin && m_requestedOrigin)
+        return m_resolvedOrigin->isSameSchemeHostPort(*m_requestedOrigin);
+    return false;
+}
+
+void MediaPlayerPrivateAVFoundation::setResolvedURL(URL&& resolvedURL)
+{
+    m_resolvedURL = WTFMove(resolvedURL);
+    m_resolvedOrigin = SecurityOrigin::create(m_resolvedURL);
 }
 
 void MediaPlayerPrivateAVFoundation::updateStates()
@@ -563,9 +573,9 @@ void MediaPlayerPrivateAVFoundation::updateStates()
         m_haveReportedFirstVideoFrame = false;
 
     if (m_networkState != newNetworkState)
-        ALWAYS_LOG(LOGIDENTIFIER, "entered with networkState ", static_cast<int>(m_networkState), ", exiting with ", static_cast<int>(newNetworkState));
+        ALWAYS_LOG(LOGIDENTIFIER, "entered with networkState ", m_networkState, ", exiting with ", newNetworkState);
     if (m_readyState != newReadyState)
-        ALWAYS_LOG(LOGIDENTIFIER, "entered with readyState ", static_cast<int>(m_readyState), ", exiting with ", static_cast<int>(newReadyState));
+        ALWAYS_LOG(LOGIDENTIFIER, "entered with readyState ", m_readyState, ", exiting with ", newReadyState);
 
     setNetworkState(newNetworkState);
     setReadyState(newReadyState);
@@ -610,6 +620,7 @@ void MediaPlayerPrivateAVFoundation::setShouldMaintainAspectRatio(bool maintainA
 void MediaPlayerPrivateAVFoundation::metadataLoaded()
 {
     m_loadingMetadata = false;
+    resolvedURLChanged();
     tracksChanged();
 }
 
@@ -719,7 +730,7 @@ void MediaPlayerPrivateAVFoundation::setPreload(MediaPlayer::Preload preload)
 {
     ALWAYS_LOG(LOGIDENTIFIER, " - ", static_cast<int>(preload));
     m_preload = preload;
-    if (!m_assetURL.length())
+    if (m_assetURL.isEmpty())
         return;
 
     setDelayCallbacks(true);
@@ -1043,14 +1054,6 @@ bool MediaPlayerPrivateAVFoundation::extractKeyURIKeyIDAndCertificateFromInitDat
     return true;
 }
 #endif
-
-URL MediaPlayerPrivateAVFoundation::resolvedURL() const
-{
-    if (!m_assetURL.length())
-        return URL();
-
-    return URL(ParsedURLString, m_assetURL);
-}
 
 bool MediaPlayerPrivateAVFoundation::canSaveMediaData() const
 {

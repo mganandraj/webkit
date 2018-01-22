@@ -28,8 +28,8 @@
 #include "FileSystem.h"
 
 #include "FileMetadata.h"
-#include "ScopeGuard.h"
 #include <wtf/HexNumber.h>
+#include <wtf/Scope.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -41,6 +41,8 @@
 #endif
 
 namespace WebCore {
+
+namespace FileSystem {
 
 // The following lower-ASCII characters need escaping to be used in a filename
 // across all systems, including Windows:
@@ -205,7 +207,7 @@ String lastComponentOfPathIgnoringTrailingSlash(const String& path)
 
 bool appendFileContentsToFileHandle(const String& path, PlatformFileHandle& target)
 {
-    auto source = openFile(path, OpenForRead);
+    auto source = openFile(path, FileOpenMode::Read);
 
     if (!isHandleValid(source))
         return false;
@@ -213,7 +215,7 @@ bool appendFileContentsToFileHandle(const String& path, PlatformFileHandle& targ
     static int bufferSize = 1 << 19;
     Vector<char> buffer(bufferSize);
 
-    ScopeGuard fileCloser([source]() {
+    auto fileCloser = WTF::makeScopeExit([source]() {
         PlatformFileHandle handle = source;
         closeFile(handle);
     });
@@ -328,7 +330,7 @@ MappedFileData::MappedFileData(const String& filePath, bool& success)
 #endif
 }
 
-PlatformFileHandle openAndLockFile(const String& path, FileOpenMode openMode, FileLockMode lockMode)
+PlatformFileHandle openAndLockFile(const String& path, FileOpenMode openMode, OptionSet<FileLockMode> lockMode)
 {
     auto handle = openFile(path, openMode);
     if (handle == invalidPlatformFileHandle)
@@ -359,4 +361,13 @@ bool fileIsDirectory(const String& path, ShouldFollowSymbolicLinks shouldFollowS
     return metadata.value().type == FileMetadata::Type::Directory;
 }
 
+std::optional<WallTime> getFileModificationTime(const String& path)
+{
+    time_t modificationTime = 0;
+    if (!getFileModificationTime(path, modificationTime))
+        return std::nullopt;
+    return WallTime::fromRawSeconds(modificationTime);
+}
+
+} // namespace FileSystem
 } // namespace WebCore

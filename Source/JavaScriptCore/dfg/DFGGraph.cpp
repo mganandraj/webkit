@@ -243,6 +243,8 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         out.print(comma, inContext(node->structureSet().toStructureSet(), context));
     if (node->hasStructure())
         out.print(comma, inContext(*node->structure().get(), context));
+    if (node->op() == CPUIntrinsic)
+        out.print(comma, intrinsicName(node->intrinsic()));
     if (node->hasTransition()) {
         out.print(comma, pointerDumpInContext(node->transition(), context));
 #if USE(JSVALUE64)
@@ -309,20 +311,8 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
     }
     if (node->hasUnlinkedLocal()) 
         out.print(comma, node->unlinkedLocal());
-    if (node->hasUnlinkedMachineLocal()) {
-        VirtualRegister operand = node->unlinkedMachineLocal();
-        if (operand.isValid())
-            out.print(comma, "machine:", operand);
-    }
-    if (node->hasConstantBuffer()) {
-        out.print(comma);
-        out.print(node->startConstant(), ":[");
-        CommaPrinter anotherComma;
-        for (unsigned i = 0; i < node->numConstants(); ++i)
-            out.print(anotherComma, pointerDumpInContext(freeze(m_codeBlock->constantBuffer(node->startConstant())[i]), context));
-        out.print("]");
+    if (node->hasVectorLengthHint())
         out.print(comma, "vectorLengthHint = ", node->vectorLengthHint());
-    }
     if (node->hasLazyJSValue())
         out.print(comma, node->lazyJSValue());
     if (node->hasIndexingType())
@@ -356,6 +346,8 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         out.print(comma, "id", data->identifierNumber, "{", identifiers()[data->identifierNumber], "}");
         out.print(", domJIT = ", RawPointer(data->domJIT));
     }
+    if (node->hasIgnoreLastIndexIsWritable())
+        out.print(comma, "ignoreLastIndexIsWritable = ", node->ignoreLastIndexIsWritable());
     if (node->isConstant())
         out.print(comma, pointerDumpInContext(node->constant(), context));
     if (node->isJump())
@@ -817,7 +809,8 @@ void Graph::killUnreachableBlocks()
             continue;
         if (block->isReachable)
             continue;
-        
+
+        dataLogIf(Options::verboseDFGBytecodeParsing(), "Basic block #", blockIndex, " was killed because it was unreachable\n");
         killBlockAndItsContents(block);
     }
 }
@@ -1085,7 +1078,7 @@ FullBytecodeLiveness& Graph::livenessFor(CodeBlock* codeBlock)
         return *iter->value;
     
     std::unique_ptr<FullBytecodeLiveness> liveness = std::make_unique<FullBytecodeLiveness>();
-    codeBlock->livenessAnalysis().computeFullLiveness(*liveness);
+    codeBlock->livenessAnalysis().computeFullLiveness(codeBlock, *liveness);
     FullBytecodeLiveness& result = *liveness;
     m_bytecodeLiveness.add(codeBlock, WTFMove(liveness));
     return result;
@@ -1103,7 +1096,7 @@ BytecodeKills& Graph::killsFor(CodeBlock* codeBlock)
         return *iter->value;
     
     std::unique_ptr<BytecodeKills> kills = std::make_unique<BytecodeKills>();
-    codeBlock->livenessAnalysis().computeKills(*kills);
+    codeBlock->livenessAnalysis().computeKills(codeBlock, *kills);
     BytecodeKills& result = *kills;
     m_bytecodeKills.add(codeBlock, WTFMove(kills));
     return result;
@@ -1501,6 +1494,12 @@ RegisteredStructure Graph::registerStructure(Structure* structure, StructureRegi
     return RegisteredStructure::createPrivate(structure);
 }
 
+void Graph::registerAndWatchStructureTransition(Structure* structure)
+{
+    m_plan.weakReferences.addLazily(structure);
+    m_plan.watchpoints.addLazily(structure->transitionWatchpointSet());
+}
+
 void Graph::assertIsRegistered(Structure* structure)
 {
     // It's convenient to be able to call this with a maybe-null structure.
@@ -1620,9 +1619,11 @@ ControlEquivalenceAnalysis& Graph::ensureControlEquivalenceAnalysis()
 
 MethodOfGettingAValueProfile Graph::methodOfGettingAValueProfileFor(Node* currentNode, Node* operandNode)
 {
+    // This represents IR like `CurrentNode(@operandNode)`. For example: `GetByVal(..., Int32:@GetLocal)`.
+
     for (Node* node = operandNode; node;) {
         // currentNode is null when we're doing speculation checks for checkArgumentTypes().
-        if (!currentNode || node->origin.semantic != currentNode->origin.semantic) {
+        if (!currentNode || node->origin.semantic != currentNode->origin.semantic || !currentNode->hasResult()) {
             CodeBlock* profiledBlock = baselineCodeBlockFor(node->origin.semantic);
 
             if (node->accessesStack(*this)) {

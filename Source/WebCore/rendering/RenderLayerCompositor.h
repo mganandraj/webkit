@@ -110,9 +110,6 @@ public:
 
     bool canRender3DTransforms() const;
 
-    // Copy the accelerated compositing related flags from Settings
-    void cacheAcceleratedCompositingFlags();
-
     // Called when the layer hierarchy needs to be updated (compositing layers have been
     // created, destroyed or re-parented).
     void setCompositingLayersNeedRebuild(bool needRebuild = true);
@@ -151,7 +148,7 @@ public:
     bool updateLayerCompositingState(RenderLayer&, CompositingChangeRepaint = CompositingChangeRepaintNow);
 
     // Update the geometry for compositing children of compositingAncestor.
-    void updateCompositingDescendantGeometry(RenderLayer& compositingAncestor, RenderLayer&, bool compositedChildrenOnly);
+    void updateCompositingDescendantGeometry(RenderLayer& compositingAncestor, RenderLayer&);
     
     // Whether layer's backing needs a graphics layer to do clipping by an ancestor (non-stacking-context parent with overflow).
     bool clippedByAncestor(RenderLayer&) const;
@@ -194,13 +191,15 @@ public:
 
     WEBCORE_EXPORT RenderLayer& rootRenderLayer() const;
     GraphicsLayer* rootGraphicsLayer() const;
-    WEBCORE_EXPORT GraphicsLayer* scrollLayer() const;
-    GraphicsLayer* clipLayer() const;
-    GraphicsLayer* rootContentLayer() const;
+
+    GraphicsLayer* scrollLayer() const { return m_scrollLayer.get(); }
+    GraphicsLayer* clipLayer() const { return m_clipLayer.get(); }
+    GraphicsLayer* rootContentLayer() const { return m_rootContentLayer.get(); }
+
 
 #if ENABLE(RUBBER_BANDING)
-    GraphicsLayer* headerLayer() const;
-    GraphicsLayer* footerLayer() const;
+    GraphicsLayer* headerLayer() const { return m_layerForHeader.get(); }
+    GraphicsLayer* footerLayer() const { return m_layerForFooter.get(); }
 #endif
 
     enum RootLayerAttachment {
@@ -298,7 +297,8 @@ public:
 #endif
 
     void resetTrackedRepaintRects();
-    void setTracksRepaints(bool);
+    void setTracksRepaints(bool tracksRepaints) { m_isTrackingRepaints = tracksRepaints; }
+
 
     void setShouldReevaluateCompositingAfterLayout() { m_reevaluateCompositingAfterLayout = true; }
 
@@ -323,11 +323,11 @@ public:
 #endif
 
     // For testing.
-    WEBCORE_EXPORT void startTrackingLayerFlushes();
-    WEBCORE_EXPORT unsigned layerFlushCount() const;
+    void startTrackingLayerFlushes() { m_layerFlushCount = 0; }
+    unsigned layerFlushCount() const { return m_layerFlushCount; }
 
-    WEBCORE_EXPORT void startTrackingCompositingUpdates();
-    WEBCORE_EXPORT unsigned compositingUpdateCount() const;
+    void startTrackingCompositingUpdates() { m_compositingUpdateCount = 0; }
+    unsigned compositingUpdateCount() const { return m_compositingUpdateCount; }
 
 private:
     class OverlapMap;
@@ -338,10 +338,14 @@ private:
     void notifyFlushRequired(const GraphicsLayer*) override;
     void paintContents(const GraphicsLayer*, GraphicsContext&, GraphicsLayerPaintingPhase, const FloatRect&, GraphicsLayerPaintBehavior) override;
     void customPositionForVisibleRectComputation(const GraphicsLayer*, FloatPoint&) const override;
-    bool isTrackingRepaints() const override;
+    bool isTrackingRepaints() const override { return m_isTrackingRepaints; }
     
     // GraphicsLayerUpdaterClient implementation
     void flushLayersSoon(GraphicsLayerUpdater&) override;
+
+    // Copy the accelerated compositing related flags from Settings
+    void cacheAcceleratedCompositingFlags();
+    void cacheAcceleratedCompositingFlagsAfterLayout();
 
     // Whether the given RL needs a compositing layer.
     bool needsToBeComposited(const RenderLayer&, RenderLayer::ViewportConstrainedNotCompositedReason* = nullptr) const;
@@ -404,6 +408,8 @@ private:
     bool isFlushingLayers() const { return m_flushingLayers; }
     void updateScrollCoordinatedLayersAfterFlushIncludingSubframes();
     void updateScrollCoordinatedLayersAfterFlush();
+
+    FloatRect visibleRectForLayerFlushing() const;
     
     Page& page() const;
     

@@ -361,6 +361,14 @@
       ],
       "status" : "reviewer"
    },
+   "Ali Juma" : {
+      "emails" : [
+         "ajuma@chromium.org"
+      ],
+      "nicks" : [
+         "ajuma"
+      ]
+   },
    "Alice Boxhall" : {
       "emails" : [
          "aboxhall@chromium.org"
@@ -389,7 +397,8 @@
       "nicks" : [
          "ntrrgc",
          "aboya"
-      ]
+      ],
+      "status" : "committer"
    },
    "Allan Sandfeld Jensen" : {
       "emails" : [
@@ -1538,6 +1547,12 @@
       ],
       "status" : "committer"
    },
+   "David Quesada" : {
+      "emails" : [
+         "david_quesada@apple.com"
+      ],
+      "status" : "committer"
+   },
    "David Reveman" : {
       "emails" : [
          "reveman@chromium.org"
@@ -1873,6 +1888,15 @@
          "eae"
       ],
       "status" : "reviewer"
+   },
+   "Emilio Cobos Alvarez" : {
+      "emails" : [
+         "emilio@crisal.io"
+      ],
+      "nicks" : [
+         "ecobos"
+      ],
+      "status" : "committer"
    },
    "Enrica Casucci" : {
       "emails" : [
@@ -2688,7 +2712,7 @@
       "nicks" : [
          "lajava"
       ],
-      "status" : "committer"
+      "status" : "reviewer"
    },
    "Jay Civelli" : {
       "emails" : [
@@ -3153,7 +3177,6 @@
    },
    "Julien Brianceau" : {
       "emails" : [
-         "jbriance@cisco.com",
          "julien.brianceau@gmail.com"
       ],
       "nicks" : [
@@ -4839,7 +4862,8 @@
       ],
       "nicks" : [
          "rkirsling"
-      ]
+      ],
+      "status" : "committer"
    },
    "Ruth Fong" : {
       "emails" : [
@@ -5309,6 +5333,16 @@
          "lacerda"
       ],
       "status" : "committer"
+   },
+   "Thibault Saunier" : {
+     "emails" : [
+       "tsaunier@igalia.com",
+       "tsaunier@gnome.org"
+     ],
+     "expertise" : "WebRTC",
+     "nicks" : [
+       "thiblahute"
+     ]
    },
    "Thomas Sepez" : {
       "emails" : [

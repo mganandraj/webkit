@@ -75,9 +75,7 @@ Ref<FilterEffectRenderer> FilterEffectRenderer::create()
     return adoptRef(*new FilterEffectRenderer);
 }
 
-FilterEffectRenderer::~FilterEffectRenderer()
-{
-}
+FilterEffectRenderer::~FilterEffectRenderer() = default;
 
 GraphicsContext* FilterEffectRenderer::inputContext()
 {
@@ -365,7 +363,7 @@ LayoutRect FilterEffectRenderer::computeSourceImageRectForDirtyRect(const Layout
 
 ImageBuffer* FilterEffectRenderer::output() const
 {
-    return m_effects.last()->asImageBuffer();
+    return m_effects.last()->imageBufferResult();
 }
 
 void FilterEffectRenderer::setMaxEffectRects(const FloatRect& effectRect)

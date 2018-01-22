@@ -170,6 +170,8 @@
 
 #define WebKitFetchAPIEnabledPreferenceKey "WebKitFetchAPIEnabled"
 
+#define WebKitFetchAPIKeepAliveEnabledPreferenceKey "WebKitFetchAPIKeepAlivEnabled"
+
 #define WebKitShadowDOMEnabledPreferenceKey "WebKitShadowDOMEnabled"
 
 #define WebKitCustomElementsEnabledPreferenceKey "WebKitCustomElementsEnabled"
@@ -191,3 +193,5 @@
 #define WebKitDataTransferItemsEnabledPreferenceKey "WebKitDataTransferItemsEnabled"
 
 #define WebKitInspectorAdditionsEnabledPreferenceKey "WebKitInspectorAdditionsEnabled"
+
+#define WebKitVisualViewportAPIEnabledPreferenceKey "WebKitVisualViewportAPIEnabled"

@@ -175,16 +175,18 @@ struct BasicBlock : RefCounted<BasicBlock> {
     unsigned bytecodeBegin;
     
     BlockIndex index;
-    
-    bool isOSRTarget;
-    bool isCatchEntrypoint;
+
+    StructureClobberState cfaStructureClobberStateAtHead;
+    StructureClobberState cfaStructureClobberStateAtTail;
+    BranchDirection cfaBranchDirection;
     bool cfaHasVisited;
     bool cfaShouldRevisit;
     bool cfaFoundConstants;
     bool cfaDidFinish;
-    StructureClobberState cfaStructureClobberStateAtHead;
-    StructureClobberState cfaStructureClobberStateAtTail;
-    BranchDirection cfaBranchDirection;
+    bool intersectionOfCFAHasVisited;
+    bool isOSRTarget;
+    bool isCatchEntrypoint;
+
 #if !ASSERT_DISABLED
     bool isLinked;
 #endif
@@ -217,7 +219,6 @@ struct BasicBlock : RefCounted<BasicBlock> {
     // would not be a productive optimization: it would make setting up a basic block more
     // expensive and would only benefit bizarre pathological cases.
     Operands<AbstractValue> intersectionOfPastValuesAtHead;
-    bool intersectionOfCFAHasVisited;
     
     float executionCount;
     
@@ -251,21 +252,6 @@ private:
 };
 
 typedef Vector<BasicBlock*, 5> BlockList;
-
-struct UnlinkedBlock {
-    BasicBlock* m_block;
-    bool m_needsNormalLinking;
-    bool m_needsEarlyReturnLinking;
-    
-    UnlinkedBlock() { }
-    
-    explicit UnlinkedBlock(BasicBlock* block)
-        : m_block(block)
-        , m_needsNormalLinking(true)
-        , m_needsEarlyReturnLinking(false)
-    {
-    }
-};
     
 static inline unsigned getBytecodeBeginForBlock(BasicBlock** basicBlock)
 {

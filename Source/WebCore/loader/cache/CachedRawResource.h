@@ -55,14 +55,14 @@ public:
 
 private:
     void didAddClient(CachedResourceClient&) final;
-    void addDataBuffer(SharedBuffer&) final;
-    void addData(const char* data, unsigned length) final;
+    void updateBuffer(SharedBuffer&) final;
+    void updateData(const char* data, unsigned length) final;
     void finishLoading(SharedBuffer*) final;
 
     bool shouldIgnoreHTTPStatusCodeErrors() const override { return true; }
     void allClientsRemoved() override;
 
-    void redirectReceived(ResourceRequest&, const ResourceResponse&) override;
+    void redirectReceived(ResourceRequest&&, const ResourceResponse&, CompletionHandler<void(ResourceRequest&&)>&&) override;
     void responseReceived(const ResourceResponse&) override;
     bool shouldCacheResponse(const ResourceResponse&) override;
     void didSendData(unsigned long long bytesSent, unsigned long long totalBytesToBeSent) override;
@@ -72,10 +72,6 @@ private:
 
     std::optional<SharedBufferDataView> calculateIncrementalDataChunk(const SharedBuffer*) const;
     void notifyClientsDataWasReceived(const char* data, unsigned length);
-
-#if USE(SOUP)
-    char* getOrCreateReadBuffer(size_t requestedSize, size_t& actualSize) override;
-#endif
 
     unsigned long m_identifier;
     bool m_allowEncodedDataReplacement;

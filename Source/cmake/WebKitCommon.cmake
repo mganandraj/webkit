@@ -18,6 +18,7 @@ if (NOT HAS_RUN_WEBKIT_COMMON)
 
     # TODO Enforce version requirement for perl
     find_package(Perl 5.10.0 REQUIRED)
+    find_package(PerlModules COMPONENTS JSON::PP REQUIRED)
 
     find_package(PythonInterp 2.7.0 REQUIRED)
     if (PYTHON_VERSION_MAJOR GREATER 2)
@@ -52,6 +53,7 @@ if (NOT HAS_RUN_WEBKIT_COMMON)
     include(WebKitPackaging)
     include(WebKitMacros)
     include(WebKitFS)
+    include(WebKitCCache)
     include(WebKitCompilerFlags)
     include(WebKitFeatures)
 
@@ -83,4 +85,6 @@ if (NOT HAS_RUN_WEBKIT_COMMON)
     # config.h
     # -----------------------------------------------------------------------------
     CREATE_CONFIGURATION_HEADER()
+
+    SET_CONFIGURATION_FOR_UNIFIED_SOURCE_LISTS()
 endif ()

@@ -42,9 +42,7 @@ namespace JSC {
 
 const ClassInfo IntlNumberFormat::s_info = { "Object", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(IntlNumberFormat) };
 
-namespace IntlNFInternal {
-static const char* const relevantExtensionKeys[1] = { "nu" };
-}
+static const char* const relevantNumberExtensionKeys[1] = { "nu" };
 
 void IntlNumberFormat::UNumberFormatDeleter::operator()(UNumberFormat* numberFormat) const
 {
@@ -196,7 +194,7 @@ void IntlNumberFormat::initializeNumberFormat(ExecState& state, JSValue locales,
     // 11. Let localeData be %NumberFormat%.[[localeData]].
     // 12. Let r be ResolveLocale(%NumberFormat%.[[availableLocales]], requestedLocales, opt, %NumberFormat%.[[relevantExtensionKeys]], localeData).
     auto& availableLocales = state.jsCallee()->globalObject()->intlNumberFormatAvailableLocales();
-    auto result = resolveLocale(state, availableLocales, requestedLocales, opt, IntlNFInternal::relevantExtensionKeys, WTF_ARRAY_LENGTH(IntlNFInternal::relevantExtensionKeys), IntlNFInternal::localeData);
+    auto result = resolveLocale(state, availableLocales, requestedLocales, opt, relevantNumberExtensionKeys, WTF_ARRAY_LENGTH(relevantNumberExtensionKeys), IntlNFInternal::localeData);
 
     // 13. Set numberFormat.[[locale]] to the value of r.[[locale]].
     m_locale = result.get(ASCIILiteral("locale"));

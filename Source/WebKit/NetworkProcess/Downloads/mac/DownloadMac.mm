@@ -38,44 +38,6 @@
 #import <WebCore/ResourceResponse.h>
 #import <pal/spi/cocoa/NSURLDownloadSPI.h>
 
-#if USE(CFURLCONNECTION)
-
-namespace WebKit {
-
-void Download::resume(const IPC::DataReference&, const String&, const SandboxExtension::Handle&)
-{
-    notImplemented();
-}
-
-void Download::platformDidFinish()
-{
-    notImplemented();
-}
-
-void Download::platformCancelNetworkLoad()
-{
-    notImplemented();
-}
-
-void Download::startNetworkLoadWithHandle(WebCore::ResourceHandle*, const WebCore::ResourceResponse&)
-{
-    notImplemented();
-}
-
-void Download::startNetworkLoad()
-{
-    notImplemented();
-}
-
-void Download::platformInvalidate()
-{
-    notImplemented();
-}
-
-}
-
-#else
-
 @interface WKDownloadAsDelegate : NSObject <NSURLDownloadDelegate> {
     WebKit::Download* _download;
 }
@@ -121,12 +83,12 @@ void Download::startNetworkLoadWithHandle(ResourceHandle* handle, const Resource
     [m_nsURLDownload setDeletesFileUponFailure:NO];
 }
 
-void Download::resume(const IPC::DataReference& resumeData, const String& path, const SandboxExtension::Handle& sandboxExtensionHandle)
+void Download::resume(const IPC::DataReference& resumeData, const String& path, SandboxExtension::Handle&& sandboxExtensionHandle)
 {
     ASSERT(!m_nsURLDownload);
     ASSERT(!m_delegate);
 
-    m_sandboxExtension = SandboxExtension::create(sandboxExtensionHandle);
+    m_sandboxExtension = SandboxExtension::create(WTFMove(sandboxExtensionHandle));
     if (m_sandboxExtension)
         m_sandboxExtension->consume();
 
@@ -314,5 +276,4 @@ static void dispatchOnMainThread(void (^block)())
 
 @end
 
-#endif // USE(CFURLCONNECTION)
 #endif // !USE(NETWORK_SESSION)

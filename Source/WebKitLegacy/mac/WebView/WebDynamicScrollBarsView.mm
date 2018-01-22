@@ -29,14 +29,12 @@
 #import "WebFrameInternal.h"
 #import "WebFrameView.h"
 #import "WebHTMLViewInternal.h"
+#import <WebCore/DeprecatedGlobalSettings.h>
 #import <WebCore/Frame.h>
 #import <WebCore/FrameView.h>
 #import <WebCore/PlatformEventFactoryMac.h>
 
 using namespace WebCore;
-
-// FIXME: <rdar://problem/5898985> Mail expects a constant of this name to exist.
-const int WebCoreScrollbarAlwaysOn = ScrollbarAlwaysOn;
 
 #ifndef __OBJC2__
 // In <rdar://problem/7814899> we saw crashes because WebDynamicScrollBarsView increased in size, breaking ABI compatiblity.
@@ -86,7 +84,7 @@ static Class customScrollerClass;
 
 + (Class)_horizontalScrollerClass
 {
-    if (Settings::mockScrollbarsEnabled() && customScrollerClass)
+    if (DeprecatedGlobalSettings::mockScrollbarsEnabled() && customScrollerClass)
         return customScrollerClass;
 
     return [super _horizontalScrollerClass];
@@ -94,7 +92,7 @@ static Class customScrollerClass;
 
 + (Class)_verticalScrollerClass
 {
-    if (Settings::mockScrollbarsEnabled() && customScrollerClass)
+    if (DeprecatedGlobalSettings::mockScrollbarsEnabled() && customScrollerClass)
         return customScrollerClass;
 
     return [super _horizontalScrollerClass];

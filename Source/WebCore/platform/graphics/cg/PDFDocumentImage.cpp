@@ -56,15 +56,10 @@ namespace WebCore {
 
 PDFDocumentImage::PDFDocumentImage(ImageObserver* observer)
     : Image(observer)
-    , m_cachedBytes(0)
-    , m_rotationDegrees(0)
-    , m_hasPage(false)
 {
 }
 
-PDFDocumentImage::~PDFDocumentImage()
-{
-}
+PDFDocumentImage::~PDFDocumentImage() = default;
 
 String PDFDocumentImage::filenameExtension() const
 {
@@ -116,9 +111,6 @@ bool PDFDocumentImage::cacheParametersMatch(GraphicsContext& context, const Floa
         return false;
 
     if (srcRect != m_cachedSourceRect)
-        return false;
-
-    if (!m_cachedImageRect.contains(context.clipBounds()))
         return false;
 
     AffineTransform::DecomposedType decomposedTransform;
@@ -209,12 +201,6 @@ void PDFDocumentImage::updateCachedImageIfNeeded(GraphicsContext& context, const
     bool repaintIfNecessary = interpolationQuality != InterpolationNone && interpolationQuality != InterpolationLow;
 #endif
 
-    // Clipped option is for testing only. Force recaching the PDF with each draw.
-    if (m_pdfImageCachingPolicy != PDFImageCachingClipBoundsOnly) {
-        if (m_cachedImageBuffer && (!repaintIfNecessary || cacheParametersMatch(context, dstRect, srcRect)))
-            return;
-    }
-
     switch (m_pdfImageCachingPolicy) {
     case PDFImageCachingDisabled:
         return;
@@ -229,6 +215,12 @@ void PDFDocumentImage::updateCachedImageIfNeeded(GraphicsContext& context, const
     case PDFImageCachingEnabled:
         m_cachedImageRect = dstRect;
         break;
+    }
+
+    // Clipped option is for testing only. Force recaching the PDF with each draw.
+    if (m_pdfImageCachingPolicy != PDFImageCachingClipBoundsOnly) {
+        if (m_cachedImageBuffer && (!repaintIfNecessary || cacheParametersMatch(context, dstRect, srcRect)))
+            return;
     }
 
     FloatSize cachedImageSize = FloatRect(enclosingIntRect(m_cachedImageRect)).size();
@@ -360,6 +352,25 @@ void PDFDocumentImage::drawPDFPage(GraphicsContext& context)
 }
 
 #endif // !USE(PDFKIT_FOR_PDFDOCUMENTIMAGE)
+
+#if PLATFORM(MAC)
+
+RetainPtr<CFMutableDataRef> PDFDocumentImage::convertPostScriptDataToPDF(RetainPtr<CFDataRef>&& postScriptData)
+{
+    // Convert PostScript to PDF using the Quartz 2D API.
+    // http://developer.apple.com/documentation/GraphicsImaging/Conceptual/drawingwithquartz2d/dq_ps_convert/chapter_16_section_1.html
+
+    CGPSConverterCallbacks callbacks = { };
+    auto converter = adoptCF(CGPSConverterCreate(0, &callbacks, 0));
+    auto provider = adoptCF(CGDataProviderCreateWithCFData(postScriptData.get()));
+    auto pdfData = adoptCF(CFDataCreateMutable(kCFAllocatorDefault, 0));
+    auto consumer = adoptCF(CGDataConsumerCreateWithCFData(pdfData.get()));
+
+    CGPSConverterConvert(converter.get(), provider.get(), consumer.get(), 0);
+    return pdfData;
+}
+
+#endif
 
 void PDFDocumentImage::dump(TextStream& ts) const
 {

@@ -30,15 +30,24 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         super(null);
 
         console.assert(resource instanceof WI.Resource);
+        console.assert(delegate);
 
         this._resource = resource;
         this._resource.addEventListener(WI.Resource.Event.MetricsDidChange, this._resourceMetricsDidChange, this);
         this._resource.addEventListener(WI.Resource.Event.RequestHeadersDidChange, this._resourceRequestHeadersDidChange, this);
         this._resource.addEventListener(WI.Resource.Event.ResponseReceived, this._resourceResponseReceived, this);
 
-        this._delegate = delegate || null;
+        this._delegate = delegate;
+
+        this._searchQuery = null;
+        this._searchResults = null;
+        this._searchDOMChanges = [];
+        this._searchIndex = -1;
+        this._automaticallyRevealFirstSearchResult = false;
+        this._bouncyHighlightElement = null;
 
         this.element.classList.add("resource-details", "resource-headers");
+        this.element.tabIndex = 0;
 
         this._needsSummaryRefresh = false;
         this._needsRequestHeadersRefresh = false;
@@ -66,7 +75,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         this._refreshResponseHeadersSection();
 
         if (this._resource.urlComponents.queryString) {
-            this._queryStringSection = new WI.ResourceDetailsSection(WI.UIString("Query String"));
+            this._queryStringSection = new WI.ResourceDetailsSection(WI.UIString("Query String Parameters"));
             this.element.appendChild(this._queryStringSection.element);
             this._refreshQueryStringSection();
         }
@@ -109,9 +118,91 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         super.closed();
     }
 
+    get supportsSearch()
+    {
+        return true;
+    }
+
+    get numberOfSearchResults()
+    {
+        return this._searchResults ? this._searchResults.length : null;
+    }
+
+    get hasPerformedSearch()
+    {
+        return this._searchResults !== null;
+    }
+
+    set automaticallyRevealFirstSearchResult(reveal)
+    {
+        this._automaticallyRevealFirstSearchResult = reveal;
+
+        // If we haven't shown a search result yet, reveal one now.
+        if (this._automaticallyRevealFirstSearchResult && this.numberOfSearchResults > 0) {
+            if (this._searchIndex === -1)
+                this.revealNextSearchResult();
+        }
+    }
+
+    performSearch(query)
+    {
+        if (query === this._searchQuery)
+            return;
+
+        WI.revertDOMChanges(this._searchDOMChanges);
+
+        this._searchQuery = query;
+        this._searchResults = [];
+        this._searchDOMChanges = [];
+        this._searchIndex = -1;
+
+        this._perfomSearchOnKeyValuePairs();
+
+        this.dispatchEventToListeners(WI.ContentView.Event.NumberOfSearchResultsDidChange);
+
+        if (this._automaticallyRevealFirstSearchResult && this._searchResults.length > 0)
+            this.revealNextSearchResult();
+    }
+
+    searchCleared()
+    {
+        WI.revertDOMChanges(this._searchDOMChanges);
+
+        this._searchQuery = null;
+        this._searchResults = null;
+        this._searchDOMChanges = [];
+        this._searchIndex = -1;
+    }
+
+    revealPreviousSearchResult(changeFocus)
+    {
+        if (!this.numberOfSearchResults)
+            return;
+
+        if (this._searchIndex > 0)
+            --this._searchIndex;
+        else
+            this._searchIndex = this._searchResults.length - 1;
+
+        this._revealSearchResult(this._searchIndex, changeFocus);
+    }
+
+    revealNextSearchResult(changeFocus)
+    {
+        if (!this.numberOfSearchResults)
+            return;
+
+        if (this._searchIndex + 1 < this._searchResults.length)
+            ++this._searchIndex;
+        else
+            this._searchIndex = 0;
+
+        this._revealSearchResult(this._searchIndex, changeFocus);
+    }
+
     // Private
 
-    _incompleteSectionWithMessage(section, message)
+    _markIncompleteSectionWithMessage(section, message)
     {
         section.toggleIncomplete(true);
 
@@ -119,7 +210,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         p.textContent = message;
     }
 
-    _incompleteSectionWithLoadingIndicator(section)
+    _markIncompleteSectionWithLoadingIndicator(section)
     {
         section.toggleIncomplete(true);
 
@@ -137,7 +228,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
 
         // Don't include a colon if no value.
         console.assert(typeof key === "string");
-        let displayKey = key + (!!value ? ": " : "");
+        let displayKey = key + (value ? ": " : "");
 
         let keyElement = p.appendChild(document.createElement("span"));
         keyElement.className = "key";
@@ -160,6 +251,8 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
             return WI.UIString("Memory Cache");
         case WI.Resource.ResponseSource.DiskCache:
             return WI.UIString("Disk Cache");
+        case WI.Resource.ResponseSource.ServiceWorker:
+            return WI.UIString("Service Worker");
         case WI.Resource.ResponseSource.Unknown:
         default:
             return null;
@@ -176,12 +269,17 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         this._appendKeyValuePair(detailsElement, WI.UIString("URL"), this._resource.url.insertWordBreakCharacters());
 
         let status = emDash;
-        if (this._resource.hasResponse())
+        if (!isNaN(this._resource.statusCode))
             status = this._resource.statusCode + (this._resource.statusText ? " " + this._resource.statusText : "");
         this._appendKeyValuePair(detailsElement, WI.UIString("Status"), status);
 
+        // FIXME: <https://webkit.org/b/178827> Web Inspector: Should be able to link directly to the ServiceWorker that handled a particular load
+
         let source = this._responseSourceDisplayString(this._resource.responseSource) || emDash;
         this._appendKeyValuePair(detailsElement, WI.UIString("Source"), source);
+
+        if (this._resource.remoteAddress)
+            this._appendKeyValuePair(detailsElement, WI.UIString("Address"), this._resource.remoteAddress);
     }
 
     _refreshRequestHeadersSection()
@@ -192,11 +290,11 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         // A revalidation request still sends a request even though we served from cache, so show the request.
         if (this._resource.statusCode !== 304) {
             if (this._resource.responseSource === WI.Resource.ResponseSource.MemoryCache) {
-                this._incompleteSectionWithMessage(this._requestHeadersSection, WI.UIString("No request, served from the memory cache."));
+                this._markIncompleteSectionWithMessage(this._requestHeadersSection, WI.UIString("No request, served from the memory cache."));
                 return;
             }
             if (this._resource.responseSource === WI.Resource.ResponseSource.DiskCache) {
-                this._incompleteSectionWithMessage(this._requestHeadersSection, WI.UIString("No request, served from the disk cache."));
+                this._markIncompleteSectionWithMessage(this._requestHeadersSection, WI.UIString("No request, served from the disk cache."));
                 return;
             }
         }
@@ -206,7 +304,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         if (protocol.startsWith("http/1")) {
             // HTTP/1.1 request line:
             // https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html#sec5.1
-            let requestLine = `${this._resource.requestMethod} ${urlComponents.path} ${protocol.toUpperCase()}`
+            let requestLine = `${this._resource.requestMethod} ${urlComponents.path} ${protocol.toUpperCase()}`;
             this._appendKeyValuePair(detailsElement, requestLine, null, "h1-status");
         } else if (protocol === "h2") {
             // HTTP/2 Request pseudo headers:
@@ -222,7 +320,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
             this._appendKeyValuePair(detailsElement, key, requestHeaders[key], "header");
 
         if (!detailsElement.firstChild)
-            this._incompleteSectionWithMessage(this._requestHeadersSection, WI.UIString("No request headers"));
+            this._markIncompleteSectionWithMessage(this._requestHeadersSection, WI.UIString("No request headers"));
     }
 
     _refreshResponseHeadersSection()
@@ -231,7 +329,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         detailsElement.removeChildren();
 
         if (!this._resource.hasResponse()) {
-            this._incompleteSectionWithLoadingIndicator(this._responseHeadersSection);
+            this._markIncompleteSectionWithLoadingIndicator(this._responseHeadersSection);
             return;
         }
 
@@ -250,11 +348,21 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         }
 
         let responseHeaders = this._resource.responseHeaders;
-        for (let key in responseHeaders)
+        for (let key in responseHeaders) {
+            // Split multiple Set-Cookie response headers out into their multiple headers instead of as a combined value.
+            if (key.toLowerCase() === "set-cookie") {
+                let responseCookies = this._resource.responseCookies;
+                console.assert(responseCookies.length > 0);
+                for (let cookie of responseCookies)
+                    this._appendKeyValuePair(detailsElement, key, cookie.rawHeader, "header");
+                continue;
+            }
+
             this._appendKeyValuePair(detailsElement, key, responseHeaders[key], "header");
+        }
 
         if (!detailsElement.firstChild)
-            this._incompleteSectionWithMessage(this._responseHeadersSection, WI.UIString("No response headers"));
+            this._markIncompleteSectionWithMessage(this._responseHeadersSection, WI.UIString("No response headers"));
     }
 
     _refreshQueryStringSection()
@@ -285,7 +393,7 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         if (requestDataContentType && requestDataContentType.match(/^application\/x-www-form-urlencoded\s*(;.*)?$/i)) {
             // Simple form data that should be parsable like a query string.
             this._appendKeyValuePair(detailsElement, WI.UIString("MIME Type"), requestDataContentType);
-            let queryStringPairs = parseQueryString(requestData, true)
+            let queryStringPairs = parseQueryString(requestData, true);
             for (let {name, value} of queryStringPairs)
                 this._appendKeyValuePair(detailsElement, name, value);
             return;
@@ -303,12 +411,64 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
             this._appendKeyValuePair(detailsElement, WI.UIString("Encoding"), encoding);
 
         let goToButton = detailsElement.appendChild(WI.createGoToArrowButton());
-        goToButton.addEventListener("click", this._goToRequestDataClicked.bind(this));
+        goToButton.addEventListener("click", () => { this._delegate.headersContentViewGoToRequestData(this); });
         this._appendKeyValuePair(detailsElement, WI.UIString("Request Data"), goToButton);
+    }
+
+    _perfomSearchOnKeyValuePairs()
+    {
+        let searchRegex = new RegExp(this._searchQuery.escapeForRegExp(), "gi");
+
+        let elements = this.element.querySelectorAll(".key, .value");
+        for (let element of elements) {
+            let matchRanges = [];
+            let text = element.textContent;
+            let match;
+            while (match = searchRegex.exec(text))
+                matchRanges.push({offset: match.index, length: match[0].length});
+
+            if (matchRanges.length) {
+                let highlightedNodes = WI.highlightRangesWithStyleClass(element, matchRanges, "search-highlight", this._searchDOMChanges);
+                this._searchResults = this._searchResults.concat(highlightedNodes);
+            }
+        }
+    }
+
+    _revealSearchResult(index, changeFocus)
+    {
+        let highlightElement = this._searchResults[index];
+        if (!highlightElement)
+            return;
+
+        highlightElement.scrollIntoViewIfNeeded();
+
+        if (!this._bouncyHighlightElement) {
+            this._bouncyHighlightElement = document.createElement("div");
+            this._bouncyHighlightElement.className = "bouncy-highlight";
+            this._bouncyHighlightElement.addEventListener("animationend", (event) => {
+                this._bouncyHighlightElement.remove();
+            });
+        }
+
+        this._bouncyHighlightElement.remove();
+
+        let computedStyles = window.getComputedStyle(highlightElement);
+        let highlightElementRect = highlightElement.getBoundingClientRect();
+        let contentViewRect = this.element.getBoundingClientRect();
+        let contentViewScrollTop = this.element.scrollTop;
+        let contentViewScrollLeft = this.element.scrollLeft;
+
+        this._bouncyHighlightElement.textContent = highlightElement.textContent;
+        this._bouncyHighlightElement.style.top = (highlightElementRect.top - contentViewRect.top + contentViewScrollTop) + "px";
+        this._bouncyHighlightElement.style.left = (highlightElementRect.left - contentViewRect.left + contentViewScrollLeft) + "px";
+        this._bouncyHighlightElement.style.fontWeight = computedStyles.fontWeight;
+
+        this.element.appendChild(this._bouncyHighlightElement);
     }
 
     _resourceMetricsDidChange(event)
     {
+        this._needsSummaryRefresh = true;
         this._needsRequestHeadersRefresh = true;
         this._needsResponseHeadersRefresh = true;
         this.needsLayout();
@@ -325,11 +485,5 @@ WI.ResourceHeadersContentView = class ResourceHeadersContentView extends WI.Cont
         this._needsSummaryRefresh = true;
         this._needsResponseHeadersRefresh = true;
         this.needsLayout();
-    }
-
-    _goToRequestDataClicked(event)
-    {
-        if (this._delegate)
-            this._delegate.headersContentViewGoToRequestData(this);
     }
 };

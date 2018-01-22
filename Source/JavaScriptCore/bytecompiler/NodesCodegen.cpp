@@ -1,7 +1,7 @@
 /*
 *  Copyright (C) 1999-2002 Harri Porten (porten@kde.org)
 *  Copyright (C) 2001 Peter Kelly (pmk@post.com)
-*  Copyright (C) 2003-2017 Apple Inc. All rights reserved.
+*  Copyright (C) 2003-2018 Apple Inc. All rights reserved.
 *  Copyright (C) 2007 Cameron Zwarich (cwzwarich@uwaterloo.ca)
 *  Copyright (C) 2007 Maks Orlovich
 *  Copyright (C) 2007 Eric Seidel <eric@webkit.org>
@@ -122,6 +122,11 @@ JSValue StringNode::jsValue(BytecodeGenerator& generator) const
     return generator.addStringConstant(m_value);
 }
 
+JSValue BigIntNode::jsValue(BytecodeGenerator& generator) const
+{
+    return generator.addBigIntConstant(m_value, m_radix);
+}
+
 // ------------------------------ NumberNode ----------------------------------
 
 RegisterID* NumberNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
@@ -136,8 +141,14 @@ RegisterID* NumberNode::emitBytecode(BytecodeGenerator& generator, RegisterID* d
 RegisterID* RegExpNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
 {
     if (dst == generator.ignoredResult())
-        return 0;
-    return generator.emitNewRegExp(generator.finalDestination(dst), RegExp::create(*generator.vm(), m_pattern.string(), regExpFlags(m_flags.string())));
+        return nullptr;
+    RegExp* regExp = RegExp::create(*generator.vm(), m_pattern.string(), regExpFlags(m_flags.string()));
+    if (regExp->isValid())
+        return generator.emitNewRegExp(generator.finalDestination(dst), regExp);
+    const char* messageCharacters = regExp->errorMessage();
+    const Identifier& message = generator.parserArena().identifierArena().makeIdentifier(generator.vm(), bitwise_cast<const LChar*>(messageCharacters), strlen(messageCharacters));
+    generator.emitThrowStaticError(ErrorType::SyntaxError, message);
+    return generator.emitLoad(generator.finalDestination(dst), jsUndefined());
 }
 
 // ------------------------------ ThisNode -------------------------------------
@@ -209,6 +220,13 @@ RegisterID* NewTargetNode::emitBytecode(BytecodeGenerator& generator, RegisterID
         return nullptr;
 
     return generator.moveToDestinationIfNeeded(dst, generator.newTarget());
+}
+
+// ------------------------------ ImportMetaNode ---------------------------------
+
+RegisterID* ImportMetaNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
+{
+    return generator.emitNode(dst, m_expr);
 }
 
 // ------------------------------ ResolveNode ----------------------------------
@@ -521,11 +539,16 @@ RegisterID* PropertyListNode::emitBytecode(BytecodeGenerator& generator, Registe
             // Duplicates are possible.
             GetterSetterPair pair(node, static_cast<PropertyNode*>(nullptr));
             GetterSetterMap::AddResult result = map.add(node->name()->impl(), pair);
+            auto& resultPair = result.iterator->value;
             if (!result.isNewEntry) {
-                if (result.iterator->value.first->m_type == node->m_type)
-                    result.iterator->value.first = node;
-                else
-                    result.iterator->value.second = node;
+                if (resultPair.first->m_type == node->m_type) {
+                    resultPair.first->setIsOverriddenByDuplicate();
+                    resultPair.first = node;
+                } else {
+                    if (resultPair.second)
+                        resultPair.second->setIsOverriddenByDuplicate();
+                    resultPair.second = node;
+                }
             }
         }
 
@@ -577,7 +600,7 @@ RegisterID* PropertyListNode::emitBytecode(BytecodeGenerator& generator, Registe
             GetterSetterPair& pair = it->value;
 
             // Was this already generated as a part of its partner?
-            if (pair.second == node)
+            if (pair.second == node || node->isOverriddenByDuplicate())
                 continue;
 
             // Generate the paired node now.
@@ -852,6 +875,11 @@ RegisterID* FunctionCallValueNode::emitBytecode(BytecodeGenerator& generator, Re
 
 RegisterID* FunctionCallResolveNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
 {
+    if (UNLIKELY(m_ident == generator.vm()->propertyNames->builtinNames().assertPrivateName())) {
+        if (ASSERT_DISABLED)
+            return generator.moveToDestinationIfNeeded(dst, generator.emitLoad(nullptr, jsUndefined()));
+    }
+
     ExpectedFunction expectedFunction = generator.expectedFunctionForIdentifier(m_ident);
 
     Variable var = generator.variable(m_ident);
@@ -913,19 +941,6 @@ RegisterID* BytecodeIntrinsicNode::emit_intrinsic_argumentCount(BytecodeGenerato
     ASSERT(!m_args->m_listNode);
 
     return generator.emitUnaryNoDstOp(op_argument_count, generator.finalDestination(dst));
-}
-
-RegisterID* BytecodeIntrinsicNode::emit_intrinsic_assert(BytecodeGenerator& generator, RegisterID* dst)
-{
-#ifndef NDEBUG
-    ArgumentListNode* node = m_args->m_listNode;
-    RefPtr<RegisterID> condition = generator.emitNode(node);
-    generator.emitAssert(condition.get(), node->firstLine());
-    return dst;
-#else
-    UNUSED_PARAM(generator);
-    return dst;
-#endif
 }
 
 RegisterID* BytecodeIntrinsicNode::emit_intrinsic_putByValDirect(BytecodeGenerator& generator, RegisterID* dst)
@@ -1022,6 +1037,22 @@ RegisterID* BytecodeIntrinsicNode::emit_intrinsic_toString(BytecodeGenerator& ge
     ASSERT(!node->m_next);
 
     return generator.moveToDestinationIfNeeded(dst, generator.emitToString(generator.tempDestination(dst), src.get()));
+}
+
+RegisterID* BytecodeIntrinsicNode::emit_intrinsic_toObject(BytecodeGenerator& generator, RegisterID* dst)
+{
+    ArgumentListNode* node = m_args->m_listNode;
+    RefPtr<RegisterID> src = generator.emitNode(node);
+    node = node->m_next;
+
+    RefPtr<RegisterID> temp = generator.tempDestination(dst);
+    if (node) {
+        ASSERT(node->m_expr->isString());
+        const Identifier& message = static_cast<StringNode*>(node->m_expr)->value();
+        ASSERT(!node->m_next);
+        return generator.moveToDestinationIfNeeded(dst, generator.emitToObject(temp.get(), src.get(), message));
+    }
+    return generator.moveToDestinationIfNeeded(dst, generator.emitToObject(temp.get(), src.get(), generator.vm()->propertyNames->emptyIdentifier));
 }
 
 RegisterID* BytecodeIntrinsicNode::emit_intrinsic_idWithProfile(BytecodeGenerator& generator, RegisterID* dst)
@@ -1981,6 +2012,64 @@ RegisterID* BinaryOpNode::emitBytecode(BytecodeGenerator& generator, RegisterID*
 {
     OpcodeID opcodeID = this->opcodeID();
 
+    if (opcodeID == op_less || opcodeID == op_lesseq || opcodeID == op_greater || opcodeID == op_greatereq) {
+        auto isUInt32 = [&] (ExpressionNode* node) -> std::optional<UInt32Result> {
+            if (node->isBinaryOpNode() && static_cast<BinaryOpNode*>(node)->opcodeID() == op_urshift)
+                return UInt32Result::UInt32;
+            if (node->isNumber() && static_cast<NumberNode*>(node)->isIntegerNode()) {
+                auto value = jsNumber(static_cast<NumberNode*>(node)->value());
+                if (value.isInt32() && value.asInt32() >= 0)
+                    return UInt32Result::Constant;
+            }
+            return std::nullopt;
+        };
+        auto leftResult = isUInt32(m_expr1);
+        auto rightResult = isUInt32(m_expr2);
+        if ((leftResult && rightResult) && (leftResult.value() == UInt32Result::UInt32 || rightResult.value() == UInt32Result::UInt32)) {
+            auto* left = m_expr1;
+            auto* right = m_expr2;
+            if (left->isBinaryOpNode()) {
+                ASSERT(static_cast<BinaryOpNode*>(left)->opcodeID() == op_urshift);
+                static_cast<BinaryOpNode*>(left)->m_shouldToUnsignedResult = false;
+            }
+            if (right->isBinaryOpNode()) {
+                ASSERT(static_cast<BinaryOpNode*>(right)->opcodeID() == op_urshift);
+                static_cast<BinaryOpNode*>(right)->m_shouldToUnsignedResult = false;
+            }
+            RefPtr<RegisterID> src1 = generator.emitNodeForLeftHandSide(left, m_rightHasAssignments, right->isPure(generator));
+            RefPtr<RegisterID> src2 = generator.emitNode(right);
+            generator.emitExpressionInfo(position(), position(), position());
+
+            // Since the both sides only accept Int32, replacing operands is not observable to users.
+            bool replaceOperands = false;
+            OpcodeID resultOp = opcodeID;
+            switch (opcodeID) {
+            case op_less:
+                resultOp = op_below;
+                break;
+            case op_lesseq:
+                resultOp = op_beloweq;
+                break;
+            case op_greater:
+                resultOp = op_below;
+                replaceOperands = true;
+                break;
+            case op_greatereq:
+                resultOp = op_beloweq;
+                replaceOperands = true;
+                break;
+            default:
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+            OperandTypes operandTypes(left->resultDescriptor(), right->resultDescriptor());
+            if (replaceOperands) {
+                std::swap(src1, src2);
+                operandTypes = OperandTypes(right->resultDescriptor(), left->resultDescriptor());
+            }
+            return generator.emitBinaryOp(resultOp, generator.finalDestination(dst, src1.get()), src1.get(), src2.get(), operandTypes);
+        }
+    }
+
     if (opcodeID == op_add && m_expr1->isAdd() && m_expr1->resultDescriptor().definitelyIsString()) {
         generator.emitExpressionInfo(position(), position(), position());
         return emitStrcat(generator, dst);
@@ -2016,8 +2105,10 @@ RegisterID* BinaryOpNode::emitBytecode(BytecodeGenerator& generator, RegisterID*
         return generator.emitUnaryOp(op_not, generator.finalDestination(dst, tmp.get()), tmp.get());
     }
     RegisterID* result = generator.emitBinaryOp(opcodeID, generator.finalDestination(dst, src1.get()), src1.get(), src2.get(), OperandTypes(left->resultDescriptor(), right->resultDescriptor()));
-    if (opcodeID == op_urshift && dst != generator.ignoredResult())
-        return generator.emitUnaryOp(op_unsigned, result, result);
+    if (m_shouldToUnsignedResult) {
+        if (opcodeID == op_urshift && dst != generator.ignoredResult())
+            return generator.emitUnaryOp(op_unsigned, result, result);
+    }
     return result;
 }
 

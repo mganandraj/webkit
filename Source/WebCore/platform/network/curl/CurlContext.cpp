@@ -31,6 +31,7 @@
 #include "HTTPHeaderMap.h"
 #include <NetworkLoadMetrics.h>
 #include <wtf/MainThread.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/text/CString.h>
 
 #if OS(WINDOWS)
@@ -38,8 +39,6 @@
 #include <shlobj.h>
 #include <shlwapi.h>
 #endif
-
-using namespace WebCore;
 
 namespace WebCore {
 
@@ -76,6 +75,12 @@ static CString cookieJarPath()
 }
 
 // CurlContext -------------------------------------------------------------------
+
+CurlContext& CurlContext::singleton()
+{
+    static NeverDestroyed<CurlContext> sharedInstance;
+    return sharedInstance;
+}
 
 CurlContext::CurlContext()
 : m_cookieJarFileName { cookieJarPath() }
@@ -152,7 +157,11 @@ void CurlContext::setProxyInfo(const String& host,
     setProxyInfo(info);
 }
 
-
+bool CurlContext::isHttp2Enabled() const
+{
+    curl_version_info_data* data = curl_version_info(CURLVERSION_NOW);
+    return data->features & CURL_VERSION_HTTP2;
+}
 
 // CurlShareHandle --------------------------------------------
 
@@ -173,29 +182,29 @@ CurlShareHandle::~CurlShareHandle()
 
 void CurlShareHandle::lockCallback(CURL*, curl_lock_data data, curl_lock_access, void*)
 {
-    if (Lock* mutex = mutexFor(data))
+    if (auto* mutex = mutexFor(data))
         mutex->lock();
 }
 
 void CurlShareHandle::unlockCallback(CURL*, curl_lock_data data, void*)
 {
-    if (Lock* mutex = mutexFor(data))
+    if (auto* mutex = mutexFor(data))
         mutex->unlock();
 }
 
-Lock* CurlShareHandle::mutexFor(curl_lock_data data)
+StaticLock* CurlShareHandle::mutexFor(curl_lock_data data)
 {
-    static NeverDestroyed<Lock> cookieMutex;
-    static NeverDestroyed<Lock> dnsMutex;
-    static NeverDestroyed<Lock> shareMutex;
+    static StaticLock cookieMutex;
+    static StaticLock dnsMutex;
+    static StaticLock shareMutex;
 
     switch (data) {
     case CURL_LOCK_DATA_COOKIE:
-        return &cookieMutex.get();
+        return &cookieMutex;
     case CURL_LOCK_DATA_DNS:
-        return &dnsMutex.get();
+        return &dnsMutex;
     case CURL_LOCK_DATA_SHARE:
-        return &shareMutex.get();
+        return &shareMutex;
     default:
         ASSERT_NOT_REACHED();
         return nullptr;
@@ -354,18 +363,32 @@ void CurlHandle::enableRequestHeaders()
     curl_easy_setopt(m_handle, CURLOPT_HTTPHEADER, headers);
 }
 
+void CurlHandle::enableHttp()
+{
+    if (CurlContext::singleton().isHttp2Enabled()) {
+        curl_easy_setopt(m_handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
+        curl_easy_setopt(m_handle, CURLOPT_PIPEWAIT, 1L);
+        curl_easy_setopt(m_handle, CURLOPT_SSL_ENABLE_ALPN, 1L);
+        curl_easy_setopt(m_handle, CURLOPT_SSL_ENABLE_NPN, 0L);
+    } else
+        curl_easy_setopt(m_handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+}
+
 void CurlHandle::enableHttpGetRequest()
 {
+    enableHttp();
     curl_easy_setopt(m_handle, CURLOPT_HTTPGET, 1L);
 }
 
 void CurlHandle::enableHttpHeadRequest()
 {
+    enableHttp();
     curl_easy_setopt(m_handle, CURLOPT_NOBODY, 1L);
 }
 
 void CurlHandle::enableHttpPostRequest()
 {
+    enableHttp();
     curl_easy_setopt(m_handle, CURLOPT_POST, 1L);
     curl_easy_setopt(m_handle, CURLOPT_POSTFIELDSIZE, 0L);
 }
@@ -386,6 +409,7 @@ void CurlHandle::setPostFieldLarge(curl_off_t size)
 
 void CurlHandle::enableHttpPutRequest()
 {
+    enableHttp();
     curl_easy_setopt(m_handle, CURLOPT_UPLOAD, 1L);
     curl_easy_setopt(m_handle, CURLOPT_INFILESIZE, 0L);
 }
@@ -400,6 +424,7 @@ void CurlHandle::setInFileSizeLarge(curl_off_t size)
 
 void CurlHandle::setHttpCustomRequest(const String& method)
 {
+    enableHttp();
     curl_easy_setopt(m_handle, CURLOPT_CUSTOMREQUEST, method.ascii().data());
 }
 
@@ -423,12 +448,8 @@ void CurlHandle::enableHttpAuthentication(long option)
 
 void CurlHandle::setHttpAuthUserPass(const String& user, const String& password)
 {
-    String userpass = emptyString();
-
-    if (!user.isEmpty() || !password.isEmpty())
-        userpass = user + ":" + password;
-
-    curl_easy_setopt(m_handle, CURLOPT_USERPWD, userpass.utf8().data());
+    curl_easy_setopt(m_handle, CURLOPT_USERNAME, user.utf8().data());
+    curl_easy_setopt(m_handle, CURLOPT_PASSWORD, password.utf8().data());
 }
 
 void CurlHandle::setCACertPath(const char* path)
@@ -497,6 +518,11 @@ void CurlHandle::enableTimeout()
     static const long dnsCacheTimeout = 5 * 60; // [sec.]
 
     curl_easy_setopt(m_handle, CURLOPT_DNS_CACHE_TIMEOUT, dnsCacheTimeout);
+}
+
+void CurlHandle::setTimeout(long timeoutMilliseconds)
+{
+    curl_easy_setopt(m_handle, CURLOPT_TIMEOUT_MS, timeoutMilliseconds);
 }
 
 void CurlHandle::setHeaderCallbackFunction(curl_write_callback callbackFunc, void* userData)
@@ -591,6 +617,19 @@ std::optional<long> CurlHandle::getHttpAuthAvail()
         return std::nullopt;
 
     return httpAuthAvailable;
+}
+
+std::optional<long> CurlHandle::getHttpVersion()
+{
+    if (!m_handle)
+        return std::nullopt;
+
+    long version;
+    CURLcode errorCode = curl_easy_getinfo(m_handle, CURLINFO_HTTP_VERSION, &version);
+    if (errorCode != CURLE_OK)
+        return std::nullopt;
+
+    return version;
 }
 
 std::optional<NetworkLoadMetrics> CurlHandle::getNetworkLoadMetrics()

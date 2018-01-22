@@ -57,9 +57,10 @@
 #include <pal/system/Sound.h>
 #include <wtf/StdLibExtras.h>
 
-using namespace Inspector;
 
 namespace WebCore {
+
+using namespace Inspector;
 
 #if ENABLE(CONTEXT_MENUS)
 class FrontendMenuProvider : public ContextMenuProvider {
@@ -407,7 +408,7 @@ void InspectorFrontendHost::dispatchEventAsContextMenuEvent(Event& event)
 
     auto& mouseEvent = downcast<MouseEvent>(event);
     IntPoint mousePoint { mouseEvent.clientX(), mouseEvent.clientY() };
-    auto& frame = *mouseEvent.target()->toNode()->document().frame();
+    auto& frame = *downcast<Node>(mouseEvent.target())->document().frame();
 
     m_frontendPage->contextMenuController().showContextMenuAt(frame, mousePoint);
 #else

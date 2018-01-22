@@ -54,6 +54,7 @@ WI.mimeTypeForFileExtension = function(extension)
         "coffee": "text/x-coffeescript",
         "ls": "text/x-livescript",
         "ts": "text/typescript",
+        "jsx": "text/jsx",
 
         // Stylesheet types.
         "css": "text/css",
@@ -84,6 +85,9 @@ WI.mimeTypeForFileExtension = function(extension)
 
 WI.fileExtensionForMIMEType = function(mimeType)
 {
+    if (!mimeType)
+        return null;
+
     const mimeTypeToExtension = {
         // Document types.
         "text/html": "html",
@@ -97,6 +101,7 @@ WI.fileExtensionForMIMEType = function(mimeType)
         "text/x-coffeescript": "coffee",
         "text/x-livescript": "ls",
         "text/typescript": "ts",
+        "text/jsx": "jsx",
 
         // Stylesheet types.
         "text/css": "css",
@@ -130,4 +135,22 @@ WI.fileExtensionForMIMEType = function(mimeType)
         return "xml";
 
     return null;
+};
+
+WI.shouldTreatMIMETypeAsText = function(mimeType)
+{
+    if (!mimeType)
+        return false;
+
+    if (mimeType.startsWith("text/"))
+        return true;
+
+    if (mimeType.endsWith("+json") || mimeType.endsWith("+xml"))
+        return true;
+
+    // Various script and JSON mime types.
+    if (mimeType.startsWith("application/"))
+        return mimeType.endsWith("script") || mimeType.endsWith("json");
+
+    return false;
 };

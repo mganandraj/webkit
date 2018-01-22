@@ -42,10 +42,10 @@
 #include <wtf/Language.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/StringHash.h>
-
-using namespace std;
+#include <wtf/text/win/WCharStringExtras.h>
 
 namespace WebCore {
+using namespace std;
 
 typedef HashMap<String, LCID, ASCIICaseInsensitiveHash> NameToLCIDMap;
 
@@ -61,7 +61,7 @@ static LCID LCIDFromLocaleInternal(LCID userDefaultLCID, const String& userDefau
 {
     if (equalIgnoringASCIICase(extractLanguageCode(locale), userDefaultLanguageCode))
         return userDefaultLCID;
-    return LocaleNameToLCID(locale.charactersWithNullTermination().data(), 0);
+    return LocaleNameToLCID(stringToNullTerminatedWChar(locale).data(), 0);
 }
 
 static LCID LCIDFromLocale(const AtomicString& locale)
@@ -70,7 +70,7 @@ static LCID LCIDFromLocale(const AtomicString& locale)
     const size_t languageCodeBufferSize = 9;
     WCHAR lowercaseLanguageCode[languageCodeBufferSize];
     ::GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SISO639LANGNAME, lowercaseLanguageCode, languageCodeBufferSize);
-    String userDefaultLanguageCode = String(lowercaseLanguageCode);
+    String userDefaultLanguageCode = nullTerminatedWCharToString(lowercaseLanguageCode);
 
     LCID lcid = LCIDFromLocaleInternal(LOCALE_USER_DEFAULT, userDefaultLanguageCode, String(locale));
     if (!lcid)
@@ -89,9 +89,7 @@ inline LocaleWin::LocaleWin(LCID lcid)
 {
 }
 
-LocaleWin::~LocaleWin()
-{
-}
+LocaleWin::~LocaleWin() = default;
 
 String LocaleWin::getLocaleInfoString(LCTYPE type)
 {

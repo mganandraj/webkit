@@ -30,6 +30,7 @@
 #include <wtf/FastMalloc.h>
 #include <wtf/Forward.h>
 #include <wtf/MallocPtr.h>
+#include <wtf/MathExtras.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/NotFound.h>
 #include <wtf/StdLibExtras.h>
@@ -266,6 +267,7 @@ public:
             CRASH();
         size_t sizeToAllocate = newCapacity * sizeof(T);
         m_capacity = sizeToAllocate / sizeof(T);
+        updateMask();
         m_buffer = static_cast<T*>(Malloc::malloc(sizeToAllocate));
     }
 
@@ -280,6 +282,7 @@ public:
         if (!newBuffer)
             return false;
         m_capacity = sizeToAllocate / sizeof(T);
+        updateMask();
         m_buffer = newBuffer;
         return true;
     }
@@ -296,6 +299,7 @@ public:
             CRASH();
         size_t sizeToAllocate = newCapacity * sizeof(T);
         m_capacity = sizeToAllocate / sizeof(T);
+        updateMask();
         m_buffer = static_cast<T*>(Malloc::realloc(m_buffer, sizeToAllocate));
     }
 
@@ -307,6 +311,7 @@ public:
         if (m_buffer == bufferToDeallocate) {
             m_buffer = 0;
             m_capacity = 0;
+            m_mask = 0;
         }
 
         Malloc::free(bufferToDeallocate);
@@ -322,6 +327,7 @@ public:
         T* buffer = m_buffer;
         m_buffer = 0;
         m_capacity = 0;
+        m_mask = 0;
         return adoptMallocPtr(buffer);
     }
 
@@ -330,6 +336,7 @@ protected:
         : m_buffer(0)
         , m_capacity(0)
         , m_size(0)
+        , m_mask(0)
     {
     }
 
@@ -337,7 +344,9 @@ protected:
         : m_buffer(buffer)
         , m_capacity(capacity)
         , m_size(size)
+        , m_mask(0)
     {
+        updateMask();
     }
 
     ~VectorBufferBase()
@@ -345,9 +354,15 @@ protected:
         // FIXME: It would be nice to find a way to ASSERT that m_buffer hasn't leaked here.
     }
 
+    void updateMask()
+    {
+        m_mask = maskForSize(m_capacity);
+    }
+
     T* m_buffer;
     unsigned m_capacity;
     unsigned m_size; // Only used by the Vector subclass, but placed here to avoid padding the struct.
+    unsigned m_mask;
 };
 
 template<typename T, size_t inlineCapacity, typename Malloc>
@@ -380,6 +395,7 @@ public:
     {
         std::swap(m_buffer, other.m_buffer);
         std::swap(m_capacity, other.m_capacity);
+        std::swap(m_mask, other.m_mask);
     }
     
     void restoreInlineBufferIfNeeded() { }
@@ -404,6 +420,7 @@ public:
     using Base::releaseBuffer;
 
 protected:
+    using Base::m_mask;
     using Base::m_size;
 
 private:
@@ -442,6 +459,7 @@ public:
         else {
             m_buffer = inlineBuffer();
             m_capacity = inlineCapacity;
+            updateMask();
         }
     }
 
@@ -451,6 +469,7 @@ public:
             return Base::tryAllocateBuffer(newCapacity);
         m_buffer = inlineBuffer();
         m_capacity = inlineCapacity;
+        updateMask();
         return true;
     }
 
@@ -478,19 +497,23 @@ public:
         if (buffer() == inlineBuffer() && other.buffer() == other.inlineBuffer()) {
             swapInlineBuffer(other, mySize, otherSize);
             std::swap(m_capacity, other.m_capacity);
+            std::swap(m_mask, other.m_mask);
         } else if (buffer() == inlineBuffer()) {
             m_buffer = other.m_buffer;
             other.m_buffer = other.inlineBuffer();
             swapInlineBuffer(other, mySize, 0);
             std::swap(m_capacity, other.m_capacity);
+            std::swap(m_mask, other.m_mask);
         } else if (other.buffer() == other.inlineBuffer()) {
             other.m_buffer = m_buffer;
             m_buffer = inlineBuffer();
             swapInlineBuffer(other, 0, otherSize);
             std::swap(m_capacity, other.m_capacity);
+            std::swap(m_mask, other.m_mask);
         } else {
             std::swap(m_buffer, other.m_buffer);
             std::swap(m_capacity, other.m_capacity);
+            std::swap(m_mask, other.m_mask);
         }
     }
 
@@ -500,6 +523,7 @@ public:
             return;
         m_buffer = inlineBuffer();
         m_capacity = inlineCapacity;
+        updateMask();
     }
 
 #if ASAN_ENABLED
@@ -527,11 +551,13 @@ public:
     }
 
 protected:
+    using Base::m_mask;
     using Base::m_size;
 
 private:
     using Base::m_buffer;
     using Base::m_capacity;
+    using Base::updateMask;
     
     void swapInlineBuffer(VectorBuffer& other, size_t mySize, size_t otherSize)
     {
@@ -625,6 +651,20 @@ public:
             uncheckedAppend(element);
     }
 
+    template<typename... Items>
+    static Vector from(Items&&... items)
+    {
+        Vector result;
+        auto size = sizeof...(items);
+
+        result.reserveInitialCapacity(size);
+        result.asanSetInitialBufferSizeTo(size);
+        result.m_size = size;
+
+        result.uncheckedInitialize<0>(std::forward<Items>(items)...);
+        return result;
+    }
+
     ~Vector()
     {
         if (m_size)
@@ -653,23 +693,23 @@ public:
     {
         if (UNLIKELY(i >= size()))
             OverflowHandler::overflowed();
-        return Base::buffer()[i];
+        return Base::buffer()[i & m_mask];
     }
     const T& at(size_t i) const 
     {
         if (UNLIKELY(i >= size()))
             OverflowHandler::overflowed();
-        return Base::buffer()[i];
+        return Base::buffer()[i & m_mask];
     }
     T& at(Checked<size_t> i)
     {
         RELEASE_ASSERT(i < size());
-        return Base::buffer()[i];
+        return Base::buffer()[i & m_mask];
     }
     const T& at(Checked<size_t> i) const
     {
         RELEASE_ASSERT(i < size());
-        return Base::buffer()[i];
+        return Base::buffer()[i & m_mask];
     }
 
     T& operator[](size_t i) { return at(i); }
@@ -793,12 +833,27 @@ private:
     template<typename... Args> void constructAndAppendSlowCase(Args&&...);
     template<typename... Args> bool tryConstructAndAppendSlowCase(Args&&...);
 
+    template<size_t position, typename U, typename... Items>
+    void uncheckedInitialize(U&& item, Items&&... items)
+    {
+        uncheckedInitialize<position>(std::forward<U>(item));
+        uncheckedInitialize<position + 1>(std::forward<Items>(items)...);
+    }
+    template<size_t position, typename U>
+    void uncheckedInitialize(U&& value)
+    {
+        ASSERT(position < size());
+        ASSERT(position < capacity());
+        new (NotNull, begin() + position) T(std::forward<U>(value));
+    }
+
     void asanSetInitialBufferSizeTo(size_t);
     void asanSetBufferSizeToFullCapacity(size_t);
     void asanSetBufferSizeToFullCapacity() { asanSetBufferSizeToFullCapacity(size()); }
 
     void asanBufferSizeWillChangeTo(size_t);
 
+    using Base::m_mask;
     using Base::m_size;
     using Base::buffer;
     using Base::capacity;
@@ -1327,8 +1382,7 @@ ALWAYS_INLINE void Vector<T, inlineCapacity, OverflowHandler, minCapacity, Mallo
 
     asanBufferSizeWillChangeTo(m_size + 1);
 
-    auto ptr = std::addressof(value);
-    new (NotNull, end()) T(std::forward<U>(*ptr));
+    new (NotNull, end()) T(std::forward<U>(value));
     ++m_size;
 }
 
@@ -1607,6 +1661,17 @@ Vector<typename Mapper<MapFunction, SourceType>::DestinationItemType> map(Source
     return Mapper<MapFunction, SourceType>::map(std::forward<SourceType>(source), std::forward<MapFunction>(mapFunction));
 }
 
+template<typename DestinationVector, typename Collection>
+inline auto copyToVectorSpecialization(const Collection& collection) -> DestinationVector
+{
+    DestinationVector result;
+    // FIXME: Use std::size when available on all compilers.
+    result.reserveInitialCapacity(collection.size());
+    for (auto& item : collection)
+        result.uncheckedAppend(item);
+    return result;
+}
+
 template<typename DestinationItemType, typename Collection>
 inline auto copyToVectorOf(const Collection& collection) -> Vector<DestinationItemType>
 {
@@ -1630,6 +1695,7 @@ using WTF::UnsafeVectorOverflow;
 using WTF::Vector;
 using WTF::copyToVector;
 using WTF::copyToVectorOf;
+using WTF::copyToVectorSpecialization;
 using WTF::removeRepeatedElements;
 
 #endif // WTF_Vector_h

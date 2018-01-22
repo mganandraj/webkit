@@ -51,6 +51,10 @@ public:
 
     void dispatchDidFailToStartPlugin(const WebCore::PluginView*) const;
 
+    std::optional<uint64_t> pageID() const final;
+    std::optional<uint64_t> frameID() const final;
+    PAL::SessionID sessionID() const final;
+
     bool hasWebView() const override;
 
     Ref<WebCore::FrameNetworkingContext> createNetworkingContext() override;

@@ -107,6 +107,7 @@ OBJC_CLASS WebPlaybackControlsManager;
 @end
 
 namespace WebCore {
+struct DragItem;
 struct KeyPressCommand;
 }
 
@@ -282,7 +283,7 @@ public:
     void closeFullScreenWindowController();
 #endif
     NSView *fullScreenPlaceholderView();
-    NSWindow *createFullScreenWindow();
+    NSWindow *fullScreenWindow();
 
     bool isEditable() const;
     bool executeSavedCommandBySelector(SEL);
@@ -412,12 +413,9 @@ public:
 
     void startWindowDrag();
 
-    void dragImageForView(NSView *, NSImage *, CGPoint clientPoint, bool linkDrag);
+    void startDrag(const WebCore::DragItem&, const ShareableBitmap::Handle& image);
     void setFileAndURLTypes(NSString *filename, NSString *extension, NSString *title, NSString *url, NSString *visibleURL, NSPasteboard *);
     void setPromisedDataForImage(WebCore::Image*, NSString *filename, NSString *extension, NSString *title, NSString *url, NSString *visibleURL, WebCore::SharedBuffer* archiveBuffer, NSString *pasteboardName);
-#if ENABLE(ATTACHMENT_ELEMENT)
-    void setPromisedDataForAttachment(NSString *filename, NSString *extension, NSString *title, NSString *url, NSString *visibleURL, NSString *pasteboardName);
-#endif
     void pasteboardChangedOwner(NSPasteboard *);
     void provideDataForPasteboard(NSPasteboard *, NSString *type);
     NSArray *namesOfPromisedFilesDroppedAtDestination(NSURL *dropDestination);
@@ -536,6 +534,9 @@ public:
     void updateTouchBarAndRefreshTextBarIdentifiers();
     void setIsCustomizingTouchBar(bool isCustomizingTouchBar) { m_isCustomizingTouchBar = isCustomizingTouchBar; };
 #endif // HAVE(TOUCH_BAR)
+
+    bool beginBackSwipeForTesting();
+    bool completeBackSwipeForTesting();
 
 private:
 #if HAVE(TOUCH_BAR)

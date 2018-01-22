@@ -173,8 +173,9 @@ JIT::JumpList JIT::emitDoubleLoad(Instruction*, PatchableJump& badType)
     
     badType = patchableBranch32(NotEqual, regT2, TrustedImm32(DoubleShape));
     loadPtr(Address(regT0, JSObject::butterflyOffset()), regT2);
-    cage(Gigacage::JSValue, regT2);
     slowCases.append(branch32(AboveOrEqual, regT1, Address(regT2, Butterfly::offsetOfPublicLength())));
+    if (m_shouldUseIndexMasking)
+        and32(Address(regT0, JSObject::butterflyIndexingMaskOffset()), regT1);
     loadDouble(BaseIndex(regT2, regT1, TimesEight), fpRegT0);
     slowCases.append(branchDouble(DoubleNotEqualOrUnordered, fpRegT0, fpRegT0));
     
@@ -187,8 +188,9 @@ JIT::JumpList JIT::emitContiguousLoad(Instruction*, PatchableJump& badType, Inde
     
     badType = patchableBranch32(NotEqual, regT2, TrustedImm32(expectedShape));
     loadPtr(Address(regT0, JSObject::butterflyOffset()), regT2);
-    cage(Gigacage::JSValue, regT2);
     slowCases.append(branch32(AboveOrEqual, regT1, Address(regT2, Butterfly::offsetOfPublicLength())));
+    if (m_shouldUseIndexMasking)
+        and32(Address(regT0, JSObject::butterflyIndexingMaskOffset()), regT1);
     load64(BaseIndex(regT2, regT1, TimesEight), regT0);
     slowCases.append(branchTest64(Zero, regT0));
     
@@ -203,9 +205,10 @@ JIT::JumpList JIT::emitArrayStorageLoad(Instruction*, PatchableJump& badType)
     badType = patchableBranch32(Above, regT3, TrustedImm32(SlowPutArrayStorageShape - ArrayStorageShape));
 
     loadPtr(Address(regT0, JSObject::butterflyOffset()), regT2);
-    cage(Gigacage::JSValue, regT2);
     slowCases.append(branch32(AboveOrEqual, regT1, Address(regT2, ArrayStorage::vectorLengthOffset())));
 
+    if (m_shouldUseIndexMasking)
+        and32(Address(regT0, JSObject::butterflyIndexingMaskOffset()), regT1);
     load64(BaseIndex(regT2, regT1, TimesEight, ArrayStorage::vectorOffset()), regT0);
     slowCases.append(branchTest64(Zero, regT0));
     
@@ -335,12 +338,6 @@ void JIT::emit_op_put_by_val(Instruction* currentInstruction)
     m_byValCompilationInfo.append(ByValCompilationInfo(byValInfo, m_bytecodeOffset, notIndex, badType, mode, profile, done, done));
 }
 
-void JIT::emit_op_put_by_val_with_this(Instruction* currentInstruction)
-{
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_put_by_val_with_this);
-    slowPathCall.call();
-}
-
 JIT::JumpList JIT::emitGenericContiguousPutByVal(Instruction* currentInstruction, PatchableJump& badType, IndexingType indexingShape)
 {
     int value = currentInstruction[3].u.operand;
@@ -351,7 +348,6 @@ JIT::JumpList JIT::emitGenericContiguousPutByVal(Instruction* currentInstruction
     badType = patchableBranch32(NotEqual, regT2, TrustedImm32(indexingShape));
     
     loadPtr(Address(regT0, JSObject::butterflyOffset()), regT2);
-    cage(Gigacage::JSValue, regT2);
     Jump outOfBounds = branch32(AboveOrEqual, regT1, Address(regT2, Butterfly::offsetOfPublicLength()));
 
     Label storeResult = label();
@@ -407,7 +403,6 @@ JIT::JumpList JIT::emitArrayStoragePutByVal(Instruction* currentInstruction, Pat
     
     badType = patchableBranch32(NotEqual, regT2, TrustedImm32(ArrayStorageShape));
     loadPtr(Address(regT0, JSObject::butterflyOffset()), regT2);
-    cage(Gigacage::JSValue, regT2);
     slowCases.append(branch32(AboveOrEqual, regT1, Address(regT2, ArrayStorage::vectorLengthOffset())));
 
     Jump empty = branchTest64(Zero, BaseIndex(regT2, regT1, TimesEight, ArrayStorage::vectorOffset()));
@@ -595,12 +590,10 @@ void JIT::emit_op_try_get_by_id(Instruction* currentInstruction)
 
 void JIT::emitSlow_op_try_get_by_id(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
-    int resultVReg = currentInstruction[1].u.operand;
-    int baseVReg = currentInstruction[2].u.operand;
-    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[3].u.operand));
+    linkAllSlowCases(iter);
 
-    linkSlowCaseIfNotJSCell(iter, baseVReg);
-    linkSlowCase(iter);
+    int resultVReg = currentInstruction[1].u.operand;
+    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[3].u.operand));
 
     JITGetByIdGenerator& gen = m_getByIds[m_getByIdIndex++];
 
@@ -658,20 +651,12 @@ void JIT::emit_op_get_by_id_with_this(Instruction* currentInstruction)
     emitPutVirtualRegister(resultVReg);
 }
 
-void JIT::emit_op_get_by_val_with_this(Instruction* currentInstruction)
-{
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_get_by_val_with_this);
-    slowPathCall.call();
-}
-
 void JIT::emitSlow_op_get_by_id(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
-    int resultVReg = currentInstruction[1].u.operand;
-    int baseVReg = currentInstruction[2].u.operand;
-    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[3].u.operand));
+    linkAllSlowCases(iter);
 
-    linkSlowCaseIfNotJSCell(iter, baseVReg);
-    linkSlowCase(iter);
+    int resultVReg = currentInstruction[1].u.operand;
+    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[3].u.operand));
 
     JITGetByIdGenerator& gen = m_getByIds[m_getByIdIndex++];
     
@@ -684,14 +669,10 @@ void JIT::emitSlow_op_get_by_id(Instruction* currentInstruction, Vector<SlowCase
 
 void JIT::emitSlow_op_get_by_id_with_this(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
-    int resultVReg = currentInstruction[1].u.operand;
-    int baseVReg = currentInstruction[2].u.operand;
-    int thisVReg = currentInstruction[3].u.operand;
-    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[4].u.operand));
+    linkAllSlowCases(iter);
 
-    linkSlowCaseIfNotJSCell(iter, baseVReg);
-    linkSlowCaseIfNotJSCell(iter, thisVReg);
-    linkSlowCase(iter);
+    int resultVReg = currentInstruction[1].u.operand;
+    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[4].u.operand));
 
     JITGetByIdWithThisGenerator& gen = m_getByIdsWithThis[m_getByIdWithThisIndex++];
     
@@ -729,19 +710,11 @@ void JIT::emit_op_put_by_id(Instruction* currentInstruction)
     m_putByIds.append(gen);
 }
 
-void JIT::emit_op_put_by_id_with_this(Instruction* currentInstruction)
-{
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_put_by_id_with_this);
-    slowPathCall.call();
-}
-
 void JIT::emitSlow_op_put_by_id(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
-    int baseVReg = currentInstruction[1].u.operand;
-    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[2].u.operand));
+    linkAllSlowCases(iter);
 
-    linkSlowCaseIfNotJSCell(iter, baseVReg);
-    linkSlowCase(iter);
+    const Identifier* ident = &(m_codeBlock->identifier(currentInstruction[2].u.operand));
 
     Label coldPathBegin(this);
     
@@ -767,12 +740,6 @@ void JIT::emitResolveClosure(int dst, int scope, bool needsVarInjectionChecks, u
     for (unsigned i = 0; i < depth; ++i)
         loadPtr(Address(regT0, JSScope::offsetOfNext()), regT0);
     emitPutVirtualRegister(dst);
-}
-
-void JIT::emit_op_resolve_scope_for_hoisting_func_decl_in_eval(Instruction* currentInstruction)
-{
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_resolve_scope_for_hoisting_func_decl_in_eval);
-    slowPathCall.call();
 }
 
 void JIT::emit_op_resolve_scope(Instruction* currentInstruction)
@@ -852,22 +819,6 @@ void JIT::emit_op_resolve_scope(Instruction* currentInstruction)
     }
 }
 
-void JIT::emitSlow_op_resolve_scope(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
-{
-    ResolveType resolveType = static_cast<ResolveType>(copiedInstruction(currentInstruction)[4].u.operand);
-    if (resolveType == GlobalProperty || resolveType == GlobalVar || resolveType == ClosureVar || resolveType == GlobalLexicalVar || resolveType == ModuleVar)
-        return;
-
-    if (resolveType == UnresolvedProperty || resolveType == UnresolvedPropertyWithVarInjectionChecks) {
-        linkSlowCase(iter); // var injections check for GlobalPropertyWithVarInjectionChecks.
-        linkSlowCase(iter); // var injections check for GlobalLexicalVarWithVarInjectionChecks.
-    }
-
-    linkSlowCase(iter);
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_resolve_scope);
-    slowPathCall.call();
-}
-
 void JIT::emitLoadWithStructureCheck(int scope, Structure** structureSlot)
 {
     loadPtr(structureSlot, regT1);
@@ -919,7 +870,6 @@ void JIT::emit_op_get_from_scope(Instruction* currentInstruction)
                 isOutOfLine.link(this);
             }
             loadPtr(Address(base, JSObject::butterflyOffset()), scratch);
-            cage(Gigacage::JSValue, scratch);
             neg32(offset);
             signExtend32ToPtr(offset, offset);
             load64(BaseIndex(scratch, offset, TimesEight, (firstOutOfLineOffset - 2) * sizeof(EncodedJSValue)), result);
@@ -993,31 +943,9 @@ void JIT::emit_op_get_from_scope(Instruction* currentInstruction)
 
 void JIT::emitSlow_op_get_from_scope(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
+    linkAllSlowCases(iter);
+
     int dst = currentInstruction[1].u.operand;
-    ResolveType resolveType = GetPutInfo(copiedInstruction(currentInstruction)[4].u.operand).resolveType();
-
-    if (resolveType == GlobalVar || resolveType == ClosureVar)
-        return;
-
-    if (resolveType == GlobalProperty || resolveType == GlobalPropertyWithVarInjectionChecks)
-        linkSlowCase(iter); // bad structure
-
-    if (resolveType == GlobalLexicalVarWithVarInjectionChecks) // Var injections check.
-        linkSlowCase(iter);
-
-    if (resolveType == UnresolvedProperty || resolveType == UnresolvedPropertyWithVarInjectionChecks) {
-        // GlobalProperty/GlobalPropertyWithVarInjectionChecks
-        linkSlowCase(iter); // emitLoadWithStructureCheck
-        linkSlowCase(iter); // emitLoadWithStructureCheck
-        // GlobalLexicalVar
-        linkSlowCase(iter); // TDZ check.
-        // GlobalLexicalVarWithVarInjectionChecks.
-        linkSlowCase(iter); // var injection check.
-        linkSlowCase(iter); // TDZ check.
-    }
-
-    linkSlowCase(iter);
-
     callOperation(WithProfile, operationGetFromScope, dst, currentInstruction);
 }
 
@@ -1061,7 +989,6 @@ void JIT::emit_op_put_to_scope(Instruction* currentInstruction)
             emitGetVirtualRegister(value, regT2);
             
             loadPtr(Address(regT0, JSObject::butterflyOffset()), regT0);
-            cage(Gigacage::JSValue, regT0);
             loadPtr(operandSlot, regT1);
             negPtr(regT1);
             storePtr(regT2, BaseIndex(regT0, regT1, TimesEight, (firstOutOfLineOffset - 2) * sizeof(EncodedJSValue)));
@@ -1146,42 +1073,10 @@ void JIT::emit_op_put_to_scope(Instruction* currentInstruction)
 
 void JIT::emitSlow_op_put_to_scope(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
+    linkAllSlowCases(iter);
+
     GetPutInfo getPutInfo = GetPutInfo(copiedInstruction(currentInstruction)[4].u.operand);
     ResolveType resolveType = getPutInfo.resolveType();
-    unsigned linkCount = 0;
-    if (resolveType != GlobalVar && resolveType != ClosureVar && resolveType != LocalClosureVar && resolveType != GlobalLexicalVar)
-        linkCount++;
-    if (resolveType == GlobalVar || resolveType == GlobalVarWithVarInjectionChecks 
-        || resolveType == GlobalLexicalVar || resolveType == GlobalLexicalVarWithVarInjectionChecks 
-        || resolveType == ClosureVar || resolveType == ClosureVarWithVarInjectionChecks
-        || resolveType == LocalClosureVar)
-        linkCount++;
-    if (resolveType == GlobalProperty || resolveType == GlobalPropertyWithVarInjectionChecks)
-        linkCount++; // bad structure
-    if (!isInitialization(getPutInfo.initializationMode()) && (resolveType == GlobalLexicalVar || resolveType == GlobalLexicalVarWithVarInjectionChecks)) // TDZ check.
-        linkCount++;
-    if (resolveType == UnresolvedProperty || resolveType == UnresolvedPropertyWithVarInjectionChecks) {
-        // GlobalProperty/GlobalPropertyWithVarInjectionsCheck
-        linkCount++; // emitLoadWithStructureCheck
-        linkCount++; // emitLoadWithStructureCheck
-
-        // GlobalLexicalVar
-        bool needsTDZCheck = !isInitialization(getPutInfo.initializationMode());
-        if (needsTDZCheck)
-            linkCount++;
-        linkCount++; // Notify write check.
-
-        // GlobalLexicalVarWithVarInjectionsCheck
-        linkCount++; // var injection check.
-        if (needsTDZCheck)
-            linkCount++;
-        linkCount++; // Notify write check.
-    }
-    if (!linkCount)
-        return;
-    while (linkCount--)
-        linkSlowCase(iter);
-
     if (resolveType == ModuleVar) {
         JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_throw_strict_mode_readonly_property_write_error);
         slowPathCall.call();
@@ -1511,7 +1406,6 @@ JIT::JumpList JIT::emitDirectArgumentsGetByVal(Instruction*, PatchableJump& badT
     slowCases.append(branchTestPtr(NonZero, Address(base, DirectArguments::offsetOfMappedArguments())));
     
     zeroExtend32ToPtr(property, scratch);
-    cage(Gigacage::JSValue, base);
     loadValue(BaseIndex(base, scratch, TimesEight, DirectArguments::storageOffset()), result);
     
     return slowCases;
@@ -1544,7 +1438,6 @@ JIT::JumpList JIT::emitScopedArgumentsGetByVal(Instruction*, PatchableJump& badT
     Jump overflowCase = branch32(AboveOrEqual, property, scratch2);
     loadPtr(Address(base, ScopedArguments::offsetOfScope()), scratch2);
     loadPtr(Address(scratch, ScopedArgumentsTable::offsetOfArguments()), scratch);
-    cage(ScopedArgumentsTable::ArgumentsPtr::kind, scratch);
     load32(BaseIndex(scratch, property, TimesFour), scratch);
     slowCases.append(branch32(Equal, scratch, TrustedImm32(ScopeOffset::invalidOffset)));
     loadValue(BaseIndex(scratch2, scratch, TimesEight, JSLexicalEnvironment::offsetOfVariables()), result);
@@ -1552,7 +1445,6 @@ JIT::JumpList JIT::emitScopedArgumentsGetByVal(Instruction*, PatchableJump& badT
     overflowCase.link(this);
     sub32(property, scratch2);
     neg32(scratch2);
-    cage(Gigacage::JSValue, base);
     loadValue(BaseIndex(base, scratch2, TimesEight, ScopedArguments::overflowStorageOffset()), result);
     slowCases.append(branchIfEmpty(result));
     done.link(this);
@@ -1589,7 +1481,7 @@ JIT::JumpList JIT::emitIntTypedArrayGetByVal(Instruction*, PatchableJump& badTyp
     slowCases.append(branch32(AboveOrEqual, property, Address(base, JSArrayBufferView::offsetOfLength())));
     loadPtr(Address(base, JSArrayBufferView::offsetOfVector()), scratch);
     cageConditionally(Gigacage::Primitive, scratch, scratch2);
-    
+
     switch (elementSize(type)) {
     case 1:
         if (JSC::isSigned(type))
@@ -1833,18 +1725,6 @@ JIT::JumpList JIT::emitFloatTypedArrayPutByVal(Instruction* currentInstruction, 
     }
     
     return slowCases;
-}
-
-void JIT::emit_op_define_data_property(Instruction* currentInstruction)
-{
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_define_data_property);
-    slowPathCall.call();
-}
-
-void JIT::emit_op_define_accessor_property(Instruction* currentInstruction)
-{
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_define_accessor_property);
-    slowPathCall.call();
 }
 
 } // namespace JSC

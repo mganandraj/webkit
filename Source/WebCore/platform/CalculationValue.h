@@ -64,7 +64,7 @@ class CalcExpressionNode {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit CalcExpressionNode(CalcExpressionNodeType = CalcExpressionNodeUndefined);
-    virtual ~CalcExpressionNode() { }
+    virtual ~CalcExpressionNode() = default;
 
     CalcExpressionNodeType type() const { return m_type; }
 
@@ -211,10 +211,7 @@ inline CalcExpressionOperation::CalcExpressionOperation(Vector<std::unique_ptr<C
 {
 }
 
-inline bool operator==(const CalcExpressionOperation& a, const CalcExpressionOperation& b)
-{
-    return a.getOperator() == b.getOperator() && a.children() == b.children();
-}
+bool operator==(const CalcExpressionOperation&, const CalcExpressionOperation&);
 
 inline const CalcExpressionOperation& toCalcExpressionOperation(const CalcExpressionNode& value)
 {

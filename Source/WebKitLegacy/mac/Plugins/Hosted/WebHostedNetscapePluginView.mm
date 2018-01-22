@@ -46,7 +46,6 @@
 #import <WebCore/RenderEmbeddedObject.h>
 #import <WebCore/ResourceError.h>
 #import <WebCore/WebCoreCALayerExtras.h>
-#import <WebCore/WebCoreObjCExtras.h>
 #import <WebCore/runtime_root.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <runtime/InitializeThreading.h>
@@ -478,6 +477,8 @@ extern "C" {
     }
 
     if (_proxy) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         if (_softwareRenderer) {
             if ([NSGraphicsContext currentContextDrawingToScreen]) {
                 _softwareRenderer->render((CGContextRef)[[NSGraphicsContext currentContext] graphicsPort], NSRectToCGRect(rect));
@@ -487,6 +488,7 @@ extern "C" {
         } else if (_snapshotting && [self supportsSnapshotting]) {
             _proxy->snapshot(reinterpret_cast<CGContextRef>([[NSGraphicsContext currentContext] graphicsPort]), [self bounds].size.width, [self bounds].size.height);
         }
+#pragma clang diagnostic pop
 
         return;
     }

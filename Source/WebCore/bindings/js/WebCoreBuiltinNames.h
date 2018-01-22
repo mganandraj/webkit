@@ -31,21 +31,31 @@
 namespace WebCore {
 
 #define WEBCORE_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(macro) \
+    macro(AccessibleNode) \
     macro(Animation) \
-    macro(AnimationEffectReadOnly) \
+    macro(AnimationEffect) \
+    macro(AnimationEffectTiming) \
+    macro(AnimationPlaybackEvent) \
     macro(AnimationTimeline) \
     macro(ApplePaySession) \
     macro(AttachmentElement) \
     macro(Audio) \
+    macro(AuthenticatorAssertionResponse) \
+    macro(AuthenticatorAttestationResponse) \
+    macro(AuthenticatorResponse) \
     macro(Cache) \
     macro(CacheStorage) \
+    macro(Client) \
+    macro(Clients) \
     macro(Credential) \
     macro(CredentialsContainer) \
     macro(CustomElementRegistry) \
     macro(DataTransferItem) \
     macro(DataTransferItemList) \
     macro(DocumentTimeline) \
-    macro(FederatedCredential) \
+    macro(ExtendableEvent) \
+    macro(ExtendableMessageEvent) \
+    macro(FetchEvent) \
     macro(FileSystem) \
     macro(FileSystemDirectoryEntry) \
     macro(FileSystemDirectoryReader) \
@@ -56,6 +66,7 @@ namespace WebCore {
     macro(GamepadEvent) \
     macro(HTMLAttachmentElement) \
     macro(HTMLAudioElement) \
+    macro(HTMLMenuItemElement) \
     macro(HTMLSlotElement) \
     macro(Headers) \
     macro(IDBCursor) \
@@ -69,10 +80,13 @@ namespace WebCore {
     macro(IDBRequest) \
     macro(IDBTransaction) \
     macro(IDBVersionChangeEvent) \
+    macro(ImageBitmap) \
     macro(InputEvent) \
     macro(IntersectionObserver) \
     macro(IntersectionObserverEntry) \
     macro(KeyframeEffect) \
+    macro(MediaCapabilities) \
+    macro(MediaCapabilitiesInfo) \
     macro(MediaEncryptedEvent) \
     macro(MediaKeyMessageEvent) \
     macro(MediaKeySession) \
@@ -87,7 +101,8 @@ namespace WebCore {
     macro(NavigatorCredentials) \
     macro(NavigatorMediaDevices) \
     macro(NavigatorUserMedia) \
-    macro(PasswordCredential) \
+    macro(OffscreenCanvas) \
+    macro(OffscreenCanvasRenderingContext2D) \
     macro(PaymentAddress) \
     macro(PaymentRequest) \
     macro(PaymentRequestUpdateEvent) \
@@ -99,6 +114,7 @@ namespace WebCore {
     macro(PerformanceObserver) \
     macro(PerformanceObserverEntryList) \
     macro(PerformanceResourceTiming) \
+    macro(PublicKeyCredential) \
     macro(RTCDTMFSender) \
     macro(RTCDTMFToneChangeEvent) \
     macro(RTCDataChannel) \
@@ -120,11 +136,13 @@ namespace WebCore {
     macro(ReadableStreamDefaultReader) \
     macro(Request) \
     macro(Response) \
+    macro(ScreenLuminance) \
     macro(ServiceWorker) \
     macro(ServiceWorkerContainer) \
     macro(ServiceWorkerGlobalScope) \
     macro(ServiceWorkerRegistration) \
     macro(ShadowRoot) \
+    macro(SpectreGadget) \
     macro(StaticRange) \
     macro(VRDisplay) \
     macro(VRDisplayCapabilities) \
@@ -133,6 +151,7 @@ namespace WebCore {
     macro(VRFieldOfView) \
     macro(VRFrameData) \
     macro(VRStageParameters) \
+    macro(VisualViewport) \
     macro(WebGL2RenderingContext) \
     macro(WebGLVertexArrayObject) \
     macro(WebGPUBuffer) \
@@ -163,6 +182,7 @@ namespace WebCore {
     macro(WebKitMediaKeySession) \
     macro(WebKitMediaKeys) \
     macro(WebSocket) \
+    macro(WindowClient) \
     macro(WritableStream) \
     macro(XMLHttpRequest) \
     macro(addTrack) \
@@ -185,6 +205,7 @@ namespace WebCore {
     macro(consumeChunk) \
     macro(controlledReadableStream) \
     macro(controller) \
+    macro(createImageBitmap) \
     macro(createReadableStream) \
     macro(customElements) \
     macro(disturbed) \
@@ -266,11 +287,11 @@ namespace WebCore {
     macro(structuredCloneArrayBuffer) \
     macro(structuredCloneArrayBufferView) \
     macro(top) \
-    macro(totalQueuedBytes) \
     macro(underlyingByteSource) \
     macro(underlyingSink) \
     macro(underlyingSource) \
     macro(view) \
+    macro(visualViewport) \
     macro(webRTCLegacyAPIEnabled) \
     macro(webkit) \
     macro(webkitAudioContext) \

@@ -102,7 +102,6 @@ public:
     void setModernMediaControlsEnabled(bool);
     void setWebGL2Enabled(bool);
     void setWebGPUEnabled(bool);
-    void setCacheAPIEnabled(bool);
     void setWritableStreamAPIEnabled(bool);
     void setReadableByteStreamAPIEnabled(bool);
 
@@ -163,6 +162,11 @@ public:
     void disallowIncreaseForApplicationCacheQuota();
     bool shouldDisallowIncreaseForApplicationCacheQuota() { return m_disallowIncreaseForApplicationCacheQuota; }
     JSValueRef originsWithApplicationCache();
+
+    void clearDOMCache(JSStringRef origin);
+    void clearDOMCaches();
+    bool hasDOMCache(JSStringRef origin);
+    uint64_t domCacheSize(JSStringRef origin);
 
     // Failed load condition testing
     void forceImmediateCompletion();
@@ -276,6 +280,7 @@ public:
     // Cookies testing
     void setAlwaysAcceptCookies(bool);
     void setCookieStoragePartitioningEnabled(bool);
+    void setStorageAccessAPIEnabled(bool);
 
     // Custom full screen behavior.
     void setHasCustomFullScreenBehavior(bool value) { m_customFullScreenBehavior = value; }
@@ -289,7 +294,7 @@ public:
 
     // Geolocation.
     void setGeolocationPermission(bool);
-    void setMockGeolocationPosition(double latitude, double longitude, double accuracy, JSValueRef altitude, JSValueRef altitudeAccuracy, JSValueRef heading, JSValueRef speed);
+    void setMockGeolocationPosition(double latitude, double longitude, double accuracy, JSValueRef altitude, JSValueRef altitudeAccuracy, JSValueRef heading, JSValueRef speed, JSValueRef floorLevel);
     void setMockGeolocationPositionUnavailableError(JSStringRef message);
     bool isGeolocationProviderActive();
 
@@ -360,6 +365,7 @@ public:
     void statisticsDidModifyDataRecordsCallback();
     void statisticsDidScanDataRecordsCallback();
     void statisticsDidRunTelemetryCallback(unsigned totalPrevalentResources, unsigned totalPrevalentResourcesWithUserInteraction, unsigned top3SubframeUnderTopFrameOrigins);
+    void statisticsNotifyObserver();
     void statisticsProcessStatisticsAndDataRecords();
     void statisticsUpdateCookiePartitioning();
     void statisticsSetShouldPartitionCookiesForHost(JSStringRef hostName, bool value);
@@ -367,7 +373,10 @@ public:
     void setStatisticsLastSeen(JSStringRef hostName, double seconds);
     void setStatisticsPrevalentResource(JSStringRef hostName, bool value);
     bool isStatisticsPrevalentResource(JSStringRef hostName);
+    bool isStatisticsRegisteredAsSubFrameUnder(JSStringRef subFrameHost, JSStringRef topFrameHost);
+    bool isStatisticsRegisteredAsRedirectingTo(JSStringRef hostRedirectedFrom, JSStringRef hostRedirectedTo);
     void setStatisticsHasHadUserInteraction(JSStringRef hostName, bool value);
+    void setStatisticsHasHadNonRecentUserInteraction(JSStringRef hostName);
     bool isStatisticsHasHadUserInteraction(JSStringRef hostName);
     void setStatisticsGrandfathered(JSStringRef hostName, bool value);
     bool isStatisticsGrandfathered(JSStringRef hostName);
@@ -383,8 +392,8 @@ public:
     void setStatisticsGrandfatheringTime(double seconds);
     void setStatisticsMaxStatisticsEntries(unsigned);
     void setStatisticsPruneEntriesDownTo(unsigned);
-    void statisticsClearInMemoryAndPersistentStore();
-    void statisticsClearInMemoryAndPersistentStoreModifiedSinceHours(unsigned hours);
+    void statisticsClearInMemoryAndPersistentStore(JSValueRef callback);
+    void statisticsClearInMemoryAndPersistentStoreModifiedSinceHours(unsigned hours, JSValueRef callback);
     void statisticsClearThroughWebsiteDataRemoval(JSValueRef callback);
     void statisticsCallClearThroughWebsiteDataRemovalCallback();
     void statisticsResetToConsistentState();
@@ -393,9 +402,15 @@ public:
     void setOpenPanelFiles(JSValueRef);
 
     void terminateNetworkProcess();
+    void terminateServiceWorkerProcess();
 
     void removeAllSessionCredentials(JSValueRef);
     void callDidRemoveAllSessionCredentialsCallback();
+    
+    void getApplicationManifestThen(JSValueRef);
+    void didGetApplicationManifest();
+
+    void installFakeHelvetica(JSStringRef configuration);
 
 private:
     TestRunner();

@@ -78,6 +78,8 @@ ExitMode mayExitImpl(Graph& graph, Node* node, StateType& state)
     case GetScope:
     case PhantomLocal:
     case CountExecution:
+    case SuperSamplerBegin:
+    case SuperSamplerEnd:
     case Jump:
     case EntrySwitch:
     case Branch:
@@ -114,9 +116,16 @@ ExitMode mayExitImpl(Graph& graph, Node* node, StateType& state)
     case NewAsyncFunction:
     case NewAsyncGeneratorFunction:
     case NewStringObject:
+    case NewRegexp:
     case ToNumber:
+    case RegExpExecNonGlobalOrSticky:
         result = ExitsForExceptions;
         break;
+
+    case SetRegExpObjectLastIndex:
+        if (node->ignoreLastIndexIsWritable())
+            break;
+        return Exits;
 
     default:
         // If in doubt, return true.

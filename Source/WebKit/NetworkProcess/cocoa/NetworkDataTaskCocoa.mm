@@ -74,8 +74,79 @@ static float toNSURLSessionTaskPriority(WebCore::ResourceLoadPriority priority)
     return NSURLSessionTaskPriorityDefault;
 }
 
-NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataTaskClient& client, const WebCore::ResourceRequest& requestWithCredentials, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::ContentSniffingPolicy shouldContentSniff, bool shouldClearReferrerOnHTTPSToHTTPRedirect, PreconnectOnly shouldPreconnectOnly)
+void NetworkDataTaskCocoa::applySniffingPoliciesAndBindRequestToInferfaceIfNeeded(NSURLRequest*& nsRequest, bool shouldContentSniff, bool shouldContentEncodingSniff)
+{
+#if !PLATFORM(MAC)
+    UNUSED_PARAM(shouldContentEncodingSniff);
+#elif __MAC_OS_X_VERSION_MIN_REQUIRED < 101302
+    shouldContentEncodingSniff = true;
+#endif
+    auto& cocoaSession = static_cast<NetworkSessionCocoa&>(m_session.get());
+    if (shouldContentSniff && shouldContentEncodingSniff && cocoaSession.m_boundInterfaceIdentifier.isNull())
+        return;
+
+    auto mutableRequest = adoptNS([nsRequest mutableCopy]);
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101302
+    if (!shouldContentEncodingSniff)
+        [mutableRequest _setProperty:@(YES) forKey:(NSString *)kCFURLRequestContentDecoderSkipURLCheck];
+#endif
+
+    if (!shouldContentSniff)
+        [mutableRequest _setProperty:@(NO) forKey:(NSString *)_kCFURLConnectionPropertyShouldSniff];
+
+    if (!cocoaSession.m_boundInterfaceIdentifier.isNull())
+        [mutableRequest setBoundInterfaceIdentifier:cocoaSession.m_boundInterfaceIdentifier];
+
+    nsRequest = mutableRequest.autorelease();
+}
+
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING)
+NSHTTPCookieStorage *NetworkDataTaskCocoa::statelessCookieStorage()
+{
+    static NeverDestroyed<RetainPtr<NSHTTPCookieStorage>> statelessCookieStorage;
+    if (!statelessCookieStorage.get()) {
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101300)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
+#endif
+        statelessCookieStorage.get() = adoptNS([[NSHTTPCookieStorage alloc] _initWithIdentifier:nil private:YES]);
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101300)
+#pragma clang diagnostic pop
+#endif
+        statelessCookieStorage.get().get().cookieAcceptPolicy = NSHTTPCookieAcceptPolicyNever;
+    }
+    ASSERT(statelessCookieStorage.get().get().cookies.count == 0);
+    return statelessCookieStorage.get().get();
+}
+
+void NetworkDataTaskCocoa::applyCookieBlockingPolicy(bool shouldBlock)
+{
+    if (shouldBlock == m_hasBeenSetToUseStatelessCookieStorage)
+        return;
+
+    NSHTTPCookieStorage *storage = shouldBlock ? statelessCookieStorage(): m_session->networkStorageSession().nsCookieStorage();
+    [m_task performSelector:NSSelectorFromString(@"_setExplicitCookieStorage:") withObject:(NSObject*)storage._cookieStorage];
+    m_hasBeenSetToUseStatelessCookieStorage = shouldBlock;
+}
+
+void NetworkDataTaskCocoa::applyCookiePartitioningPolicy(const String& requiredStoragePartition, const String& currentStoragePartition)
+{
+    // The need for a partion change is according to the following:
+    //      currentStoragePartition:  null  ""    abc
+    // requiredStoragePartition: ""   false false true
+    //                           abc  true  true  false
+    //                           xyz  true  true  true
+    auto shouldChangePartition = !((requiredStoragePartition.isEmpty() && currentStoragePartition.isEmpty()) || currentStoragePartition == requiredStoragePartition);
+    if (shouldChangePartition)
+        m_task.get()._storagePartitionIdentifier = requiredStoragePartition;
+}
+#endif
+
+NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataTaskClient& client, const WebCore::ResourceRequest& requestWithCredentials, uint64_t frameID, uint64_t pageID, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::ContentSniffingPolicy shouldContentSniff, WebCore::ContentEncodingSniffingPolicy shouldContentEncodingSniff, bool shouldClearReferrerOnHTTPSToHTTPRedirect, PreconnectOnly shouldPreconnectOnly)
     : NetworkDataTask(session, client, requestWithCredentials, storedCredentialsPolicy, shouldClearReferrerOnHTTPSToHTTPRedirect)
+    , m_frameID(frameID)
+    , m_pageID(pageID)
 {
     if (m_scheduledFailureType != NoFailure)
         return;
@@ -104,18 +175,9 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
 #endif
     
     NSURLRequest *nsRequest = request.nsURLRequest(WebCore::UpdateHTTPBody);
-    if (shouldContentSniff == WebCore::DoNotSniffContent || url.protocolIs("file")) {
-        NSMutableURLRequest *mutableRequest = [[nsRequest mutableCopy] autorelease];
-        [mutableRequest _setProperty:@(NO) forKey:(NSString *)_kCFURLConnectionPropertyShouldSniff];
-        nsRequest = mutableRequest;
-    }
+    applySniffingPoliciesAndBindRequestToInferfaceIfNeeded(nsRequest, shouldContentSniff == WebCore::SniffContent && !url.isLocalFile(), shouldContentEncodingSniff == WebCore::ContentEncodingSniffingPolicy::Sniff);
 
     auto& cocoaSession = static_cast<NetworkSessionCocoa&>(m_session.get());
-    if (session.networkStorageSession().shouldBlockCookies(request)) {
-        storedCredentialsPolicy = WebCore::StoredCredentialsPolicy::DoNotUse;
-        m_storedCredentialsPolicy = WebCore::StoredCredentialsPolicy::DoNotUse;
-    }
-
     if (storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::Use) {
         m_task = [cocoaSession.m_sessionWithCredentialStorage dataTaskWithRequest:nsRequest];
         ASSERT(!cocoaSession.m_dataTaskMapWithCredentials.contains([m_task taskIdentifier]));
@@ -137,11 +199,14 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
     }
 
 #if HAVE(CFNETWORK_STORAGE_PARTITIONING)
-    if (storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::Use) {
-        String storagePartition = session.networkStorageSession().cookieStoragePartition(request);
+    if (auto shouldBlockCookies = session.networkStorageSession().shouldBlockCookies(request)) {
+        LOG(NetworkSession, "%llu Blocking cookies for URL %s", [m_task taskIdentifier], nsRequest.URL.absoluteString.UTF8String);
+        applyCookieBlockingPolicy(shouldBlockCookies);
+    } else {
+        auto storagePartition = session.networkStorageSession().cookieStoragePartition(request, m_frameID, m_pageID);
         if (!storagePartition.isEmpty()) {
             LOG(NetworkSession, "%llu Partitioning cookies for URL %s", [m_task taskIdentifier], nsRequest.URL.absoluteString.UTF8String);
-            m_task.get()._storagePartitionIdentifier = storagePartition;
+            applyCookiePartitioningPolicy(storagePartition, emptyString());
         }
     }
 #endif
@@ -240,6 +305,18 @@ void NetworkDataTaskCocoa::willPerformHTTPRedirection(WebCore::ResourceResponse&
 #endif
     }
     
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING)
+    auto shouldBlockCookies = m_session->networkStorageSession().shouldBlockCookies(request);
+    LOG(NetworkSession, "%llu %s cookies for redirect URL %s", [m_task taskIdentifier], (shouldBlockCookies ? "Blocking" : "Not blocking"), request.url().string().utf8().data());
+    applyCookieBlockingPolicy(shouldBlockCookies);
+
+    if (!shouldBlockCookies) {
+        auto requiredStoragePartition = m_session->networkStorageSession().cookieStoragePartition(request, m_frameID, m_pageID);
+        LOG(NetworkSession, "%llu %s cookies for redirect URL %s", [m_task taskIdentifier], (requiredStoragePartition.isEmpty() ? "Not partitioning" : "Partitioning"), request.url().string().utf8().data());
+        applyCookiePartitioningPolicy(requiredStoragePartition, m_task.get()._storagePartitionIdentifier);
+    }
+#endif
+
     if (m_client)
         m_client->willPerformHTTPRedirection(WTFMove(redirectResponse), WTFMove(request), WTFMove(completionHandler));
     else {
@@ -248,19 +325,19 @@ void NetworkDataTaskCocoa::willPerformHTTPRedirection(WebCore::ResourceResponse&
     }
 }
 
-void NetworkDataTaskCocoa::setPendingDownloadLocation(const WTF::String& filename, const SandboxExtension::Handle& sandboxExtensionHandle, bool allowOverwrite)
+void NetworkDataTaskCocoa::setPendingDownloadLocation(const WTF::String& filename, SandboxExtension::Handle&& sandboxExtensionHandle, bool allowOverwrite)
 {
-    NetworkDataTask::setPendingDownloadLocation(filename, sandboxExtensionHandle, allowOverwrite);
+    NetworkDataTask::setPendingDownloadLocation(filename, { }, allowOverwrite);
 
     ASSERT(!m_sandboxExtension);
-    m_sandboxExtension = SandboxExtension::create(sandboxExtensionHandle);
+    m_sandboxExtension = SandboxExtension::create(WTFMove(sandboxExtensionHandle));
     if (m_sandboxExtension)
         m_sandboxExtension->consume();
 
     m_task.get()._pathToDownloadTaskFile = m_pendingDownloadLocation;
 
-    if (allowOverwrite && WebCore::fileExists(m_pendingDownloadLocation))
-        WebCore::deleteFile(filename);
+    if (allowOverwrite && WebCore::FileSystem::fileExists(m_pendingDownloadLocation))
+        WebCore::FileSystem::deleteFile(filename);
 }
 
 bool NetworkDataTaskCocoa::tryPasswordBasedAuthentication(const WebCore::AuthenticationChallenge& challenge, ChallengeCompletionHandler& completionHandler)
@@ -358,12 +435,7 @@ NetworkDataTask::State NetworkDataTaskCocoa::state() const
 
 WebCore::Credential serverTrustCredential(const WebCore::AuthenticationChallenge& challenge)
 {
-#if USE(CFURLCONNECTION)
-    notImplemented();
-    return { };
-#else
     return WebCore::Credential([NSURLCredential credentialForTrust:challenge.nsURLAuthenticationChallenge().protectionSpace.serverTrust]);
-#endif
 }
 
 }

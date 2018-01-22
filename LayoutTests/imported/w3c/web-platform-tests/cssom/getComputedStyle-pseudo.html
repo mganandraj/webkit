@@ -17,7 +17,9 @@
 #test::before,
 #test::after,
 #contents::before,
-#contents::after {
+#contents::after,
+#flex::before,
+#flex::after {
   content: " ";
   width: 50%;
   height: 10px;
@@ -30,10 +32,25 @@
 #none::after {
   content: "Foo";
 }
+#flex {
+  display: flex;
+}
+#flex-no-pseudo {
+  display: flex;
+}
+#contents-pseudos::before,
+#contents-pseudos::after {
+  display: contents;
+  content: "foo";
+  position: absolute;
+}
 </style>
 <div id="test">
   <div id="contents"></div>
   <div id="none"></div>
+  <div id="flex"></div>
+  <div id="flex-no-pseudo"></div>
+  <div id="contents-pseudos"></div>
 </div>
 <script>
 test(function() {
@@ -67,4 +84,29 @@ test(function() {
                   "Pseudo-styles of display: none elements should be correct");
   });
 }, "Resolution of pseudo-element styles in display: none elements");
+test(function() {
+  var flex = document.getElementById('flex');
+  [":before", ":after"].forEach(function(pseudo) {
+    assert_equals(getComputedStyle(flex, pseudo).display, "block",
+                  "Pseudo-styles of display: flex elements should get blockified");
+  });
+}, "Item-based blockification of pseudo-elements");
+test(function() {
+  var flexNoPseudo = document.getElementById('flex-no-pseudo');
+  [":before", ":after"].forEach(function(pseudo) {
+    assert_equals(getComputedStyle(flexNoPseudo, pseudo).display, "block",
+                  "Pseudo-styles of display: flex elements should get blockified");
+  });
+}, "Item-based blockification of nonexistent pseudo-elements");
+test(function() {
+  var contentsPseudos = document.getElementById('contents-pseudos');
+  [":before", ":after"].forEach(function(pseudo) {
+    assert_equals(getComputedStyle(contentsPseudos, pseudo).display, "contents",
+                  "display: contents in " + pseudo + " should get reflected on CSSOM");
+    assert_equals(getComputedStyle(contentsPseudos, pseudo).width, "auto",
+                  pseudo + " with display: contents should have no box");
+    assert_equals(getComputedStyle(contentsPseudos, pseudo).position, "absolute",
+                  "display: contents in " + pseudo + " should reflect other non-inherited properties in CSSOM");
+  });
+}, "display: contents on pseudo-elements");
 </script>

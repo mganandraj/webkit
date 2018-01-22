@@ -27,6 +27,7 @@
 #include "FunctionRareData.h"
 
 #include "JSCInlines.h"
+#include "ObjectAllocationProfileInlines.h"
 
 namespace JSC {
 
@@ -81,7 +82,7 @@ FunctionRareData::~FunctionRareData()
 
 void FunctionRareData::initializeObjectAllocationProfile(VM& vm, JSGlobalObject* globalObject, JSObject* prototype, size_t inlineCapacity, JSFunction* constructor)
 {
-    m_objectAllocationProfile.initializeProfile(vm, globalObject, this, prototype, inlineCapacity, constructor);
+    m_objectAllocationProfile.initializeProfile(vm, globalObject, this, prototype, inlineCapacity, constructor, this);
 }
 
 void FunctionRareData::clear(const char* reason)
@@ -89,6 +90,11 @@ void FunctionRareData::clear(const char* reason)
     m_objectAllocationProfile.clear();
     m_internalFunctionAllocationProfile.clear();
     m_objectAllocationProfileWatchpoint.fireAll(*vm(), reason);
+}
+
+void FunctionRareData::AllocationProfileClearingWatchpoint::fireInternal(const FireDetail&)
+{
+    m_rareData->clear("AllocationProfileClearingWatchpoint fired.");
 }
 
 }

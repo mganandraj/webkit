@@ -44,7 +44,7 @@ public:
     {
     }
 
-    static ResourceError httpError(int errorCode, const URL& failingURL);
+    static ResourceError httpError(int errorCode, const URL& failingURL, Type = Type::General);
     static ResourceError sslError(int errorCode, unsigned sslErrors, const URL& failingURL);
 
     unsigned sslErrors() const { return m_sslErrors; }
@@ -61,5 +61,4 @@ private:
     unsigned m_sslErrors { 0 };
 };
 
-}
-
+} // namespace WebCore

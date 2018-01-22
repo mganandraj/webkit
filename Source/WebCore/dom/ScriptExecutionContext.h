@@ -30,6 +30,7 @@
 #include "ActiveDOMObject.h"
 #include "DOMTimer.h"
 #include "SecurityContext.h"
+#include "ServiceWorkerTypes.h"
 #include <heap/HandleTypes.h>
 #include <runtime/ConsoleTypes.h>
 #include <wtf/CrossThreadTask.h>
@@ -67,6 +68,11 @@ class ResourceRequest;
 class SecurityOrigin;
 class SocketProvider;
 class URL;
+
+#if ENABLE(SERVICE_WORKER)
+class ServiceWorker;
+class ServiceWorkerContainer;
+#endif
 
 namespace IDBClient {
 class IDBConnectionProxy;
@@ -111,6 +117,7 @@ public:
     virtual void addConsoleMessage(MessageSource, MessageLevel, const String& message, unsigned long requestIdentifier = 0) = 0;
 
     virtual SecurityOrigin& topOrigin() const = 0;
+    virtual String origin() const = 0;
 
     virtual bool shouldBypassMainWorldContentSecurityPolicy() const { return false; }
 
@@ -139,7 +146,7 @@ public:
     void willDestroyDestructionObserver(ContextDestructionObserver&);
 
     // MessagePort is conceptually a kind of ActiveDOMObject, but it needs to be tracked separately for message dispatch.
-    void processMessagePortMessagesSoon();
+    void processMessageWithMessagePortsSoon();
     void dispatchMessagePortEvents();
     void createdMessagePort(MessagePort&);
     void destroyedMessagePort(MessagePort&);
@@ -228,7 +235,24 @@ public:
         return ensureRejectedPromiseTrackerSlow();
     }
 
-    JSC::ExecState* execState();
+    WEBCORE_EXPORT JSC::ExecState* execState();
+
+    WEBCORE_EXPORT String domainForCachePartition() const;
+    void setDomainForCachePartition(String&& domain) { m_domainForCachePartition = WTFMove(domain); }
+
+#if ENABLE(SERVICE_WORKER)
+    bool hasServiceWorkerScheme();
+    ServiceWorker* activeServiceWorker() const;
+    void setActiveServiceWorker(RefPtr<ServiceWorker>&&);
+
+    void registerServiceWorker(ServiceWorker&);
+    void unregisterServiceWorker(ServiceWorker&);
+    ServiceWorker* serviceWorker(ServiceWorkerIdentifier identifier) { return m_serviceWorkers.get(identifier); }
+
+    ServiceWorkerContainer* serviceWorkerContainer();
+
+    WEBCORE_EXPORT static bool postTaskTo(const DocumentOrWorkerIdentifier&, WTF::Function<void(ScriptExecutionContext&)>&&);
+#endif
 
 protected:
     class AddConsoleMessageTask : public Task {
@@ -289,7 +313,7 @@ private:
     bool m_activeDOMObjectsAreStopped { false };
     bool m_inDispatchErrorEvent { false };
     bool m_activeDOMObjectAdditionForbidden { false };
-    bool m_willProcessMessagePortMessagesSoon { false };
+    bool m_willprocessMessageWithMessagePortsSoon { false };
 
 #if !ASSERT_DISABLED
     bool m_inScriptExecutionContextDestructor { false };
@@ -297,6 +321,13 @@ private:
 #if !ASSERT_DISABLED || ENABLE(SECURITY_ASSERTIONS)
     bool m_activeDOMObjectRemovalForbidden { false };
 #endif
+
+#if ENABLE(SERVICE_WORKER)
+    RefPtr<ServiceWorker> m_activeServiceWorker;
+    HashMap<ServiceWorkerIdentifier, ServiceWorker*> m_serviceWorkers;
+#endif
+
+    String m_domainForCachePartition;
 };
 
 } // namespace WebCore

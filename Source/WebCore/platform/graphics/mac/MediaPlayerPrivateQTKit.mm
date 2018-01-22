@@ -45,6 +45,9 @@
 #import <wtf/NeverDestroyed.h>
 #import <wtf/SoftLinking.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 SOFT_LINK_FRAMEWORK(QTKit)
 
 SOFT_LINK(QTKit, QTMakeTime, QTTime, (long long timeValue, long timeScale), (timeValue, timeScale))
@@ -1295,7 +1298,7 @@ static bool shouldRejectMIMEType(const String& type)
 {
     // QTKit will return non-video MIME types which it claims to support, but which we
     // do not support in the <video> element. Disclaim all non video/ or audio/ types.
-    return !type.startsWith("video/", false) && !type.startsWith("audio/", false);
+    return !startsWithLettersIgnoringASCIICase(type, "video/") && !startsWithLettersIgnoringASCIICase(type, "audio/");
 }
 
 static HashSet<String, ASCIICaseInsensitiveHash> createFileTypesSet(NSArray *fileTypes)
@@ -1396,7 +1399,7 @@ HashSet<RefPtr<SecurityOrigin>> MediaPlayerPrivateQTKit::originsInMediaCache(con
     return origins;
 }
 
-void MediaPlayerPrivateQTKit::clearMediaCache(const String&, std::chrono::system_clock::time_point)
+void MediaPlayerPrivateQTKit::clearMediaCache(const String&, WallTime)
 {
     LOG(Media, "MediaPlayerPrivateQTKit::clearMediaCache()");
     [[QTUtilities qtUtilities] clearDownloadCache];
@@ -1718,5 +1721,7 @@ bool MediaPlayerPrivateQTKit::isCurrentPlaybackTargetWireless() const
 }
 
 @end
+
+#pragma clang diagnostic pop // deprecated-declarations
 
 #endif

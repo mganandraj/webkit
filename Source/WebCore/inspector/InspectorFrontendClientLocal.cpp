@@ -54,9 +54,10 @@
 #include <wtf/Deque.h>
 #include <wtf/text/CString.h>
 
-using namespace Inspector;
 
 namespace WebCore {
+
+using namespace Inspector;
 
 static const char* inspectorAttachedHeightSetting = "inspectorAttachedHeight";
 static const unsigned defaultAttachedHeight = 300;

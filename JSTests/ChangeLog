@@ -1,3 +1,2121 @@
+2018-01-20  Caio Lima  <ticaiolima@gmail.com>
+
+        [JSC] NumberPrototype::extractRadixFromArgs incorrectly cast double to int32_t
+        https://bugs.webkit.org/show_bug.cgi?id=181182
+
+        Reviewed by Darin Adler.
+
+        * stress/big-int-prototype-to-string-cast-overflow.js: Added.
+        * stress/big-int-prototype-to-string-exception.js: Added.
+        * stress/big-int-prototype-to-string-wrong-values.js: Added.
+        * stress/number-prototype-to-string-cast-overflow.js: Added.
+        * stress/number-prototype-to-string-exception.js: Added.
+        * stress/number-prototype-to-string-wrong-values.js: Added.
+
+2018-01-19  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Disable Atomics when SharedArrayBuffer isn’t enabled
+        https://bugs.webkit.org/show_bug.cgi?id=181572
+
+        Unreviewed test gardening.
+
+        * test262.yaml: Skip tests that fail after this change.
+
+2018-01-19  Saam Barati  <sbarati@apple.com>
+
+        Kill ArithNegate's ArithProfile assert inside BytecodeParser
+        https://bugs.webkit.org/show_bug.cgi?id=181877
+        <rdar://problem/36630552>
+
+        Reviewed by Mark Lam.
+
+        * stress/arith-profile-for-negate-can-see-non-number-due-to-dfg-osr-exit-profiling.js: Added.
+        (runNearStackLimit):
+        (f1):
+        (f2):
+        (f3):
+        (i.catch):
+        (i.try.runNearStackLimit):
+        (catch):
+
+2018-01-19  Saam Barati  <sbarati@apple.com>
+
+        Spread's effects are modeled incorrectly both in AI and in Clobberize
+        https://bugs.webkit.org/show_bug.cgi?id=181867
+        <rdar://problem/36290415>
+
+        Reviewed by Michael Saboff.
+
+        * stress/ai-needs-to-model-spreads-effects.js: Added.
+        (try.p.Symbol.iterator):
+        (try.go):
+        (catch):
+        * stress/clobberize-needs-to-model-spread-effects.js: Added.
+        (assert):
+        (foo):
+        (a.Symbol.iterator):
+
+2018-01-19  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        Unreviewed, reduce count of iteration to fix timing out debug JSC test
+        https://bugs.webkit.org/show_bug.cgi?id=181535
+
+        * stress/inserted-recovery-with-set-last-index.js:
+
+2018-01-17  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG][FTL] Introduce PhantomNewRegexp and RegExpExecNonGlobalOrSticky
+        https://bugs.webkit.org/show_bug.cgi?id=181535
+
+        Reviewed by Saam Barati.
+
+        * stress/inserted-recovery-with-set-last-index.js: Added.
+        (shouldBe):
+        (foo):
+        * stress/materialize-regexp-at-osr-exit.js: Added.
+        (shouldBe):
+        (test):
+        * stress/materialize-regexp-cyclic-regexp-at-osr-exit.js: Added.
+        (shouldBe):
+        (test):
+        * stress/materialize-regexp-cyclic-regexp.js: Added.
+        (shouldBe):
+        (test):
+        (i.switch):
+        * stress/materialize-regexp-cyclic.js: Added.
+        (shouldBe):
+        (test):
+        (i.switch):
+        * stress/materialize-regexp-referenced-from-phantom-regexp-cyclic.js: Added.
+        (bar):
+        (foo):
+        (test):
+        * stress/materialize-regexp-referenced-from-phantom-regexp.js: Added.
+        (bar):
+        (foo):
+        (test):
+        * stress/materialize-regexp.js: Added.
+        (shouldBe):
+        (test):
+        * stress/phantom-regexp-regexp-exec.js: Added.
+        (shouldBe):
+        (test):
+        * stress/phantom-regexp-string-match.js: Added.
+        (shouldBe):
+        (test):
+        * stress/regexp-last-index-sinking.js: Added.
+        (shouldBe):
+        (test):
+
+2018-01-17  Saam Barati  <sbarati@apple.com>
+
+        Disable Atomics when SharedArrayBuffer isn’t enabled
+        https://bugs.webkit.org/show_bug.cgi?id=181572
+        <rdar://problem/36553206>
+
+        Reviewed by Michael Saboff.
+
+        * stress/isLockFree.js:
+
+2018-01-17  Saam Barati  <sbarati@apple.com>
+
+        DFG::Node::convertToConstant needs to clear the varargs flags
+        https://bugs.webkit.org/show_bug.cgi?id=181697
+        <rdar://problem/36497332>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/dfg-node-convert-to-constant-must-clear-varargs-flags.js: Added.
+        (doIndexOf):
+        (bar):
+        (i.bar):
+
+2018-01-16  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, rolling out r226937.
+
+        Tests added with this change are failing due to a missing
+        exception check.
+
+        Reverted changeset:
+
+        "[JSC] NumberPrototype::extractRadixFromArgs incorrectly cast
+        double to int32_t"
+        https://bugs.webkit.org/show_bug.cgi?id=181182
+        https://trac.webkit.org/changeset/226937
+
+2018-01-13  Caio Lima  <ticaiolima@gmail.com>
+
+        [JSC] NumberPrototype::extractRadixFromArgs incorrectly cast double to int32_t
+        https://bugs.webkit.org/show_bug.cgi?id=181182
+
+        Reviewed by Darin Adler.
+
+        * bigIntTests.yaml:
+        * stress/big-int-constructor.js:
+        * stress/big-int-prototype-to-string-cast-overflow.js: Added.
+        (assert):
+        (assertThrowRangeError):
+        * stress/number-prototype-to-string-cast-overflow.js: Added.
+        (assert):
+        (assertThrowRangeError):
+
+2018-01-12  Saam Barati  <sbarati@apple.com>
+
+        CheckStructure can be incorrectly subsumed by CheckStructureOrEmpty
+        https://bugs.webkit.org/show_bug.cgi?id=181177
+        <rdar://problem/36205704>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/check-structure-ir-ensures-empty-does-not-flow-through.js: Added.
+        (runNearStackLimit.t):
+        (runNearStackLimit):
+        (test.f):
+        (test):
+
+2018-01-12  Saam Barati  <sbarati@apple.com>
+
+        Each variant of a polymorphic inlined call should be exitOK at the top of the block
+        https://bugs.webkit.org/show_bug.cgi?id=181562
+        <rdar://problem/36445624>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/each-block-at-top-of-polymorphic-call-inlining-should-be-exitOK.js: Added.
+        (f):
+        (foo):
+
+2018-01-11  Saam Barati  <sbarati@apple.com>
+
+        When inserting Unreachable in byte code parser we need to flush all the right things
+        https://bugs.webkit.org/show_bug.cgi?id=181509
+        <rdar://problem/36423110>
+
+        Reviewed by Mark Lam.
+
+        * stress/proper-flushing-when-we-insert-unreachable-after-force-exit-in-bytecode-parser.js: Added.
+
+2018-01-11  Saam Barati  <sbarati@apple.com>
+
+        JITMathIC code in the FTL is wrong when code gets duplicated
+        https://bugs.webkit.org/show_bug.cgi?id=181525
+        <rdar://problem/36351993>
+
+        Reviewed by Michael Saboff and Keith Miller.
+
+        * stress/allow-math-ic-b3-code-duplication.js: Added.
+
+2018-01-11  Saam Barati  <sbarati@apple.com>
+
+        Our for-in caching is wrong when we add indexed properties on things in the prototype chain
+        https://bugs.webkit.org/show_bug.cgi?id=181508
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/for-in-prototype-with-indexed-properties-should-prevent-caching.js: Added.
+        (assert):
+        (test1.foo):
+        (test1):
+        (test2.foo):
+        (test2):
+
+2018-01-09  Mark Lam  <mark.lam@apple.com>
+
+        ASSERTION FAILED: pair.second->m_type & PropertyNode::Getter
+        https://bugs.webkit.org/show_bug.cgi?id=181388
+        <rdar://problem/36349351>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-181388.js: Added.
+
+2018-01-08  JF Bastien  <jfbastien@apple.com>
+
+        WebAssembly: mask indexed accesses to Table
+        https://bugs.webkit.org/show_bug.cgi?id=181412
+        <rdar://problem/36363236>
+
+        Reviewed by Saam Barati.
+
+        Update error messages.
+
+        * wasm/js-api/table.js:
+        (assert.throws.WebAssembly.Table.prototype.grow):
+
+2018-01-08  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Disable SharedArrayBuffer tests missed in r226386.
+        https://bugs.webkit.org/show_bug.cgi?id=181266
+
+        Unreviewed test gardening.
+
+        * test262.yaml:
+
+2018-01-06  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        Object.getOwnPropertyNames includes "arguments" and "caller" for bound functions
+        https://bugs.webkit.org/show_bug.cgi?id=181321
+
+        Reviewed by Saam Barati.
+
+        * stress/bound-function-does-not-have-caller-and-arguments.js: Added.
+        (shouldBe):
+        (testFunction):
+        * test262.yaml:
+
+2018-01-05  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, attempt to fix test262 after r226386.
+
+        * test262.yaml:
+
+2018-01-04  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG] Define defs for MapSet/SetAdd to participate in CSE
+        https://bugs.webkit.org/show_bug.cgi?id=179911
+
+        Reviewed by Saam Barati.
+
+        In addition to these tests, map-set-cse.js and set-add-cse.js work.
+
+        * stress/map-set-change-get.js: Added.
+        (shouldBe):
+        (test):
+        * stress/map-set-create-bucket.js: Added.
+        (shouldBe):
+        (test):
+        * stress/set-add-create-bucket.js: Added.
+        (shouldBe):
+
+2018-01-03  Michael Saboff  <msaboff@apple.com>
+
+        Disable SharedArrayBuffers from Web API
+        https://bugs.webkit.org/show_bug.cgi?id=181266
+
+        Reviewed by Saam Barati.
+
+        Disabled SharedArrayBuffer tests.
+
+        * stress/SharedArrayBuffer-opt.js:
+        * stress/SharedArrayBuffer.js:
+        * stress/array-buffer-byte-length.js:
+        * stress/atomics-add-uint32.js:
+        * stress/atomics-known-int-use.js:
+        * stress/atomics-neg-zero.js:
+        * stress/atomics-store-return.js:
+        * stress/lars-sab-workers.js:
+        * stress/regress-159779-1.js:
+        * stress/regress-159779-2.js:
+        * stress/regress-170473.js:
+        * test262.yaml:
+
+2018-01-03  Caio Lima  <ticaiolima@gmail.com>
+
+        [ESNext][BigInt] Failing test stress/big-int-constructor-oom.js into MIPS
+        https://bugs.webkit.org/show_bug.cgi?id=181258
+
+        Reviewed by Antonio Gomes.
+
+        * stress/big-int-constructor-gc.js:
+        * stress/big-int-constructor-oom.js:
+
+2018-01-03  Robin Morisset  <rmorisset@apple.com>
+
+        Inlining of a function that ends in op_unreachable crashes
+        https://bugs.webkit.org/show_bug.cgi?id=181027
+
+        Reviewed by Filip Pizlo.
+
+        * stress/inlining-unreachable.js: Added.
+        (bar):
+        (baz):
+        (i.catch):
+
+2018-01-02  Saam Barati  <sbarati@apple.com>
+
+        Incorrect assertion inside AccessCase
+        https://bugs.webkit.org/show_bug.cgi?id=181200
+        <rdar://problem/35494754>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/setter-same-base-and-rhs-invalid-assertion-inside-access-case.js: Added.
+        (ctor):
+        (theFunc):
+        (run):
+
+2018-01-02  Caio Lima  <ticaiolima@gmail.com>
+
+        [ESNext][BigInt] Implement BigIntConstructor and BigIntPrototype
+        https://bugs.webkit.org/show_bug.cgi?id=175359
+
+        Reviewed by Yusuke Suzuki.
+
+        * bigIntTests.yaml:
+        * stress/big-int-as-key.js: Added.
+        * stress/big-int-constructor-gc.js: Added.
+        * stress/big-int-constructor-oom.js: Added.
+        * stress/big-int-constructor-properties.js: Added.
+        * stress/big-int-constructor-prototype-prop-descriptor.js: Added.
+        * stress/big-int-constructor-prototype.js: Added.
+        * stress/big-int-constructor.js: Added.
+        * stress/big-int-function-apply.js:
+        * stress/big-int-length.js: Added.
+        * stress/big-int-prop-descriptor.js: Added.
+        * stress/big-int-proto-constructor.js: Added.
+        * stress/big-int-proto-name.js: Added.
+        * stress/big-int-prototype-properties.js: Added.
+        * stress/big-int-prototype-proto.js: Added.
+        * stress/big-int-prototype-value-of.js: Added.
+        * stress/big-int-prototype-symbol-to-string-tag.js: Added.
+        * stress/big-int-prototype-to-string-apply.js: Added.
+        * stress/big-int-to-object.js: Added.
+        * stress/big-int-to-string.js: Added.
+
+2017-12-28  Saam Barati  <sbarati@apple.com>
+
+        Assertion used to determine if something is an async generator is wrong
+        https://bugs.webkit.org/show_bug.cgi?id=181168
+        <rdar://problem/35640560>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/async-generator-assertion.js: Added.
+
+2017-12-21  Guillaume Emont  <guijemont@igalia.com>
+
+        Skip stress/splay-flash-access tests on memory limited platforms
+        https://bugs.webkit.org/show_bug.cgi?id=181086
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        These tests use about 185M of memory, and occasionally get OOM-killed
+        on memory limited platforms.
+
+        * stress/splay-flash-access-1ms.js:
+        * stress/splay-flash-access.js:
+
+2017-12-21  Guillaume Emont  <guijemont@igalia.com>
+
+        Skip slow jsc tests on embedded platforms
+        https://bugs.webkit.org/show_bug.cgi?id=180937
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        The tests typeProfiler/deltablue-for-of.js and
+        typeProfiler/getter-richards.js take a very long time in the
+        ftl-no-cjit-type-profiler-force-poly-proto on embedded platform, and
+        thus always timeout. They should be skipped on these platforms.
+
+        * typeProfiler/deltablue-for-of.js: Skip on arm*/mips.
+        * typeProfiler/getter-richards.js: Skip on arm*/mips.
+
+2017-12-19  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] Do not check isValid() in op_new_regexp
+        https://bugs.webkit.org/show_bug.cgi?id=180970
+
+        Reviewed by Saam Barati.
+
+        * stress/regexp-syntax-error-invalid-flags.js: Added.
+        (shouldThrow):
+
+2017-12-18  Guillaume Emont  <guijemont@igalia.com>
+
+        Skip stress/call-apply-exponential-bytecode-size.js unless x86-64 or arm64
+        https://bugs.webkit.org/show_bug.cgi?id=180712
+
+        Reviewed by Michael Catanzaro.
+
+        stress/call-apply-exponential-bytecode-size.js crashes if the
+        ExecutableAllocator's fixedExecutableMemoryPoolSize is less than 64
+        MB. Currently it is 64 MB or more only on x86-64 and arm64, so we
+        should skip the test on other platforms.
+
+        * stress/call-apply-exponential-bytecode-size.js:
+
+2017-12-17  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [FTL] NewArrayBuffer should be sinked if it is only used for spreading
+        https://bugs.webkit.org/show_bug.cgi?id=179762
+
+        Reviewed by Saam Barati.
+
+        * stress/call-varargs-double-new-array-buffer.js: Added.
+        (assert):
+        (bar):
+        (foo):
+        * stress/call-varargs-spread-new-array-buffer.js: Added.
+        (assert):
+        (bar):
+        (foo):
+        * stress/call-varargs-spread-new-array-buffer2.js: Added.
+        (assert):
+        (bar):
+        (foo):
+        * stress/forward-varargs-double-new-array-buffer.js: Added.
+        (assert):
+        (test.baz):
+        (test.bar):
+        (test.foo):
+        (test):
+        * stress/new-array-buffer-sinking-osrexit.js: Added.
+        (target):
+        (test):
+        * stress/new-array-with-spread-double-new-array-buffer.js: Added.
+        (shouldBe):
+        (test):
+        * stress/new-array-with-spread-with-phantom-new-array-buffer.js: Added.
+        (shouldBe):
+        (target):
+        (test):
+        * stress/phantom-new-array-buffer-forward-varargs.js: Added.
+        (assert):
+        (test1.bar):
+        (test1.foo):
+        (test1):
+        (test2.bar):
+        (test2.foo):
+        (test3.baz):
+        (test3.bar):
+        (test3.foo):
+        (test4.baz):
+        (test4.bar):
+        (test4.foo):
+        * stress/phantom-new-array-buffer-forward-varargs2.js: Added.
+        (assert):
+        (test.baz):
+        (test.bar):
+        (test.foo):
+        (test):
+        * stress/phantom-new-array-buffer-osr-exit.js: Added.
+        (assert):
+        (baz):
+        (bar):
+        (effects):
+        (foo):
+
+2017-12-14  Saam Barati  <sbarati@apple.com>
+
+        The CleanUp after LICM is erroneously removing a Check
+        https://bugs.webkit.org/show_bug.cgi?id=180852
+        <rdar://problem/36063494>
+
+        Reviewed by Filip Pizlo.
+
+        * stress/dont-run-cleanup-after-licm.js: Added.
+
+2017-12-14  Michael Saboff  <msaboff@apple.com>
+
+        REGRESSION (r225695): Repro crash on yahoo login page
+        https://bugs.webkit.org/show_bug.cgi?id=180761
+
+        Reviewed by JF Bastien.
+
+        New regression test.
+
+        * stress/regress-180761.js: Added.
+
+2017-12-13  Keith Miller  <keith_miller@apple.com>
+
+        JSObjects should have a mask for loading indexed properties
+        https://bugs.webkit.org/show_bug.cgi?id=180768
+
+        Reviewed by Mark Lam.
+
+        * stress/int16-put-by-val-in-and-out-of-bounds.js:
+        (test):
+
+2017-12-13  Saam Barati  <sbarati@apple.com>
+
+        Arrow functions need their own structure because they have different properties than sloppy functions
+        https://bugs.webkit.org/show_bug.cgi?id=180779
+        <rdar://problem/35814591>
+
+        Reviewed by Mark Lam.
+
+        * stress/arrow-function-needs-its-own-structure.js: Added.
+        (assert):
+        (readPrototype):
+        (noInline.let.f1):
+        (noInline):
+
+2017-12-13  Saam Barati  <sbarati@apple.com>
+
+        Fix how JSFunction handles "caller" and "arguments" for functions that don't have those properties
+        https://bugs.webkit.org/show_bug.cgi?id=163579
+        <rdar://problem/35455798>
+
+        Reviewed by Mark Lam.
+
+        * stress/caller-and-arguments-properties-for-functions-that-dont-have-them.js: Added.
+        (assert):
+        (test1):
+        (i.test1):
+        (i.test1.C):
+        (i.test1.async.foo):
+        (i.test1.foo):
+        (test2):
+
+2017-12-13  Saam Barati  <sbarati@apple.com>
+
+        TypeCheckHoistingPhase needs to emit a CheckStructureOrEmpty if it's doing it for |this|
+        https://bugs.webkit.org/show_bug.cgi?id=180734
+        <rdar://problem/35640547>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/type-check-hoisting-phase-hoist-check-structure-on-tdz-this-value.js: Added.
+        (__isPropertyOfType):
+        (__getProperties):
+        (__getObjects):
+        (__getRandomObject):
+        (theClass.):
+        (theClass):
+        (childClass):
+        (counter.catch):
+
+2017-12-12  Saam Barati  <sbarati@apple.com>
+
+        We need to model effects of Spread(@PhantomCreateRest) in Clobberize/PreciseLocalClobberize
+        https://bugs.webkit.org/show_bug.cgi?id=180725
+        <rdar://problem/35970511>
+
+        Reviewed by Michael Saboff.
+
+        * stress/model-effects-properly-of-spread-over-phantom-create-rest.js: Added.
+        (f1):
+        (f2):
+        (let.o2.valueOf):
+
+2017-12-12  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] Implement optimized WeakMap and WeakSet
+        https://bugs.webkit.org/show_bug.cgi?id=179929
+
+        Reviewed by Saam Barati.
+
+        * microbenchmarks/weak-map-key.js:
+        * microbenchmarks/weak-set-key.js: Copied from JSTests/microbenchmarks/weak-map-key.js.
+        (assert):
+        (objectKey):
+        (let.start.Date.now):
+        * stress/basic-weakmap.js: Added.
+        (shouldBe):
+        (test):
+        * stress/basic-weakset.js: Added.
+        (shouldBe):
+        (test.set new):
+        * stress/weakmap-cse-set-break.js: Added.
+        (shouldBe):
+        (test):
+        * stress/weakmap-cse.js: Added.
+        (shouldBe):
+        (test):
+        * stress/weakmap-gc.js: Added.
+        (test):
+        * stress/weakset-cse-add-break.js: Added.
+        (shouldBe):
+        (test.set new):
+        * stress/weakset-cse.js: Added.
+        (shouldBe):
+        (test.set new):
+        * stress/weakset-gc.js: Added.
+        (test.set add):
+        (test.set new):
+        (test):
+
+2017-12-12  Saam Barati  <sbarati@apple.com>
+
+        ConstantFoldingPhase rule for GetMyArgumentByVal must check for negative indices
+        https://bugs.webkit.org/show_bug.cgi?id=180723
+        <rdar://problem/35859726>
+
+        Reviewed by JF Bastien.
+
+        * stress/get-my-argument-by-val-constant-folding.js: Added.
+        (test):
+        (catch):
+
+2017-12-12  Caio Lima  <ticaiolima@gmail.com>
+
+        [ESNext][BigInt] Implement BigInt literals and JSBigInt
+        https://bugs.webkit.org/show_bug.cgi?id=179000
+
+        Reviewed by Darin Adler and Yusuke Suzuki.
+
+        * bigIntTests.yaml: Added.
+        * stress/big-int-literal-line-terminator.js: Added.
+        * stress/big-int-literals.js: Added.
+        * stress/big-int-operations-error.js: Added.
+        * stress/big-int-type-of.js: Added.
+        * stress/big-int-white-space-trailing-leading.js: Added.
+        * stress/big-int-function-apply.js: Added.
+
+2017-12-11  Saam Barati  <sbarati@apple.com>
+
+        We need to disableCaching() in ErrorInstance when we materialize properties
+        https://bugs.webkit.org/show_bug.cgi?id=180343
+        <rdar://problem/35833002>
+
+        Reviewed by Mark Lam.
+
+        * stress/disable-caching-when-lazy-materializing-error-property-on-put.js: Added.
+        (assert):
+        (makeError):
+        (storeToStack):
+        (storeToStackAlreadyMaterialized):
+
+2017-12-05  JF Bastien  <jfbastien@apple.com>
+
+        WebAssembly: don't eagerly checksum
+        https://bugs.webkit.org/show_bug.cgi?id=180441
+        <rdar://problem/35156628>
+
+        Reviewed by Saam Barati.
+
+        Checksum is now disabled, so tests only have <?> as the module
+        name.
+
+        * wasm/function-tests/nameSection.js:
+        * wasm/function-tests/stack-overflow.js:
+        (import.Builder.from.string_appeared_here.import.as.assert.from.string_appeared_here.assertOverflows):
+        (assertOverflows.assertThrows):
+        (assertOverflows):
+        * wasm/function-tests/stack-trace.js:
+
+2017-12-04  JF Bastien  <jfbastien@apple.com>
+
+        Proxy all functions, except the $ objects
+        https://bugs.webkit.org/show_bug.cgi?id=180375
+
+        Reviewed by Saam Barati.
+
+        It looks like this test may have broken some executions because I
+        call some internal objects. Explicitly ignore objects whose name
+        starts with "$" because it's a bad idea anyways.
+
+        * stress/proxy-all-the-parameters.js:
+        (generateObjects):
+        (get throw):
+
+2017-12-04  Saam Barati  <sbarati@apple.com>
+
+        We need to leave room on the top of the stack for the FTL TailCall slow path so it doesn't overwrite things we want to retrieve when doing a stack walk when throwing an exception
+        https://bugs.webkit.org/show_bug.cgi?id=180366
+        <rdar://problem/35685877>
+
+        Reviewed by Michael Saboff.
+
+        * stress/ftl-tail-call-throw-exception-from-slow-path-recover-stack-values.js: Added.
+        (theParent):
+        (test1.base.getParentStaticValue):
+        (test1.base):
+        (test1.__v_24888.prototype.set prop):
+        (test1.__v_24888):
+        (test2.base.getParentStaticValue):
+        (test2.base):
+        (test2.__v_24888.prototype.set prop):
+        (test2.__v_24888):
+        (test2):
+
+2017-12-01  JF Bastien  <jfbastien@apple.com>
+
+        Try proxying all function arguments
+        https://bugs.webkit.org/show_bug.cgi?id=180306
+
+        Reviewed by Saam Barati.
+
+        * stress/proxy-all-the-parameters.js: Added.
+        (isPropertyOfType):
+        (getProperties):
+        (generateObjects):
+        (getObjects):
+        (getFunctions):
+        (get throw):
+        (let.o.of.getObjects.let.f.of.getFunctions.catch):
+
+2017-12-01  JF Bastien  <jfbastien@apple.com>
+
+        JavaScriptCore: missing exception checks in Math functions that take more than one argument
+        https://bugs.webkit.org/show_bug.cgi?id=180297
+        <rdar://problem/35745556>
+
+        Reviewed by Mark Lam.
+
+        * stress/math-exceptions.js: Added.
+        (get try):
+        (catch):
+
+2017-12-01  JF Bastien  <jfbastien@apple.com>
+
+        JavaScriptCore: add test for weird class static getters
+        https://bugs.webkit.org/show_bug.cgi?id=180281
+        <rdar://problem/35592139>
+
+        Reviewed by Mark Lam.
+
+        I fixed a bug for it in r224927 and didn't add a test. Do so.
+
+        * stress/class-static-get-weird.js: Added.
+        (c.prototype.get name):
+        (c):
+        (c.prototype.get arguments):
+        (c.prototype.get caller):
+        (c.prototype.get length):
+
+2017-12-01  Saam Barati  <sbarati@apple.com>
+
+        Having a bad time needs to handle ArrayClass indexing type as well
+        https://bugs.webkit.org/show_bug.cgi?id=180274
+        <rdar://problem/35667869>
+
+        Reviewed by Keith Miller and Mark Lam.
+
+        * stress/array-prototype-slow-put-having-a-bad-time-2.js: Added.
+        (assert):
+        * stress/array-prototype-slow-put-having-a-bad-time.js: Added.
+        (assert):
+
+2017-12-01  JF Bastien  <jfbastien@apple.com>
+
+        WebAssembly: restore cached stack limit after out-call
+        https://bugs.webkit.org/show_bug.cgi?id=179106
+        <rdar://problem/35337525>
+
+        Reviewed by Saam Barati.
+
+        * wasm/function-tests/double-instance.js: Added.
+        (const.imp.boom):
+        (const.imp.get callAnother):
+
+2017-11-30  JF Bastien  <jfbastien@apple.com>
+
+        WebAssembly: improve stack trace
+        https://bugs.webkit.org/show_bug.cgi?id=179343
+
+        Reviewed by Saam Barati.
+
+        Update the tests to follow the new format. Notably, SHA1 module
+        hash is now included in traces, and stubs are properly identified.
+
+        * wasm/assert.js: Add an assertion which matches regular expressions.
+        * wasm/function-tests/nameSection.js:
+        * wasm/function-tests/stack-overflow.js:
+        (import.Builder.from.string_appeared_here.import.as.assert.from.string_appeared_here.assertOverflows):
+        (assertOverflows.assertThrows.wasm.1):
+        (assertOverflows.assertThrows.wasm.0):
+        (assertOverflows.assertThrows):
+        (assertOverflows):
+        * wasm/function-tests/stack-trace.js:
+        (import.Builder.from.string_appeared_here.assert): Deleted.
+        * wasm/function-tests/trap-after-cross-instance-call.js:
+        (wasmFrameCountFromError):
+        * wasm/function-tests/trap-load-2.js:
+        (wasmFrameCountFromError):
+        * wasm/function-tests/trap-load.js:
+        (wasmFrameCountFromError):
+
+2017-11-30  Mark Lam  <mark.lam@apple.com>
+
+        jsc shell's flashHeapAccess() should not do JS work after releasing access to the heap.
+        https://bugs.webkit.org/show_bug.cgi?id=180219
+        <rdar://problem/35696536>
+
+        Reviewed by Filip Pizlo.
+
+        * stress/regress-180219.js: Added.
+
+2017-11-30  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG][FTL] operationHasIndexedProperty does not consider negative int32_t
+        https://bugs.webkit.org/show_bug.cgi?id=180190
+
+        Reviewed by Mark Lam.
+
+        * stress/operation-in-may-have-negative-int32-array-storage.js: Added.
+        (shouldBe):
+        (test1):
+        * stress/operation-in-may-have-negative-int32-contiguous-array.js: Added.
+        (shouldBe):
+        (test1):
+        * stress/operation-in-may-have-negative-int32-double-array.js: Added.
+        (shouldBe):
+        (test1):
+        * stress/operation-in-may-have-negative-int32-generic-array.js: Added.
+        (shouldBe):
+        (test1):
+        * stress/operation-in-may-have-negative-int32-int32-array.js: Added.
+        (shouldBe):
+        (test1):
+        * stress/operation-in-may-have-negative-int32.js: Added.
+        (shouldBe):
+        (test2):
+        * stress/operation-in-negative-int32-cast.js: Added.
+        (shouldBe):
+        (test1):
+
+2017-11-28  JF Bastien  <jfbastien@apple.com>
+
+        Strict and sloppy functions shouldn't share structure
+        https://bugs.webkit.org/show_bug.cgi?id=180103
+        <rdar://problem/35667847>
+
+        Reviewed by Saam Barati.
+
+        * stress/get-by-id-strict-arguments.js: Added. Used to not throw
+        because the IC was wrong.
+        (foo):
+        (bar):
+        (baz):
+        (catch):
+        * stress/get-by-id-strict-callee.js: Added. Not strictly necessary
+        in this patch, but may as well test odd strict mode corner cases.
+        (bar):
+        (baz):
+        (catch):
+        * stress/get-by-id-strict-caller.js: Added. Also IC'd wrong.
+        (foo):
+        (bar):
+        (baz):
+        (catch):
+        * stress/get-by-id-strict-nested-arguments-2.js: Added. Same as
+        next file, but with invalidation of the FunctionExecutable's
+        singletonFunction() to hit SpeculativeJIT::compileNewFunction's
+        slower path.
+        (foo):
+        (bar.const.x):
+        (bar.const.y):
+        (bar):
+        (catch):
+        * stress/get-by-id-strict-nested-arguments.js: Added. Make sure
+        strict nesting works correctly.
+        (foo):
+        (bar.baz):
+        (bar):
+        * stress/strict-function-structure.js: Added. The test used to
+        assert in objectProtoFuncHasOwnProperty.
+        (foo):
+        (bar):
+        (baz):
+        * stress/strict-nested-function-structure.js: Added. Nesting.
+        (foo):
+        (bar):
+        (baz.boo):
+        (baz):
+
+2017-11-29  Robin Morisset  <rmorisset@apple.com>
+
+        The recursive tail call optimisation is wrong on closures
+        https://bugs.webkit.org/show_bug.cgi?id=179835
+
+        Reviewed by Saam Barati.
+
+        * stress/closure-recursive-tail-call.js: Added.
+        (makeClosure):
+
+2017-11-27  JF Bastien  <jfbastien@apple.com>
+
+        JavaScript rest function parameter with negative index leads to bad DFG abstract interpretation
+        https://bugs.webkit.org/show_bug.cgi?id=180051
+        <rdar://problem/35614371>
+
+        Reviewed by Saam Barati.
+
+        * stress/rest-parameter-negative.js: Added.
+        (__f_5484):
+        (catch):
+        (__f_5485):
+        (__v_22598.catch):
+
+2017-11-27  Saam Barati  <sbarati@apple.com>
+
+        Spread can escape when CreateRest does not
+        https://bugs.webkit.org/show_bug.cgi?id=180057
+        <rdar://problem/35676119>
+
+        Reviewed by JF Bastien.
+
+        * stress/spread-escapes-but-create-rest-does-not.js: Added.
+        (assert):
+        (getProperties):
+        (theFunc):
+        (let.obj.valueOf):
+
+2017-11-21  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG] Add NormalizeMapKey DFG IR
+        https://bugs.webkit.org/show_bug.cgi?id=179912
+
+        Reviewed by Saam Barati.
+
+        * stress/map-untyped-normalize-cse.js: Added.
+        (shouldBe):
+        (test):
+        * stress/map-untyped-normalize.js: Added.
+        (shouldBe):
+        (test):
+        * stress/set-untyped-normalize-cse.js: Added.
+        (shouldBe):
+        (set return.set has.set has):
+        * stress/set-untyped-normalize.js: Added.
+        (shouldBe):
+        (set return.set has):
+
+2017-11-26  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [FTL] Support DeleteById and DeleteByVal
+        https://bugs.webkit.org/show_bug.cgi?id=180022
+
+        Reviewed by Saam Barati.
+
+        * stress/delete-by-id.js: Added.
+        (shouldBe):
+        (test1):
+        (test2):
+        * stress/delete-by-val-ftl.js: Added.
+        (shouldBe):
+        (test1):
+        (test2):
+
+2017-11-26  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG] Introduce {Set,Map,WeakMap}Fields
+        https://bugs.webkit.org/show_bug.cgi?id=179925
+
+        Reviewed by Saam Barati.
+
+        * stress/map-set-clobber-map-get.js: Added.
+        (shouldBe):
+        (test):
+        * stress/map-set-does-not-clobber-set-has.js: Added.
+        (shouldBe):
+        * stress/map-set-does-not-clobber-weak-map-get.js: Added.
+        (shouldBe):
+        (test):
+        * stress/set-add-clobber-set-has.js: Added.
+        (shouldBe):
+        * stress/set-add-does-not-clobber-map-get.js: Added.
+        (shouldBe):
+
+2017-11-24  Mark Lam  <mark.lam@apple.com>
+
+        Move unsafe jsc shell test functions to the $vm object.
+        https://bugs.webkit.org/show_bug.cgi?id=179980
+
+        Reviewed by Yusuke Suzuki.
+
+        * controlFlowProfiler/driver/driver.js:
+        * controlFlowProfiler/execution-count.js:
+        * controlFlowProfiler/if-statement.js:
+        * controlFlowProfiler/loop-statements.js:
+        * controlFlowProfiler/switch-statements.js:
+        * controlFlowProfiler/test-jit.js:
+        * exceptionFuzz/3d-cube.js:
+        * exceptionFuzz/date-format-xparb.js:
+        * exceptionFuzz/earley-boyer.js:
+        * heapProfiler/basic-edges.js:
+        * heapProfiler/property-edge-types.js:
+        * microbenchmarks/try-get-by-id-basic.js:
+        * microbenchmarks/try-get-by-id-polymorphic.js:
+        * modules/namespace-object-try-get.js:
+        * stress/argument-count-bytecode.js:
+        * stress/argument-intrinsic-basic.js:
+        * stress/argument-intrinsic-inlining-use-caller-arg.js:
+        * stress/argument-intrinsic-inlining-with-result-escape.js:
+        * stress/argument-intrinsic-inlining-with-vararg-with-enough-arguments.js:
+        * stress/argument-intrinsic-inlining-with-vararg.js:
+        * stress/argument-intrinsic-nested-inlining.js:
+        * stress/argument-intrinsic-not-convert-to-get-argument.js:
+        * stress/argument-intrinsic-with-stack-write.js:
+        * stress/arity-mismatch-get-argument.js:
+        * stress/array-message-passing.js:
+        * stress/array-push-with-force-exit.js:
+        * stress/check-dom-with-signature.js:
+        * stress/check-sub-class.js:
+        * stress/compare-eq-incomplete-profile.js:
+        * stress/custom-get-set-inline-caching-one-level-up-proto-chain.js:
+        * stress/do-eval-virtual-call-correctly.js:
+        * stress/dom-jit-with-poly-proto.js:
+        * stress/domjit-exception-ic.js:
+        * stress/domjit-exception.js:
+        * stress/domjit-getter-complex-with-incorrect-object.js:
+        * stress/domjit-getter-complex.js:
+        * stress/domjit-getter-poly.js:
+        * stress/domjit-getter-proto.js:
+        * stress/domjit-getter-super-poly.js:
+        * stress/domjit-getter-try-catch-getter-as-get-by-id-register-restoration.js:
+        * stress/domjit-getter-type-check.js:
+        * stress/domjit-getter.js:
+        * stress/exit-during-inlined-arity-fixup-recover-proper-frame.js:
+        * stress/for-in-proxy-target-changed-structure.js:
+        * stress/for-in-proxy.js:
+        * stress/generational-opaque-roots.js:
+        * stress/global-const-redeclaration-setting-2.js:
+        * stress/global-const-redeclaration-setting-3.js:
+        * stress/global-const-redeclaration-setting-4.js:
+        * stress/global-const-redeclaration-setting-5.js:
+        * stress/global-const-redeclaration-setting.js:
+        * stress/import-basic.js:
+        * stress/import-from-eval.js:
+        * stress/import-reject-with-exception.js:
+        * stress/import-syntax.js:
+        * stress/impure-get-own-property-slot-inline-cache.js:
+        * stress/is-constructor.js:
+        * stress/istypedarrayview-intrinsic.js:
+        * stress/jsc-setImpureGetterDelegate-on-bad-type.js:
+        * stress/jsc-test-functions-should-be-more-robust.js:
+        * stress/object-toString-with-proxy.js:
+        * stress/poly-proto-custom-value-and-accessor.js:
+        * stress/proxy-inline-cache.js:
+        * stress/re-execute-error-module.js:
+        * stress/regress-150532.js:
+        * stress/regress-156992.js:
+        * stress/regress-179619.js:
+        * stress/resources/shadow-chicken-support.js:
+        * stress/runtime-array.js:
+        * stress/sampling-profiler-microtasks.js:
+        * stress/shadow-chicken-enabled.js:
+        * stress/spread-correct-global-object-on-exception.js:
+        * stress/super-get-by-id.js:
+        * stress/tailCallForwardArguments.js:
+        * stress/to-object-intrinsic-boolean-edge.js:
+        * stress/to-object-intrinsic-null-or-undefined-edge.js:
+        * stress/to-object-intrinsic-number-edge.js:
+        * stress/to-object-intrinsic-object-edge.js:
+        * stress/to-object-intrinsic-string-edge.js:
+        * stress/to-object-intrinsic-symbol-edge.js:
+        * stress/to-object-intrinsic.js:
+        * stress/try-catch-custom-getter-as-get-by-id.js:
+        * stress/try-get-by-id-poly-proto.js:
+        * stress/try-get-by-id-should-spill-registers-dfg.js:
+        * stress/try-get-by-id.js:
+        * typeProfiler/arrow-functions.js:
+        * typeProfiler/basic.js:
+        * typeProfiler/captured.js:
+        * typeProfiler/classes.js:
+        * typeProfiler/dfg-jit-optimizations.js:
+        * typeProfiler/dictionary-mode.js:
+        * typeProfiler/es6-block-scoping.js:
+        * typeProfiler/es6-classes.js:
+        * typeProfiler/inheritance.js:
+        * typeProfiler/int52-dfg.js:
+        * typeProfiler/loop.js:
+        * typeProfiler/optional-fields.js:
+        * typeProfiler/overflow.js:
+        * typeProfiler/return.js:
+        * typeProfiler/symbol.js:
+        * typeProfiler/weird-prototype-chain.js:
+
+2017-11-21  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG][FTL] Support MapSet / SetAdd intrinsics
+        https://bugs.webkit.org/show_bug.cgi?id=179858
+
+        Reviewed by Saam Barati.
+
+        * microbenchmarks/map-has-and-set.js: Added.
+        (test):
+        * stress/map-set-check-failure.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/map-set-cse.js: Added.
+        (shouldBe):
+        (test):
+        * stress/set-add-check-failure.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (set shouldThrow):
+        * stress/set-add-cse.js: Added.
+        (shouldBe):
+
+2017-11-21  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] Allow poly proto for intrinsic getters
+        https://bugs.webkit.org/show_bug.cgi?id=179550
+
+        Reviewed by Saam Barati.
+
+        This change is also tested by existing tests.
+
+            1. stress/intrinsic-getter-with-poly-proto.js
+            2. stress/poly-proto-intrinsic-getter-correctness.js
+
+        * stress/intrinsic-getter-with-poly-proto-getter-change.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/intrinsic-getter-with-poly-proto-proto-change.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+
+2017-11-20  Guillaume Emont  <guijemont@igalia.com>
+
+        Skip stress/unshiftCountSlowCase-correct-postCapacity.js on embedded Linux
+        https://bugs.webkit.org/show_bug.cgi?id=179744
+
+        Reviewed by Michael Catanzaro.
+
+        This test uses too much memory for our buildbots on these platforms
+        and gets OOM-killed.
+
+        * stress/unshiftCountSlowCase-correct-postCapacity.js:
+        Skip if $memoryLimited and linux.
+
+2017-11-17  JF Bastien  <jfbastien@apple.com>
+
+        WebAssembly JS API: throw when a promise can't be created
+        https://bugs.webkit.org/show_bug.cgi?id=179826
+        <rdar://problem/35455813>
+
+        Reviewed by Mark Lam.
+
+        Test WebAssembly.{compile,instantiate} where promise creation
+        fails because of a stack overflow.
+
+        * wasm/js-api/promise-stack-overflow.js: Added.
+        (const.runNearStackLimit.f.const.t):
+        (async.testCompile):
+        (async.testInstantiate):
+
+2017-11-16  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        Unreviewed, mark regress-178385.js as memory exhausting
+
+        * stress/regress-178385.js:
+
+2017-11-16  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Mark test262/test/language/statements/class/definition/fn-name-static-precedence.js as passing after r224927.
+
+        Unreviewed test gardening.
+
+        * test262.yaml:
+
+2017-11-16  Robin Morisset  <rmorisset@apple.com>
+
+        REGRESSION (r224592): oss-fuzz: jsc: Null-dereference READ in JSC::JSCell::isObject (4216)
+        https://bugs.webkit.org/show_bug.cgi?id=179763
+        <rdar://problem/35550513>
+
+        Reviewed by Keith Miller.
+
+        Just adding a slightly cleaned-up version of the original fuzzer-found test.
+
+        * stress/tdz-this-in-try-catch.js: Added.
+        (__v_6388):
+        (__v_6392):
+
+2017-11-14  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG][FTL] Support Array::DirectArguments with OutOfBounds
+        https://bugs.webkit.org/show_bug.cgi?id=179594
+
+        Reviewed by Saam Barati.
+
+        * stress/direct-arguments-in-bounds-to-out-of-bounds.js: Added.
+        (shouldBe):
+        (args):
+        * stress/direct-arguments-out-of-bounds-watchpoint.js: Added.
+        (shouldBe):
+        (args):
+
+2017-11-14  Saam Barati  <sbarati@apple.com>
+
+        We need to set topCallFrame when calling Wasm::Memory::grow from the JIT
+        https://bugs.webkit.org/show_bug.cgi?id=179639
+        <rdar://problem/35513018>
+
+        Reviewed by JF Bastien.
+
+        * wasm/function-tests/grow-memory-cause-gc.js: Added.
+        (escape):
+        (i.func):
+
+2017-11-13  Mark Lam  <mark.lam@apple.com>
+
+        Add more overflow check book-keeping for MarkedArgumentBuffer.
+        https://bugs.webkit.org/show_bug.cgi?id=179634
+        <rdar://problem/35492517>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-179634.js: Added.
+
+2017-11-13  Mark Lam  <mark.lam@apple.com>
+
+        Make the jsc shell loadGetterFromGetterSetter() function more robust.
+        https://bugs.webkit.org/show_bug.cgi?id=179619
+        <rdar://problem/35492518>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-179619.js: Added.
+
+2017-11-12  Mark Lam  <mark.lam@apple.com>
+
+        We should ensure that operationStrCat2 and operationStrCat3 are never passed Symbols as arguments.
+        https://bugs.webkit.org/show_bug.cgi?id=179562
+        <rdar://problem/35467022>
+
+        Reviewed by Saam Barati.
+
+        * regress-179562.js: Added.
+
+2017-11-08  Saam Barati  <sbarati@apple.com>
+
+        A JSFunction's ObjectAllocationProfile should watch the poly prototype watchpoint so it can clear its object allocation profile
+        https://bugs.webkit.org/show_bug.cgi?id=177792
+
+        Reviewed by Yusuke Suzuki.
+
+        * microbenchmarks/poly-proto-clear-js-function-allocation-profile.js: Added.
+        (assert):
+        (foo.Foo.prototype.ensureX):
+        (foo.Foo):
+        (foo):
+        (access):
+
+2017-11-08  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Mark test262.yaml/test262/test/language/statements/try/tco-catch.js as passing.
+        https://bugs.webkit.org/show_bug.cgi?id=178592
+
+        Unreviewed test gardening.
+
+        * test262.yaml:
+
+2017-11-08  Robin Morisset  <rmorisset@apple.com>
+
+        Turn recursive tail calls into loops
+        https://bugs.webkit.org/show_bug.cgi?id=176601
+
+        Reviewed by Saam Barati.
+
+        Relanding after https://bugs.webkit.org/show_bug.cgi?id=178834.
+
+        Add some simple test that computes factorial in several ways, and other trivial computations.
+        They all tests the case where foo calls bar (in an inlineable way) that then does a tail call.
+        Depending on the nature of both calls, it is possible or not to turn the tail call into a loop.
+        I have no clear way of checking that the call was indeed transformed, but I can check that the code computes the right result
+        (which it doesn't if that tail call is transformed into a loop in the unsound cases).
+
+        * stress/inline-call-to-recursive-tail-call.js: Added.
+        (factorial.aux):
+        (factorial):
+        (factorial2.aux2):
+        (factorial2.id):
+        (factorial2):
+        (factorial3.aux3):
+        (factorial3):
+        (aux4):
+        (factorial4):
+        (foo):
+        (auxBar):
+        (bar):
+        (test):
+
+2017-11-07  Mark Lam  <mark.lam@apple.com>
+
+        AccessCase::generateImpl() should exclude the result register when restoring registers after a call.
+        https://bugs.webkit.org/show_bug.cgi?id=179355
+        <rdar://problem/35263053>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-179355.js: Added.
+
+2017-11-05  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        JIT call inline caches should cache calls to objects with getCallData/getConstructData traps
+        https://bugs.webkit.org/show_bug.cgi?id=144458
+
+        Reviewed by Saam Barati.
+
+        * microbenchmarks/dfg-internal-function-call.js: Added.
+        (target):
+        * microbenchmarks/dfg-internal-function-construct.js: Added.
+        (target):
+        * microbenchmarks/dfg-internal-function-not-handled-call.js: Added.
+        (target):
+        * microbenchmarks/dfg-internal-function-not-handled-construct.js: Added.
+        (target):
+        * stress/dfg-internal-function-call.js: Added.
+        (shouldBe):
+        (target):
+        * stress/dfg-internal-function-construct.js: Added.
+        (shouldBe):
+        (target):
+        * stress/internal-function-call.js: Added.
+        (shouldBe):
+        * stress/internal-function-construct.js: Added.
+        (shouldBe):
+
+2017-11-05  Per Arne Vollan  <pvollan@apple.com>
+
+        [Win] Skip stress/regress-178385.js.
+        https://bugs.webkit.org/show_bug.cgi?id=179298
+
+        Unreviewed test gardening.
+
+        * stress/regress-178385.js:
+
+2017-11-03  Keith Miller  <keith_miller@apple.com>
+
+        Add test for ic with side effects
+        https://bugs.webkit.org/show_bug.cgi?id=179268
+
+        Reviewed by Saam Barati.
+
+        * stress/put-inline-cache-side-effects.js: Added.
+        (let.i.of.objs.keys):
+        (f):
+
+2017-11-03  Mark Lam  <mark.lam@apple.com>
+
+        CachedCall (and its clients) needs overflow checks.
+        https://bugs.webkit.org/show_bug.cgi?id=179185
+
+        Reviewed by JF Bastien.
+
+        * stress/regress-179185.js: Added.
+
+2017-11-02  Michael Saboff  <msaboff@apple.com>
+
+        DFG needs to handle code motion of code in for..in loop bodies
+        https://bugs.webkit.org/show_bug.cgi?id=179212
+
+        Reviewed by Keith Miller.
+
+        New regression test.
+
+        * stress/for-in-side-effects.js: Added.
+        (getPrototypeOf):
+        (reset):
+        (testWithoutFTL.f):
+        (testWithoutFTL):
+        (testWithFTL.f):
+        (testWithFTL):
+
+2017-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        AI does not correctly model the clobber case of ArithClz32
+        https://bugs.webkit.org/show_bug.cgi?id=179188
+
+        Reviewed by Michael Saboff.
+
+        * stress/arith-clz32-effects.js: Added.
+        (foo):
+        (valueOf):
+
+2017-11-01  Michael Saboff  <msaboff@apple.com>
+
+        Integer overflow in code generated by LoadVarargs processing in DFG and FTL.
+        https://bugs.webkit.org/show_bug.cgi?id=179140
+
+        Reviewed by Saam Barati.
+
+        New regression test.
+
+        * stress/regress-179140.js: Added.
+        (testWithoutFTL):
+        (testWithFTL):
+
+2017-11-01  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] Introduce @toObject
+        https://bugs.webkit.org/show_bug.cgi?id=178726
+
+        Reviewed by Saam Barati.
+
+        * stress/array-copywithin.js:
+        (shouldThrow):
+        * stress/object-constructor-boolean-edge.js: Added.
+        (shouldBe):
+        (test):
+        * stress/object-constructor-global.js: Added.
+        (shouldBe):
+        * stress/object-constructor-null-edge.js: Added.
+        (shouldBe):
+        (test):
+        * stress/object-constructor-number-edge.js: Added.
+        (shouldBe):
+        (test):
+        * stress/object-constructor-object-edge.js: Added.
+        (shouldBe):
+        (test):
+        (i.arg):
+        * stress/object-constructor-string-edge.js: Added.
+        (shouldBe):
+        (test):
+        * stress/object-constructor-symbol-edge.js: Added.
+        (shouldBe):
+        (test):
+        * stress/object-constructor-undefined-edge.js: Added.
+        (shouldBe):
+        (test):
+        * stress/symbol-array-from.js: Added.
+        (shouldBe):
+        * stress/to-object-intrinsic-boolean-edge.js: Added.
+        (shouldBe):
+        (builtin.createBuiltin):
+        * stress/to-object-intrinsic-null-or-undefined-edge.js: Added.
+        (shouldThrow):
+        * stress/to-object-intrinsic-number-edge.js: Added.
+        (shouldBe):
+        (builtin.createBuiltin):
+        * stress/to-object-intrinsic-object-edge.js: Added.
+        (shouldBe):
+        (builtin.createBuiltin):
+        (i.arg):
+        * stress/to-object-intrinsic-string-edge.js: Added.
+        (shouldBe):
+        (builtin.createBuiltin):
+        * stress/to-object-intrinsic-symbol-edge.js: Added.
+        (shouldBe):
+        (builtin.createBuiltin):
+        * stress/to-object-intrinsic.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (builtin.createBuiltin):
+
+2017-10-27  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [DFG][FTL] Introduce StringSlice
+        https://bugs.webkit.org/show_bug.cgi?id=178934
+
+        Reviewed by Saam Barati.
+
+        * microbenchmarks/string-slice-empty.js: Added.
+        (slice):
+        * microbenchmarks/string-slice-one-char.js: Added.
+        (slice):
+        * microbenchmarks/string-slice.js: Added.
+        (slice):
+
+2017-10-26  Michael Saboff  <msaboff@apple.com>
+
+        REGRESSION(r222601): We fail to properly backtrack into a sub pattern of a parenthesis with non-zero minimum
+        https://bugs.webkit.org/show_bug.cgi?id=178890
+
+        Reviewed by Keith Miller.
+
+        New regression test.
+
+        * stress/regress-178890.js: Added.
+
+2017-10-26  Mark Lam  <mark.lam@apple.com>
+
+        JSRopeString::RopeBuilder::append() should check for overflows.
+        https://bugs.webkit.org/show_bug.cgi?id=178385
+        <rdar://problem/35027468>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-178385.js: Added.
+
+2017-10-26  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, rolling out r223961.
+
+        The change that required this has been rolled out.
+
+        Reverted changeset:
+
+        "Mark test262.yaml/test262/test/language/statements/try/tco-
+        catch.js as passing."
+        https://bugs.webkit.org/show_bug.cgi?id=178592
+        https://trac.webkit.org/changeset/223961
+
+2017-10-25  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r223691 and r223729.
+        https://bugs.webkit.org/show_bug.cgi?id=178834
+
+        Broke Speedometer 2 React-Redux-TodoMVC test case (Requested
+        by rniwa on #webkit).
+
+        Reverted changesets:
+
+        "Turn recursive tail calls into loops"
+        https://bugs.webkit.org/show_bug.cgi?id=176601
+        https://trac.webkit.org/changeset/223691
+
+        "REGRESSION(r223691): DFGByteCodeParser.cpp:1483:83: warning:
+        comparison is always false due to limited range of data type
+        [-Wtype-limits]"
+        https://bugs.webkit.org/show_bug.cgi?id=178543
+        https://trac.webkit.org/changeset/223729
+
+2017-10-25  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Mark test262.yaml/test262/test/language/statements/try/tco-catch.js as passing.
+        https://bugs.webkit.org/show_bug.cgi?id=178592
+
+        Unreviewed test gardening.
+
+        * test262.yaml:
+
+2017-10-24  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [FTL] Support NewStringObject
+        https://bugs.webkit.org/show_bug.cgi?id=178737
+
+        Reviewed by Saam Barati.
+
+        * stress/new-string-object.js: Added.
+        (shouldBe):
+        (test):
+
+2017-10-15  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] modules can be visited more than once when resolving bindings through "star" exports as long as the exportName is different each time
+        https://bugs.webkit.org/show_bug.cgi?id=178308
+
+        Reviewed by Mark Lam.
+
+        * test262.yaml:
+
+2017-10-23  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] Use fastJoin in Array#toString
+        https://bugs.webkit.org/show_bug.cgi?id=178062
+
+        Reviewed by Darin Adler.
+
+        * microbenchmarks/contiguous-array-to-string.js: Added.
+        (target):
+        * microbenchmarks/double-array-to-string.js: Added.
+        (target):
+        * microbenchmarks/int32-array-to-string.js: Added.
+        (target):
+
+2017-10-22  Zan Dobersek  <zdobersek@igalia.com>
+
+        stress/check-string-ident.js is improperly skipped
+        https://bugs.webkit.org/show_bug.cgi?id=178642
+
+        Reviewed by Saam Barati.
+
+        * stress/check-string-ident.js: Drop the defaultNoEagerRun directive
+        since it enforces the run-jsc-stress-tests script to still set up the
+        test to run, despite the skip directive that's used before.
+
+2017-10-20  Mark Lam  <mark.lam@apple.com>
+
+        Add a test case for r214334.
+        https://bugs.webkit.org/show_bug.cgi?id=169941
+        <rdar://problem/31221258>
+
+        Reviewed by JF Bastien.
+
+        * stress/regress-169941.js: Added.
+
+2017-10-19  JF Bastien  <jfbastien@apple.com>
+
+        WebAssembly: no VM / JS version of everything but Instance
+        https://bugs.webkit.org/show_bug.cgi?id=177473
+
+        Reviewed by Filip Pizlo, Saam Barati.
+
+        - Exceeding max on memory growth now returns a range error as per
+        spec. This is a (very minor) breaking change: it used to throw OOM
+        error. Update the corresponding test.
+
+        * wasm/js-api/memory-grow.js:
+        (assertEq):
+        * wasm/js-api/table.js:
+        (assert.throws):
+
+2017-10-19  Mark Lam  <mark.lam@apple.com>
+
+        Stringifier::appendStringifiedValue() is missing an exception check.
+        https://bugs.webkit.org/show_bug.cgi?id=178386
+        <rdar://problem/35027610>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-178386.js: Added.
+
+2017-10-19  Michael Saboff  <msaboff@apple.com>
+
+        Test262: RegExp/property-escapes/generated/Emoji_Component.js fails with current RegExp Unicode Properties implementation
+        https://bugs.webkit.org/show_bug.cgi?id=178521
+
+        Reviewed by JF Bastien.
+
+        * test262.yaml: Enabled test262/test/built-ins/RegExp/property-escapes/generated/Emoji_Component.js as it
+        now passes with the current version (5.0) of the Emoji spec.
+
+2017-10-19  Robin Morisset  <rmorisset@apple.com>
+
+        Turn recursive tail calls into loops
+        https://bugs.webkit.org/show_bug.cgi?id=176601
+
+        Reviewed by Saam Barati.
+
+        Add some simple test that computes factorial in several ways, and other trivial computations.
+        They all tests the case where foo calls bar (in an inlineable way) that then does a tail call.
+        Depending on the nature of both calls, it is possible or not to turn the tail call into a loop.
+        I have no clear way of checking that the call was indeed transformed, but I can check that the code computes the right result
+        (which it doesn't if that tail call is transformed into a loop in the unsound cases).
+
+        * stress/inline-call-to-recursive-tail-call.js: Added.
+        (factorial.aux):
+        (factorial):
+        (factorial2.aux):
+        (factorial2.id):
+        (factorial2):
+        (factorial3.aux):
+        (factorial3):
+        (aux):
+        (factorial4):
+        (test):
+
+2017-10-18  Mark Lam  <mark.lam@apple.com>
+
+        RegExpObject::defineOwnProperty() does not need to compare values if no descriptor value is specified.
+        https://bugs.webkit.org/show_bug.cgi?id=177600
+        <rdar://problem/34710985>
+
+        Reviewed by Saam Barati.
+
+        * stress/regress-177600.js: Added.
+
+2017-10-18  Mark Lam  <mark.lam@apple.com>
+
+        The compiler should always register a structure when it adds its transitionWatchPointSet.
+        https://bugs.webkit.org/show_bug.cgi?id=178420
+        <rdar://problem/34814024>
+
+        Reviewed by Saam Barati and Filip Pizlo.
+
+        * stress/regress-178420.js: Added.
+        (new.Array.10000.map):
+
+2017-10-18  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] __proto__ getter should be fast
+        https://bugs.webkit.org/show_bug.cgi?id=178067
+
+        Reviewed by Saam Barati.
+
+        * stress/dfg-object-proto-accessor.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/dfg-object-proto-getter.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/dfg-object-prototype-of.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/dfg-reflect-get-prototype-of.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/intrinsic-getter-with-poly-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-get-prototype-of-filtered.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        (i.Cocoa):
+        * stress/object-get-prototype-of-mono-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-get-prototype-of-poly-mono-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-get-prototype-of-poly-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-proto-getter-filtered.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        (i.Cocoa):
+        * stress/object-proto-getter-poly-mono-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-proto-getter-poly-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-prototype-proto-accessors-should-throw-on-undefined-this.js:
+        * stress/string-proto.js: Added.
+        (shouldBe):
+        (target):
+
+2017-10-17  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, rolling out r223523.
+
+        A test for this change is failing on debug JSC bots.
+
+        Reverted changeset:
+
+        "[JSC] __proto__ getter should be fast"
+        https://bugs.webkit.org/show_bug.cgi?id=178067
+        https://trac.webkit.org/changeset/223523
+
+2017-10-10  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        [JSC] __proto__ getter should be fast
+        https://bugs.webkit.org/show_bug.cgi?id=178067
+
+        Reviewed by Saam Barati.
+
+        * stress/dfg-object-proto-accessor.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/dfg-object-proto-getter.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/dfg-object-prototype-of.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/dfg-reflect-get-prototype-of.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        * stress/object-get-prototype-of-filtered.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        (i.Cocoa):
+        * stress/object-get-prototype-of-mono-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-get-prototype-of-poly-mono-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-get-prototype-of-poly-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-proto-getter-filtered.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (target):
+        (i.Cocoa):
+        * stress/object-proto-getter-poly-mono-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-proto-getter-poly-proto.js: Added.
+        (shouldBe):
+        (makePolyProtoObject.foo.C):
+        (makePolyProtoObject.foo):
+        (makePolyProtoObject):
+        (target):
+        * stress/object-prototype-proto-accessors-should-throw-on-undefined-this.js:
+        * stress/string-proto.js: Added.
+        (shouldBe):
+        (target):
+
+2017-10-14  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        Reland "Add Above/Below comparisons for UInt32 patterns"
+        https://bugs.webkit.org/show_bug.cgi?id=177281
+
+        Reviewed by Saam Barati.
+
+        * stress/uint32-comparison-jump.js: Added.
+        (shouldBe):
+        (above):
+        (aboveOrEqual):
+        (below):
+        (belowOrEqual):
+        (notAbove):
+        (notAboveOrEqual):
+        (notBelow):
+        (notBelowOrEqual):
+        * stress/uint32-comparison.js: Added.
+        (shouldBe):
+        (above):
+        (aboveOrEqual):
+        (below):
+        (belowOrEqual):
+        (aboveTest):
+        (aboveOrEqualTest):
+        (belowTest):
+        (belowOrEqualTest):
+
+2017-10-12  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        WebAssembly: Wasm functions should have either JSFunctionType or TypeOfShouldCallGetCallData
+        https://bugs.webkit.org/show_bug.cgi?id=178210
+
+        Reviewed by Saam Barati.
+
+        * wasm/function-tests/trap-from-start-async.js:
+        (async.StartTrapsAsync):
+        * wasm/function-tests/trap-from-start.js:
+        (StartTraps):
+        * wasm/js-api/web-assembly-function.js:
+        (assert.eq.Object.getPrototypeOf):
+        * wasm/js-api/wrapper-function.js:
+        (return.new.WebAssembly.Module):
+        (assert.throws.makeInstance): Deleted.
+        (assert.throws.Bar): Deleted.
+        (assert.throws): Deleted.
+
+2017-09-29  Filip Pizlo  <fpizlo@apple.com>
+
+        Enable gigacage on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=177586
+
+        Reviewed by JF Bastien.
+        
+        Add tests for when Gigacage gets runtime disabled.
+
+        * stress/disable-gigacage-arrays.js: Added.
+        (foo):
+        * stress/disable-gigacage-strings.js: Added.
+        (foo):
+        * stress/disable-gigacage-typed-arrays.js: Added.
+        (foo):
+
+2017-10-11  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        import.meta should not be assignable
+        https://bugs.webkit.org/show_bug.cgi?id=178202
+
+        Reviewed by Saam Barati.
+
+        * modules/import-meta-assignment.js: Added.
+        (shouldThrow):
+        (SyntaxError.import.meta.can.shouldThrow):
+
+2017-10-11  Saam Barati  <sbarati@apple.com>
+
+        Unreviewed. Actually skip certain type profiler tests in debug.
+
+        * typeProfiler.yaml:
+        * typeProfiler/deltablue-for-of.js:
+        * typeProfiler/getter-richards.js:
+
+2017-10-11  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r223113 and r223121.
+        https://bugs.webkit.org/show_bug.cgi?id=178182
+
+        Reintroduced 20% regression on Kraken (Requested by rniwa on
+        #webkit).
+
+        Reverted changesets:
+
+        "Enable gigacage on iOS"
+        https://bugs.webkit.org/show_bug.cgi?id=177586
+        https://trac.webkit.org/changeset/223113
+
+        "Use one virtual allocation for all gigacages and their
+        runways"
+        https://bugs.webkit.org/show_bug.cgi?id=178050
+        https://trac.webkit.org/changeset/223121
+
+2017-10-11  Michael Saboff  <msaboff@apple.com>
+
+        Disable test262 named capture group tests with direct unicode names and with references before definitions
+        https://bugs.webkit.org/show_bug.cgi?id=178177
+
+        Reviewed by Keith Miller.
+
+        Bugs to track fixing these test are:
+        https://bugs.webkit.org/show_bug.cgi?id=178174 -
+            "Add support in named capture group identifiers for direct surrogate pairs"
+        https://bugs.webkit.org/show_bug.cgi?id=178175 -
+            "Test262 failure with Named Capture Groups - using a reference before the group is defined"
+
+        * test262.yaml:
+
+2017-10-11  Caio Lima  <ticaiolima@gmail.com>
+
+        Object properties are undefined in super.call() but not in this.call()
+        https://bugs.webkit.org/show_bug.cgi?id=177230
+
+        Reviewed by Saam Barati.
+
+        * stress/super-call-function-subclass.js: Added.
+        (assert):
+        (A.prototype.t):
+        (A):
+        * stress/super-dot-call-and-apply.js: Added.
+        (assert):
+        (A):
+        (A.prototype.call):
+        (A.prototype.apply):
+        (B.prototype.testSuper):
+        (B):
+        (const.obj.new.B.string_appeared_here.obj.testSuper.C):
+        (D.prototype.testSuper):
+        (D):
+
+2017-10-10  Saam Barati  <sbarati@apple.com>
+
+        The prototype cache should be aware of the Executable it generates a Structure for
+        https://bugs.webkit.org/show_bug.cgi?id=177907
+
+        Reviewed by Filip Pizlo.
+
+        * microbenchmarks/dont-confuse-structures-from-different-executable-as-poly-proto.js: Added.
+        (assert):
+        (foo.C):
+        (foo):
+        (bar.C):
+        (bar):
+        (access):
+        (makeLongChain):
+        (accessY):
+
+2017-10-09  Yusuke Suzuki  <utatane.tea@gmail.com>
+
+        `async` should be able to be used as an imported binding name
+        https://bugs.webkit.org/show_bug.cgi?id=176573
+
+        Reviewed by Saam Barati.
+
+        * modules/import-default-async.js: Added.
+        * modules/import-named-async-as.js: Added.
+        * modules/import-named-async.js: Added.
+        * modules/import-named-async/target.js: Added.
+        * modules/import-namespace-async.js: Added.
+        * test262.yaml:
+
+2017-09-29  Filip Pizlo  <fpizlo@apple.com>
+
+        Enable gigacage on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=177586
+
+        Reviewed by JF Bastien.
+        
+        Add tests for when Gigacage gets runtime disabled.
+
+        * stress/disable-gigacage-arrays.js: Added.
+        (foo):
+        * stress/disable-gigacage-strings.js: Added.
+        (foo):
+        * stress/disable-gigacage-typed-arrays.js: Added.
+        (foo):
+
+2017-10-09  Michael Saboff  <msaboff@apple.com>
+
+        Implement RegExp Unicode property escapes
+        https://bugs.webkit.org/show_bug.cgi?id=172069
+
+        Reviewed by JF Bastien.
+
+        Enabled Unicode Property tests.
+
+        * test262.yaml:
+
+2017-10-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r223015 and r223025.
+        https://bugs.webkit.org/show_bug.cgi?id=178093
+
+        Regressed Kraken on iOS by 20% (Requested by keith_mi_ on
+        #webkit).
+
+        Reverted changesets:
+
+        "Enable gigacage on iOS"
+        https://bugs.webkit.org/show_bug.cgi?id=177586
+        http://trac.webkit.org/changeset/223015
+
+        "Unreviewed, disable Gigacage on ARM64 Linux"
+        https://bugs.webkit.org/show_bug.cgi?id=177586
+        http://trac.webkit.org/changeset/223025
+
+2017-10-09  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Update expectations for test262 tests that pass after r223043.
+        https://bugs.webkit.org/show_bug.cgi?id=176685
+
+        Unreviewed test gardening.
+
+        * test262.yaml:
+
+2017-10-09  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, rolling out r223022.
+
+        This change introduced 18 test262 failures.
+
+        Reverted changeset:
+
+        "`async` should be able to be used as an imported binding
+        name"
+        https://bugs.webkit.org/show_bug.cgi?id=176573
+        http://trac.webkit.org/changeset/223022
+
+2017-10-09  Saam Barati  <sbarati@apple.com>
+
+        3 poly-proto JSC tests timing out on debug after r222827
+        https://bugs.webkit.org/show_bug.cgi?id=177880
+        <rdar://problem/34817122>
+
+        Unreviewed.
+
+        I'm skipping these type profiler tests on debug since they are long running.
+
+        * typeProfiler/deltablue-for-of.js:
+        * typeProfiler/getter-richards.js:
+
+2017-10-09  Oleksandr Skachkov  <gskachkov@gmail.com>
+
+        Safari 10 /11 problem with if (!await get(something)).
+        https://bugs.webkit.org/show_bug.cgi?id=176685
+
+        Reviewed by Saam Barati.
+
+        * stress/async-await-basic.js:
+        (awaitEpression.async):
+        * stress/async-await-syntax.js:
+        (testTopLevelAsyncAwaitSyntaxSloppyMode.testSyntax):
+        (prototype.testTopLevelAsyncAwaitSyntaxStrictMode):
+
 2017-10-08  Saam Barati  <sbarati@apple.com>
 
         Unreviewed. Make some type profiler tests run for less time to avoid debug timeouts.

@@ -34,10 +34,10 @@
 
 #include "Credential.h"
 #include "CredentialStorage.h"
+#include "DeprecatedGlobalSettings.h"
 #include "Logging.h"
 #include "NetworkStorageSession.h"
 #include "ProtectionSpace.h"
-#include "Settings.h"
 #include "SocketStreamError.h"
 #include "SocketStreamHandleClient.h"
 #include <CFNetwork/CFNetwork.h>
@@ -45,6 +45,7 @@
 #include <wtf/Lock.h>
 #include <wtf/MainThread.h>
 #include <wtf/SoftLinking.h>
+#include <wtf/cf/TypeCastsCF.h>
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(WIN)
@@ -65,6 +66,8 @@ extern "C" const CFStringRef _kCFStreamSocketSetNoDelay;
 SOFT_LINK_LIBRARY(CFNetwork);
 SOFT_LINK_OPTIONAL(CFNetwork, _CFHTTPMessageSetResponseProxyURL, void, __cdecl, (CFHTTPMessageRef, CFURLRef));
 #endif
+
+WTF_DECLARE_CF_TYPE_TRAIT(CFHTTPMessage);
 
 namespace WebCore {
 
@@ -149,32 +152,6 @@ void SocketStreamHandleImpl::releaseSocketStreamHandle(void* info)
 CFStringRef SocketStreamHandleImpl::copyPACExecutionDescription(void*)
 {
     return CFSTR("WebSocket proxy PAC file execution");
-}
-
-static void callOnMainThreadAndWait(WTF::Function<void()>&& function)
-{
-    if (isMainThread()) {
-        function();
-        return;
-    }
-
-    Lock mutex;
-    Condition conditionVariable;
-
-    bool isFinished = false;
-
-    callOnMainThread([&, function = WTFMove(function)] {
-        function();
-
-        std::lock_guard<Lock> lock(mutex);
-        isFinished = true;
-        conditionVariable.notifyOne();
-    });
-
-    std::unique_lock<Lock> lock(mutex);
-    conditionVariable.wait(lock, [&] {
-        return isFinished;
-    });
 }
 
 struct MainThreadPACCallbackInfo {
@@ -363,7 +340,7 @@ void SocketStreamHandleImpl::createStreams()
     }
 
     if (shouldUseSSL()) {
-        CFBooleanRef validateCertificateChain = Settings::allowsAnySSLCertificate() ? kCFBooleanFalse : kCFBooleanTrue;
+        CFBooleanRef validateCertificateChain = DeprecatedGlobalSettings::allowsAnySSLCertificate() ? kCFBooleanFalse : kCFBooleanTrue;
         const void* keys[] = { kCFStreamSSLPeerName, kCFStreamSSLLevel, kCFStreamSSLValidatesCertificateChain };
         const void* values[] = { host.get(), kCFStreamSocketSecurityLevelNegotiatedSSL, validateCertificateChain };
         RetainPtr<CFDictionaryRef> settings = adoptCF(CFDictionaryCreate(0, keys, values, WTF_ARRAY_LENGTH(keys), &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
@@ -531,7 +508,7 @@ static void setResponseProxyURL(CFHTTPMessageRef message, CFURLRef proxyURL)
 
 static RetainPtr<CFHTTPMessageRef> copyCONNECTProxyResponse(CFReadStreamRef stream, CFURLRef responseURL, CFStringRef proxyHost, CFNumberRef proxyPort)
 {
-    auto message = adoptCF((CFHTTPMessageRef)CFReadStreamCopyProperty(stream, kCFStreamPropertyCONNECTResponse));
+    auto message = adoptCF(checked_cf_cast<CFHTTPMessageRef>(CFReadStreamCopyProperty(stream, kCFStreamPropertyCONNECTResponse)));
     // CFNetwork needs URL to be set on response in order to handle authentication - even though it doesn't seem to make sense to provide ultimate target URL when authenticating to a proxy.
     // This is set by CFNetwork internally for normal HTTP responses, but not for proxies.
     _CFHTTPMessageSetResponseURL(message.get(), responseURL);

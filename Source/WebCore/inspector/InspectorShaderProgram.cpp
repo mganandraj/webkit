@@ -35,9 +35,10 @@
 #include "WebGLShader.h"
 #include <inspector/IdentifiersFactory.h>
 
-using namespace Inspector;
 
 namespace WebCore {
+
+using namespace Inspector;
 
 Ref<InspectorShaderProgram> InspectorShaderProgram::create(WebGLProgram& program, InspectorCanvas& inspectorCanvas)
 {
@@ -51,11 +52,10 @@ InspectorShaderProgram::InspectorShaderProgram(WebGLProgram& program, InspectorC
 {
 }
 
-WebGLRenderingContextBase* InspectorShaderProgram::context() const
+WebGLRenderingContextBase& InspectorShaderProgram::context() const
 {
-    auto* context = m_canvas.canvas().renderingContext();
-    ASSERT(context && is<WebGLRenderingContextBase>(context));
-    return downcast<WebGLRenderingContextBase>(context);
+    ASSERT(is<WebGLRenderingContextBase>(m_canvas.context()));
+    return downcast<WebGLRenderingContextBase>(m_canvas.context());
 }
 
 WebGLShader* InspectorShaderProgram::shaderForType(const String& protocolType)

@@ -3,9 +3,13 @@ list(APPEND PAL_SOURCES
 
     system/ClockGeneric.cpp
 
+    system/glib/SleepDisablerGLib.cpp
+
     system/gtk/SoundGtk.cpp
 
     text/KillRing.cpp
+
+    unix/LoggingUnix.cpp
 )
 
 if (ENABLE_SUBTLE_CRYPTO)

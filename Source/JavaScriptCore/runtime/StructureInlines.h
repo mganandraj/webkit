@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,7 +61,7 @@ inline Structure* Structure::create(VM& vm, Structure* previous, DeferredStructu
 
 inline JSObject* Structure::storedPrototypeObject() const
 {
-    RELEASE_ASSERT(hasMonoProto());
+    ASSERT(hasMonoProto());
     JSValue value = m_prototype.get();
     if (value.isNull())
         return nullptr;
@@ -70,7 +70,7 @@ inline JSObject* Structure::storedPrototypeObject() const
 
 inline Structure* Structure::storedPrototypeStructure() const
 {
-    RELEASE_ASSERT(hasMonoProto());
+    ASSERT(hasMonoProto());
     JSObject* object = storedPrototypeObject();
     if (!object)
         return nullptr;
@@ -79,20 +79,18 @@ inline Structure* Structure::storedPrototypeStructure() const
 
 ALWAYS_INLINE JSValue Structure::storedPrototype(const JSObject* object) const
 {
-    RELEASE_ASSERT(object->structure() == this);
+    ASSERT(object->structure() == this);
     if (hasMonoProto())
         return storedPrototype();
-    RELEASE_ASSERT(m_prototype.get().isInt32());
-    PropertyOffset offset = m_prototype.get().asInt32();
-    return object->getDirect(offset);
+    return object->getDirect(knownPolyProtoOffset);
 }
 
 ALWAYS_INLINE JSObject* Structure::storedPrototypeObject(const JSObject* object) const
 {
-    RELEASE_ASSERT(object->structure() == this);
+    ASSERT(object->structure() == this);
     if (hasMonoProto())
         return storedPrototypeObject();
-    JSValue proto = object->getDirect(polyProtoOffset());
+    JSValue proto = object->getDirect(knownPolyProtoOffset);
     if (proto.isNull())
         return nullptr;
     return asObject(proto);
@@ -202,15 +200,17 @@ ALWAYS_INLINE JSValue prototypeForLookupPrimitiveImpl(JSGlobalObject* globalObje
 
     if (structure->typeInfo().type() == StringType)
         return globalObject->stringPrototype();
+    
+    if (structure->typeInfo().type() == BigIntType)
+        return globalObject->bigIntPrototype();
 
     ASSERT(structure->typeInfo().type() == SymbolType);
     return globalObject->symbolPrototype();
-
 }
 
 inline JSValue Structure::prototypeForLookup(JSGlobalObject* globalObject) const
 {
-    RELEASE_ASSERT(hasMonoProto());
+    ASSERT(hasMonoProto());
     if (isObject())
         return storedPrototype();
     return prototypeForLookupPrimitiveImpl(globalObject, this);
@@ -218,7 +218,7 @@ inline JSValue Structure::prototypeForLookup(JSGlobalObject* globalObject) const
 
 inline JSValue Structure::prototypeForLookup(JSGlobalObject* globalObject, JSCell* base) const
 {
-    RELEASE_ASSERT(base->structure() == this);
+    ASSERT(base->structure() == this);
     if (isObject())
         return storedPrototype(asObject(base));
     return prototypeForLookupPrimitiveImpl(globalObject, this);
@@ -226,7 +226,7 @@ inline JSValue Structure::prototypeForLookup(JSGlobalObject* globalObject, JSCel
 
 inline StructureChain* Structure::prototypeChain(VM& vm, JSGlobalObject* globalObject, JSObject* base) const
 {
-    RELEASE_ASSERT(base->structure(vm) == this);
+    ASSERT(base->structure(vm) == this);
     // We cache our prototype chain so our clients can share it.
     if (!isValid(globalObject, m_cachedPrototypeChain.get(), base)) {
         JSValue prototype = prototypeForLookup(globalObject, base);
@@ -245,13 +245,14 @@ inline bool Structure::isValid(JSGlobalObject* globalObject, StructureChain* cac
     if (!cachedPrototypeChain)
         return false;
 
+    VM& vm = globalObject->vm();
     JSValue prototype = prototypeForLookup(globalObject, base);
     WriteBarrier<Structure>* cachedStructure = cachedPrototypeChain->head();
     while (*cachedStructure && !prototype.isNull()) {
-        if (asObject(prototype)->structure() != cachedStructure->get())
+        if (asObject(prototype)->structure(vm) != cachedStructure->get())
             return false;
         ++cachedStructure;
-        prototype = asObject(prototype)->getPrototypeDirect();
+        prototype = asObject(prototype)->getPrototypeDirect(vm);
     }
     return prototype.isNull() && !*cachedStructure;
 }
@@ -440,9 +441,27 @@ inline PropertyOffset Structure::removePropertyWithoutTransition(VM&, PropertyNa
     return remove(propertyName, func);
 }
 
+ALWAYS_INLINE void Structure::setPrototypeWithoutTransition(VM& vm, JSValue prototype)
+{
+    m_prototype.set(vm, this, prototype);
+}
+
+ALWAYS_INLINE void Structure::setGlobalObject(VM& vm, JSGlobalObject* globalObject)
+{
+    m_globalObject.set(vm, this, globalObject);
+}
+
 ALWAYS_INLINE void Structure::setPropertyTable(VM& vm, PropertyTable* table)
 {
     m_propertyTableUnsafe.setMayBeNull(vm, this, table);
+}
+
+ALWAYS_INLINE void Structure::setPreviousID(VM& vm, Structure* structure)
+{
+    if (hasRareData())
+        rareData()->setPreviousID(vm, structure);
+    else
+        m_previousOrRareData.set(vm, this, structure);
 }
 
 ALWAYS_INLINE bool Structure::shouldConvertToPolyProto(const Structure* a, const Structure* b)

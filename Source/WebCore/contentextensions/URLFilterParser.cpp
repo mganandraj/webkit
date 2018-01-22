@@ -101,7 +101,7 @@ public:
         sinkFloatingTermIfNecessary();
         ASSERT(!m_floatingTerm.isValid());
 
-        if (builtInCharacterClassID == JSC::Yarr::DotClassID && !inverted)
+        if (builtInCharacterClassID == JSC::Yarr::BuiltInCharacterClassID::DotClassID && !inverted)
             m_floatingTerm = Term(Term::UniversalTransition);
         else
             fail(URLFilterParser::UnsupportedCharacterClass);
@@ -337,21 +337,18 @@ URLFilterParser::URLFilterParser(CombinedURLFilters& combinedURLFilters)
 {
 }
 
-URLFilterParser::~URLFilterParser()
-{
-}
+URLFilterParser::~URLFilterParser() = default;
 
 URLFilterParser::ParseStatus URLFilterParser::addPattern(const String& pattern, bool patternIsCaseSensitive, uint64_t patternId)
 {
-    if (!pattern.containsOnlyASCII())
+    if (!pattern.isAllASCII())
         return NonASCII;
     if (pattern.isEmpty())
         return EmptyPattern;
 
     ParseStatus status = Ok;
     PatternParser patternParser(patternIsCaseSensitive);
-    String error = String(JSC::Yarr::parse(patternParser, pattern, false, 0));
-    if (error.isNull())
+    if (!JSC::Yarr::hasError(JSC::Yarr::parse(patternParser, pattern, false, 0)))
         patternParser.finalize(patternId, m_combinedURLFilters);
     else
         status = YarrError;

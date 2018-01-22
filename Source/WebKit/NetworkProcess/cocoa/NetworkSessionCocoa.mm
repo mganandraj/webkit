@@ -35,6 +35,7 @@
 #import "Logging.h"
 #import "NetworkLoad.h"
 #import "NetworkProcess.h"
+#import "NetworkSessionCreationParameters.h"
 #import "SessionTracker.h"
 #import <Foundation/NSURLSession.h>
 #import <WebCore/Credential.h>
@@ -164,6 +165,46 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
     completionHandler(WebCore::createHTTPBodyNSInputStream(*body).get());
 }
 
+#if USE(CFNETWORK_IGNORE_HSTS)
+static NSURLRequest* downgradeRequest(NSURLRequest *request)
+{
+    NSMutableURLRequest *nsMutableRequest = [[request mutableCopy] autorelease];
+    if ([nsMutableRequest.URL.scheme isEqualToString:@"https"]) {
+        NSURLComponents *components = [NSURLComponents componentsWithURL:nsMutableRequest.URL resolvingAgainstBaseURL:NO];
+        components.scheme = @"http";
+        [nsMutableRequest setURL:components.URL];
+        ASSERT([nsMutableRequest.URL.scheme isEqualToString:@"http"]);
+        return nsMutableRequest;
+    }
+
+    ASSERT_NOT_REACHED();
+    return request;
+}
+#endif
+
+static NSURLRequest* updateIgnoreStrictTransportSecuritySettingIfNecessary(NSURLRequest *request, bool shouldIgnoreHSTS)
+{
+#if USE(CFNETWORK_IGNORE_HSTS)
+    if ([request.URL.scheme isEqualToString:@"https"] && shouldIgnoreHSTS && ignoreHSTS(request)) {
+        // The request was upgraded for some other reason than HSTS.
+        // Don't ignore HSTS to avoid the risk of another downgrade.
+        NSMutableURLRequest *nsMutableRequest = [[request mutableCopy] autorelease];
+        setIgnoreHSTS(nsMutableRequest, false);
+        return nsMutableRequest;
+    }
+    
+    if ([request.URL.scheme isEqualToString:@"http"] && ignoreHSTS(request) != shouldIgnoreHSTS) {
+        NSMutableURLRequest *nsMutableRequest = [[request mutableCopy] autorelease];
+        setIgnoreHSTS(nsMutableRequest, shouldIgnoreHSTS);
+        return nsMutableRequest;
+    }
+#else
+    UNUSED_PARAM(shouldIgnoreHSTS);
+#endif
+
+    return request;
+}
+
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request completionHandler:(void (^)(NSURLRequest *))completionHandler
 {
     auto taskIdentifier = task.taskIdentifier;
@@ -171,13 +212,26 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
 
     if (auto* networkDataTask = [self existingTask:task]) {
         auto completionHandlerCopy = Block_copy(completionHandler);
-        networkDataTask->willPerformHTTPRedirection(response, request, [completionHandlerCopy, taskIdentifier](auto& request) {
+
+        bool shouldIgnoreHSTS = false;
+#if USE(CFNETWORK_IGNORE_HSTS)
+        shouldIgnoreHSTS = schemeWasUpgradedDueToDynamicHSTS(request) && WebCore::NetworkStorageSession::storageSession(_session->sessionID())->shouldBlockCookies(request);
+        if (shouldIgnoreHSTS) {
+            request = downgradeRequest(request);
+            ASSERT([request.URL.scheme isEqualToString:@"http"]);
+            LOG(NetworkSession, "%llu Downgraded %s from https to http", taskIdentifier, request.URL.absoluteString.UTF8String);
+        }
+#endif
+
+        networkDataTask->willPerformHTTPRedirection(response, request, [completionHandlerCopy, taskIdentifier, shouldIgnoreHSTS](auto&& request) {
 #if !LOG_DISABLED
             LOG(NetworkSession, "%llu willPerformHTTPRedirection completionHandler (%s)", taskIdentifier, request.url().string().utf8().data());
 #else
             UNUSED_PARAM(taskIdentifier);
 #endif
-            completionHandlerCopy(request.nsURLRequest(WebCore::UpdateHTTPBody));
+            auto nsRequest = request.nsURLRequest(WebCore::UpdateHTTPBody);
+            nsRequest = updateIgnoreStrictTransportSecuritySettingIfNecessary(nsRequest, shouldIgnoreHSTS);
+            completionHandlerCopy(nsRequest);
             Block_release(completionHandlerCopy);
         });
     } else {
@@ -190,16 +244,28 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
 {
     auto taskIdentifier = task.taskIdentifier;
     LOG(NetworkSession, "%llu _schemeUpgraded %s", taskIdentifier, request.URL.absoluteString.UTF8String);
-    
+
     if (auto* networkDataTask = [self existingTask:task]) {
+        bool shouldIgnoreHSTS = false;
+#if USE(CFNETWORK_IGNORE_HSTS)
+        shouldIgnoreHSTS = schemeWasUpgradedDueToDynamicHSTS(request) && WebCore::NetworkStorageSession::storageSession(_session->sessionID())->shouldBlockCookies(request);
+        if (shouldIgnoreHSTS) {
+            request = downgradeRequest(request);
+            ASSERT([request.URL.scheme isEqualToString:@"http"]);
+            LOG(NetworkSession, "%llu Downgraded %s from https to http", taskIdentifier, request.URL.absoluteString.UTF8String);
+        }
+#endif
+
         auto completionHandlerCopy = Block_copy(completionHandler);
-        networkDataTask->willPerformHTTPRedirection(WebCore::synthesizeRedirectResponseIfNecessary([task currentRequest], request, nil), request, [completionHandlerCopy, taskIdentifier](auto& request) {
+        networkDataTask->willPerformHTTPRedirection(WebCore::synthesizeRedirectResponseIfNecessary([task currentRequest], request, nil), request, [completionHandlerCopy, taskIdentifier, shouldIgnoreHSTS](auto&& request) {
 #if !LOG_DISABLED
             LOG(NetworkSession, "%llu _schemeUpgraded completionHandler (%s)", taskIdentifier, request.url().string().utf8().data());
 #else
             UNUSED_PARAM(taskIdentifier);
 #endif
-            completionHandlerCopy(request.nsURLRequest(WebCore::UpdateHTTPBody));
+            auto nsRequest = request.nsURLRequest(WebCore::UpdateHTTPBody);
+            nsRequest = updateIgnoreStrictTransportSecuritySettingIfNecessary(nsRequest, shouldIgnoreHSTS);
+            completionHandlerCopy(nsRequest);
             Block_release(completionHandlerCopy);
         });
     } else {
@@ -278,6 +344,20 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
         };
         networkDataTask->didReceiveChallenge(challenge, WTFMove(challengeCompletionHandler));
     } else {
+        auto downloadID = _session->downloadID(task.taskIdentifier);
+        if (downloadID.downloadID()) {
+            if (auto* download = WebKit::NetworkProcess::singleton().downloadManager().download(downloadID)) {
+                // Received an authentication challenge for a download being resumed.
+                WebCore::AuthenticationChallenge authenticationChallenge { challenge };
+                auto completionHandlerCopy = Block_copy(completionHandler);
+                auto challengeCompletionHandler = [completionHandlerCopy, authenticationChallenge](WebKit::AuthenticationChallengeDisposition disposition, const WebCore::Credential& credential) {
+                    completionHandlerCopy(toNSURLSessionAuthChallengeDisposition(disposition), credential.nsCredential());
+                    Block_release(completionHandlerCopy);
+                };
+                download->didReceiveChallenge(challenge, WTFMove(challengeCompletionHandler));
+                return;
+            }
+        }
         LOG(NetworkSession, "%llu didReceiveChallenge completionHandler (cancel)", taskIdentifier);
         completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
     }
@@ -457,7 +537,7 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
         auto& downloadManager = WebKit::NetworkProcess::singleton().downloadManager();
         auto download = std::make_unique<WebKit::Download>(downloadManager, downloadID, downloadTask, _session->sessionID(), networkDataTask->suggestedFilename());
         networkDataTask->transferSandboxExtensionToDownload(*download);
-        ASSERT(WebCore::fileExists(networkDataTask->pendingDownloadLocation()));
+        ASSERT(WebCore::FileSystem::fileExists(networkDataTask->pendingDownloadLocation()));
         download->didCreateDestination(networkDataTask->pendingDownloadLocation());
         downloadManager.dataTaskBecameDownloadTask(downloadID, WTFMove(download));
 
@@ -469,9 +549,7 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
 
 namespace WebKit {
     
-static bool allowsCellularAccess { true };
 static bool usesNetworkCache { false };
-static LegacyCustomProtocolManager* legacyCustomProtocolManager;
 
 #if !ASSERT_DISABLED
 static bool sessionsCreated = false;
@@ -512,12 +590,6 @@ static String& globalCTDataConnectionServiceType()
     return ctDataConnectionServiceType.get();
 }
 #endif
-
-void NetworkSessionCocoa::setLegacyCustomProtocolManager(LegacyCustomProtocolManager* customProtocolManager)
-{
-    ASSERT(!sessionsCreated);
-    legacyCustomProtocolManager = customProtocolManager;
-}
     
 void NetworkSessionCocoa::setSourceApplicationAuditTokenData(RetainPtr<CFDataRef>&& data)
 {
@@ -536,11 +608,6 @@ void NetworkSessionCocoa::setSourceApplicationSecondaryIdentifier(const String& 
     ASSERT(!sessionsCreated);
     globalSourceApplicationSecondaryIdentifier() = identifier;
 }
-    
-void NetworkSessionCocoa::setAllowsCellularAccess(bool value)
-{
-    allowsCellularAccess = value;
-}
 
 void NetworkSessionCocoa::setUsesNetworkCache(bool value)
 {
@@ -555,20 +622,14 @@ void NetworkSessionCocoa::setCTDataConnectionServiceType(const String& type)
 }
 #endif
 
-Ref<NetworkSession> NetworkSessionCocoa::create(PAL::SessionID sessionID, LegacyCustomProtocolManager* customProtocolManager)
+Ref<NetworkSession> NetworkSessionCocoa::create(NetworkSessionCreationParameters&& parameters)
 {
-    return adoptRef(*new NetworkSessionCocoa(sessionID, customProtocolManager));
+    return adoptRef(*new NetworkSessionCocoa(WTFMove(parameters)));
 }
 
-NetworkSession& NetworkSessionCocoa::defaultSession()
-{
-    ASSERT(RunLoop::isMain());
-    static NetworkSession* session = &NetworkSessionCocoa::create(PAL::SessionID::defaultSessionID(), legacyCustomProtocolManager).leakRef();
-    return *session;
-}
-
-NetworkSessionCocoa::NetworkSessionCocoa(PAL::SessionID sessionID, LegacyCustomProtocolManager* customProtocolManager)
-    : NetworkSession(sessionID)
+NetworkSessionCocoa::NetworkSessionCocoa(NetworkSessionCreationParameters&& parameters)
+    : NetworkSession(parameters.sessionID)
+    , m_boundInterfaceIdentifier(parameters.boundInterfaceIdentifier)
 {
     relaxAdoptionRequirement();
 
@@ -584,7 +645,7 @@ NetworkSessionCocoa::NetworkSessionCocoa(PAL::SessionID sessionID, LegacyCustomP
         configuration._suppressedAutoAddedHTTPHeaders = [NSSet setWithObject:@"Content-Type"];
 #endif
 
-    if (!allowsCellularAccess)
+    if (parameters.allowsCellularAccess == AllowsCellularAccess::No)
         configuration.allowsCellularAccess = NO;
 
     if (usesNetworkCache)
@@ -609,8 +670,8 @@ NetworkSessionCocoa::NetworkSessionCocoa(PAL::SessionID sessionID, LegacyCustomP
         configuration._CTDataConnectionServiceType = ctDataConnectionServiceType;
 #endif
 
-    if (customProtocolManager)
-        customProtocolManager->registerProtocolClass(configuration);
+    if (parameters.legacyCustomProtocolManager)
+        parameters.legacyCustomProtocolManager->registerProtocolClass(configuration);
     
 #if HAVE(TIMINGDATAOPTIONS)
     configuration._timingDataOptions = _TimingDataOptionsEnableW3CNavigationTiming;
@@ -618,7 +679,7 @@ NetworkSessionCocoa::NetworkSessionCocoa(PAL::SessionID sessionID, LegacyCustomP
     setCollectsTimingData();
 #endif
 
-    auto* storageSession = WebCore::NetworkStorageSession::storageSession(sessionID);
+    auto* storageSession = WebCore::NetworkStorageSession::storageSession(parameters.sessionID);
     RELEASE_ASSERT(storageSession);
     if (CFHTTPCookieStorageRef storage = storageSession->cookieStorage().get())
         configuration.HTTPCookieStorage = [[[NSHTTPCookieStorage alloc] _initWithCFHTTPCookieStorage:storage] autorelease];
@@ -669,6 +730,11 @@ NetworkDataTaskCocoa* NetworkSessionCocoa::dataTaskForIdentifier(NetworkDataTask
     if (storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::Use)
         return m_dataTaskMapWithCredentials.get(taskIdentifier);
     return m_dataTaskMapWithoutState.get(taskIdentifier);
+}
+
+NSURLSessionDownloadTask* NetworkSessionCocoa::downloadTaskWithResumeData(NSData* resumeData)
+{
+    return [m_sessionWithCredentialStorage downloadTaskWithResumeData:resumeData];
 }
 
 void NetworkSessionCocoa::addDownloadID(NetworkDataTaskCocoa::TaskIdentifier taskIdentifier, DownloadID downloadID)

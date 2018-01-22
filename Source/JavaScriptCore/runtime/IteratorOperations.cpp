@@ -52,6 +52,7 @@ JSValue iteratorNext(ExecState* exec, IterationRecord iterationRecord, JSValue a
     MarkedArgumentBuffer nextFunctionArguments;
     if (!argument.isEmpty())
         nextFunctionArguments.append(argument);
+    ASSERT(!nextFunctionArguments.hasOverflowed());
     JSValue result = call(exec, nextFunction, nextFunctionCallType, nextFunctionCallData, iterator, nextFunctionArguments);
     RETURN_IF_EXCEPTION(scope, JSValue());
 
@@ -117,6 +118,7 @@ void iteratorClose(ExecState* exec, IterationRecord iterationRecord)
     }
 
     MarkedArgumentBuffer returnFunctionArguments;
+    ASSERT(!returnFunctionArguments.hasOverflowed());
     JSValue innerResult = call(exec, returnFunction, returnFunctionCallType, returnFunctionCallData, iterationRecord.iterator, returnFunctionArguments);
 
     if (exception) {
@@ -137,7 +139,7 @@ static const PropertyOffset valuePropertyOffset = 1;
 
 Structure* createIteratorResultObjectStructure(VM& vm, JSGlobalObject& globalObject)
 {
-    Structure* iteratorResultStructure = vm.prototypeMap.emptyObjectStructureForPrototype(&globalObject, globalObject.objectPrototype(), JSFinalObject::defaultInlineCapacity());
+    Structure* iteratorResultStructure = vm.structureCache.emptyObjectStructureForPrototype(&globalObject, globalObject.objectPrototype(), JSFinalObject::defaultInlineCapacity());
     PropertyOffset offset;
     iteratorResultStructure = Structure::addPropertyTransition(vm, iteratorResultStructure, vm.propertyNames->done, 0, offset);
     RELEASE_ASSERT(offset == donePropertyOffset);

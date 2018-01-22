@@ -55,6 +55,8 @@ typedef const struct opaqueCMFormatDescription *CMFormatDescriptionRef;
 
 namespace WebCore {
 
+class CDMInstance;
+class CDMInstanceFairPlayStreamingAVFObjC;
 class CDMSessionMediaSourceAVFObjC;
 class MediaSourcePrivateAVFObjC;
 class TimeRanges;
@@ -66,7 +68,7 @@ class WebCoreDecompressionSession;
 
 class SourceBufferPrivateAVFObjCErrorClient {
 public:
-    virtual ~SourceBufferPrivateAVFObjCErrorClient() { }
+    virtual ~SourceBufferPrivateAVFObjCErrorClient() = default;
     virtual void layerDidReceiveError(AVSampleBufferDisplayLayer *, NSError *, bool& shouldIgnore) = 0;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
@@ -107,6 +109,7 @@ public:
     int protectedTrackID() const { return m_protectedTrackID; }
     AVStreamDataParser* parser() const { return m_parser.get(); }
     void setCDMSession(CDMSessionMediaSourceAVFObjC*);
+    void setCDMInstance(CDMInstance*);
 
     void flush();
 
@@ -129,7 +132,7 @@ private:
 
     // SourceBufferPrivate overrides
     void setClient(SourceBufferPrivateClient*) final;
-    void append(const unsigned char* data, unsigned length) final;
+    void append(Vector<unsigned char>&&) final;
     void abort() final;
     void resetParserState() final;
     void removedFromMediaSource() final;
@@ -181,6 +184,9 @@ private:
     SourceBufferPrivateClient* m_client { nullptr };
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     CDMSessionMediaSourceAVFObjC* m_session { nullptr };
+#endif
+#if ENABLE(ENCRYPTED_MEDIA) && HAVE(AVCONTENTKEYSESSION)
+    RefPtr<CDMInstanceFairPlayStreamingAVFObjC> m_cdmInstance;
 #endif
 
     std::optional<FloatSize> m_cachedSize;

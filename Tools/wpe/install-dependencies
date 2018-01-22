@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script needs to be run with root rights.
 if [ $UID -ne 0 ]; then
@@ -52,7 +52,7 @@ function aptIfElse {
 }
 
 function installDependenciesWithApt {
-    # These are dependencies necessary for building WPE+.
+    # These are dependencies necessary for building WPE.
     packages=" \
         autoconf \
         automake \
@@ -73,6 +73,7 @@ function installDependenciesWithApt {
         libgstreamer-plugins-base1.0-dev \
         libicu-dev \
         libjpeg-dev \
+        libfile-copy-recursive-perl \
         $(aptIfElse libpng-dev libpng12-dev) \
         libsqlite3-dev \
         libtasn1-6-dev \
@@ -92,7 +93,7 @@ function installDependenciesWithApt {
         curl \
         gdb \
         libapache2-mod-bw \
-        $(aptIfElse libapache2-mod-php7.0 libapache2-mod-php5) \
+        libapache2-mod-php \
         libcgi-pm-perl \
         psmisc \
         pulseaudio-utils \
@@ -120,6 +121,8 @@ function installDependenciesWithApt {
         libvorbis-dev \
         libvpx-dev \
         libxcb-xkb-dev \
+        libxml-libxml-perl \
+        libwayland-dev \
         luajit"
 
     # These are dependencies necessary for using webkit-patch
@@ -131,7 +134,7 @@ function installDependenciesWithApt {
 }
 
 function installDependenciesWithPacman {
-    # These are dependencies necessary for building WebKitGTK+.
+    # These are dependencies necessary for building WPE.
     packages=" \
         autoconf \
         automake \
@@ -164,6 +167,7 @@ function installDependenciesWithPacman {
         make \
         ninja \
         patch \
+        perl-file-copy-recursive \
         pkg-config \
         ruby
         sed \
@@ -207,7 +211,9 @@ function installDependenciesWithPacman {
         mesa-libgl \
         opus \
         orc \
-        v4l-utils"
+        perl-xml-libxml \
+        v4l-utils \
+        wayland"
 
     # These are dependencies necessary for using webkit-patch
     packages="$packages \
@@ -245,7 +251,10 @@ function installDependenciesWithDnf {
         libxslt-devel \
         ninja-build \
         patch \
-        ruby
+        perl-File-Copy-Recursive \
+        perl-Time-HiRes \
+        perl-version \
+        ruby \
         sqlite-devel \
         zlib-devel"
 
@@ -261,7 +270,7 @@ function installDependenciesWithDnf {
         psmisc \
         pulseaudio-utils \
         python2-psutil \
-        python-gobject-base
+        python-gobject-base \
         ruby \
         rubygem-highline \
         rubygem-json"
@@ -284,7 +293,9 @@ function installDependenciesWithDnf {
         mesa-libGLES-devel \
         opus-devel \
         orc-devel \
-        pulseaudio-libs-devel"
+        perl-XML-LibXML \
+        pulseaudio-libs-devel \
+        wayland-devel"
 
     # These are dependencies necessary for using webkit-patch
     packages="$packages

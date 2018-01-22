@@ -658,7 +658,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseStatementList
         result = parseFunctionDeclaration(context);
         break;
     case IDENT:
-        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async)) {
+        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async && !m_token.m_data.escaped)) {
             // Eagerly parse as AsyncFunctionDeclaration. This is the uncommon case,
             // but could be mistakenly parsed as an AsyncFunctionExpression.
             SavePoint savePoint = createSavePoint();
@@ -1349,7 +1349,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
         JSTextPosition inLocation = tokenStartPosition();
         bool isOfEnumeration = false;
         if (!match(INTOKEN)) {
-            failIfFalse(match(IDENT) && *m_token.m_data.ident == m_vm->propertyNames->of, "Expected either 'in' or 'of' in enumeration syntax");
+            failIfFalse(matchContextualKeyword(m_vm->propertyNames->of), "Expected either 'in' or 'of' in enumeration syntax");
             isOfEnumeration = true;
             next();
         } else {
@@ -1399,7 +1399,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
             declsStart = tokenStartPosition();
             pattern = tryParseDestructuringPatternExpression(context, AssignmentContext::DeclarationStatement);
             declsEnd = lastTokenEndPosition();
-            if (pattern && (match(INTOKEN) || (match(IDENT) && *m_token.m_data.ident == m_vm->propertyNames->of)))
+            if (pattern && (match(INTOKEN) || matchContextualKeyword(m_vm->propertyNames->of)))
                 goto enumerationLoop;
             pattern = TreeDestructuringPattern(0);
             restoreSavePoint(savePoint);
@@ -1454,7 +1454,7 @@ enumerationLoop:
     failIfFalse(nonLHSCount == m_parserState.nonLHSCount, "Expected a reference on the left hand side of an enumeration statement");
     bool isOfEnumeration = false;
     if (!match(INTOKEN)) {
-        failIfFalse(match(IDENT) && *m_token.m_data.ident == m_vm->propertyNames->of, "Expected either 'in' or 'of' in enumeration syntax");
+        failIfFalse(matchContextualKeyword(m_vm->propertyNames->of), "Expected either 'in' or 'of' in enumeration syntax");
         isOfEnumeration = true;
         next();
     } else {
@@ -1900,7 +1900,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseStatement(Tre
         goto defaultCase;
     }
     case IDENT:
-        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async)) {
+        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async && !m_token.m_data.escaped)) {
             if (maybeParseAsyncFunctionDeclarationStatement(context, result, parentAllowsFunctionDeclarationAsStatement))
                 break;
         }
@@ -2837,7 +2837,7 @@ parseMethod:
             next();
             break;
         case IDENT:
-            if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async)) {
+            if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async && !m_token.m_data.escaped)) {
                 if (!isGeneratorMethodParseMode(parseMode) && !isAsyncMethodParseMode(parseMode)) {
                     ident = m_token.m_data.ident;
                     next();
@@ -3472,7 +3472,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseExportDeclara
             semanticFailIfTrue(hasKeywordForLocalBindings, "Cannot use keyword as exported variable name");
             // Since this export declaration does not have module specifier part, it exports the local bindings.
             // While the export declaration with module specifier does not have any effect on the current module's scope,
-            // the export named declaration without module specifier references the the local binding names.
+            // the export named declaration without module specifier references the local binding names.
             // For example,
             //   export { A, B, C as D } from "mod"
             // does not have effect on the current module's scope. But,
@@ -3517,7 +3517,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseExportDeclara
             break;
 
         case IDENT:
-            if (*m_token.m_data.ident == m_vm->propertyNames->async) {
+            if (*m_token.m_data.ident == m_vm->propertyNames->async && !m_token.m_data.escaped) {
                 next();
                 semanticFailIfFalse(match(FUNCTION) && !m_lexer->prevTerminator(), "Expected 'function' keyword following 'async' keyword with no preceding line terminator");
                 DepthManager statementDepth(&m_statementDepth);
@@ -3584,6 +3584,18 @@ template <typename TreeBuilder> TreeExpression Parser<LexerType>::parseAssignmen
 {
     ExpressionErrorClassifier classifier(this);
     return parseAssignmentExpression(context, classifier);
+}
+
+
+template <typename LexerType>
+template <typename TreeBuilder> NEVER_INLINE const char* Parser<LexerType>::metaPropertyName(TreeBuilder& context, TreeExpression expr)
+{
+    if (context.isNewTarget(expr))
+        return "new.target";
+    if (context.isImportMeta(expr))
+        return "import.meta";
+    RELEASE_ASSERT_NOT_REACHED();
+    return "error";
 }
     
 template <typename LexerType>
@@ -3690,8 +3702,8 @@ template <typename TreeBuilder> TreeExpression Parser<LexerType>::parseAssignmen
         }
         m_parserState.nonTrivialExpressionCount++;
         hadAssignment = true;
-        if (UNLIKELY(context.isNewTarget(lhs)))
-            internalFailWithMessage(false, "new.target can't be the left hand side of an assignment expression");
+        if (UNLIKELY(context.isMetaProperty(lhs)))
+            internalFailWithMessage(false, metaPropertyName(context, lhs), " can't be the left hand side of an assignment expression");
         context.assignmentStackAppend(assignmentStack, lhs, start, tokenStartPosition(), m_parserState.assignmentCount, op);
         start = tokenStartPosition();
         m_parserState.assignmentCount++;
@@ -3892,7 +3904,7 @@ template <class TreeBuilder> TreeProperty Parser<LexerType>::parseProperty(TreeB
 parseProperty:
     switch (m_token.m_type) {
     case IDENT:
-        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async)) {
+        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async && !m_token.m_data.escaped)) {
             if (parseMode == SourceParseMode::MethodMode) {
                 SavePoint savePoint = createSavePoint();
                 next();
@@ -4448,9 +4460,12 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parsePrimaryExpre
     case AWAIT:
         if (m_parserState.functionParsePhase == FunctionParsePhase::Parameters)
             failIfFalse(m_parserState.allowAwait, "Cannot use await expression within parameters");
+        else if (currentFunctionScope()->isAsyncFunctionBoundary())
+            return parseAwaitExpression(context);
+
         goto identifierExpression;
     case IDENT: {
-        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async)) {
+        if (UNLIKELY(*m_token.m_data.ident == m_vm->propertyNames->async && !m_token.m_data.escaped)) {
             JSTextPosition start = tokenStartPosition();
             const Identifier* ident = m_token.m_data.ident;
             JSTokenLocation location(tokenLocation());
@@ -4476,6 +4491,12 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parsePrimaryExpre
             return 0;
 
         return createResolveAndUseVariable(context, ident, *ident == m_vm->propertyNames->eval, start, location);
+    }
+    case BIGINT: {
+        const Identifier* ident = m_token.m_data.bigIntString;
+        JSTokenLocation location(tokenLocation());
+        next();
+        return context.createBigInt(location, ident, m_token.m_data.radix);
     }
     case STRING: {
         const Identifier* ident = m_token.m_data.ident;
@@ -4526,8 +4547,8 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parsePrimaryExpre
         next();
         TreeExpression re = context.createRegExp(location, *pattern, *flags, start);
         if (!re) {
-            const char* yarrErrorMsg = Yarr::checkSyntax(pattern->string(), flags->string());
-            regexFail(yarrErrorMsg);
+            Yarr::ErrorCode errorCode = Yarr::checkSyntax(pattern->string(), flags->string());
+            regexFail(Yarr::errorMessage(errorCode));
         }
         return re;
     }
@@ -4644,29 +4665,28 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseMemberExpres
     }
 
     bool baseIsSuper = match(SUPER);
+    bool previousBaseWasSuper = false;
     bool baseIsImport = match(IMPORT);
     semanticFailIfTrue((baseIsSuper || baseIsImport) && newCount, "Cannot use new with ", getToken());
 
     bool baseIsNewTarget = false;
     if (newCount && match(DOT)) {
         next();
-        if (match(IDENT)) {
-            const Identifier* ident = m_token.m_data.ident;
-            if (m_vm->propertyNames->target == *ident) {
-                ScopeRef closestOrdinaryFunctionScope = closestParentOrdinaryFunctionNonLexicalScope();
-                semanticFailIfFalse(currentScope()->isFunction() || closestOrdinaryFunctionScope->evalContextType() == EvalContextType::FunctionEvalContext, "new.target is only valid inside functions");
-                baseIsNewTarget = true;
-                if (currentScope()->isArrowFunction()) {
-                    semanticFailIfFalse(!closestOrdinaryFunctionScope->isGlobalCodeScope() || closestOrdinaryFunctionScope->evalContextType() == EvalContextType::FunctionEvalContext, "new.target is not valid inside arrow functions in global code");
-                    currentScope()->setInnerArrowFunctionUsesNewTarget();
-                }
-                base = context.createNewTargetExpr(location);
-                newCount--;
-                next();
-            } else
-                failWithMessage("\"new.\" can only followed with target");
-        } else
+        if (matchContextualKeyword(m_vm->propertyNames->target)) {
+            ScopeRef closestOrdinaryFunctionScope = closestParentOrdinaryFunctionNonLexicalScope();
+            semanticFailIfFalse(currentScope()->isFunction() || closestOrdinaryFunctionScope->evalContextType() == EvalContextType::FunctionEvalContext, "new.target is only valid inside functions");
+            baseIsNewTarget = true;
+            if (currentScope()->isArrowFunction()) {
+                semanticFailIfFalse(!closestOrdinaryFunctionScope->isGlobalCodeScope() || closestOrdinaryFunctionScope->evalContextType() == EvalContextType::FunctionEvalContext, "new.target is not valid inside arrow functions in global code");
+                currentScope()->setInnerArrowFunctionUsesNewTarget();
+            }
+            base = context.createNewTargetExpr(location);
+            newCount--;
+            next();
+        } else {
+            failIfTrue(match(IDENT), "\"new.\" can only followed with target");
             failDueToUnexpectedToken();
+        }
     }
 
     bool baseIsAsyncKeyword = false;
@@ -4692,17 +4712,16 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseMemberExpres
         next();
         JSTextPosition expressionEnd = lastTokenEndPosition();
         if (consume(DOT)) {
-            if (!match(IDENT))
+            if (matchContextualKeyword(m_vm->propertyNames->builtinNames().metaPublicName())) {
+                semanticFailIfFalse(m_scriptMode == JSParserScriptMode::Module, "import.meta is only valid inside modules");
+
+                JSTokenLocation location(tokenLocation());
+                base = context.createImportMetaExpr(location, createResolveAndUseVariable(context, &m_vm->propertyNames->builtinNames().metaPrivateName(), false, expressionStart, location));
+                next();
+            } else {
+                failIfTrue(match(IDENT), "\"import.\" can only followed with meta");
                 failDueToUnexpectedToken();
-            const Identifier* ident = m_token.m_data.ident;
-            if (m_vm->propertyNames->builtinNames().metaPublicName() != *ident)
-                failWithMessage("\"import.\" can only followed with meta");
-
-            semanticFailIfFalse(m_scriptMode == JSParserScriptMode::Module, "import.meta is only valid inside modules");
-
-            JSTokenLocation location(tokenLocation());
-            base = createResolveAndUseVariable(context, &m_vm->propertyNames->builtinNames().metaPrivateName(), false, expressionStart, location);
-            next();
+            }
         } else {
             consumeOrFail(OPENPAREN, "import call expects exactly one argument");
             TreeExpression expr = parseAssignmentExpression(context);
@@ -4788,7 +4807,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseMemberExpres
                     if (currentScope()->isArrowFunction())
                         functionScope->setInnerArrowFunctionUsesSuperCall();
                 }
-                base = context.makeFunctionCallNode(startLocation, base, arguments, expressionStart,
+                base = context.makeFunctionCallNode(startLocation, base, previousBaseWasSuper, arguments, expressionStart,
                     expressionEnd, lastTokenEndPosition(), callOrApplyDepthScope ? callOrApplyDepthScope->distanceToInnermostChild() : 0);
             }
             m_parserState.nonLHSCount = nonLHSCount;
@@ -4818,6 +4837,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseMemberExpres
         default:
             goto endMemberExpression;
         }
+        previousBaseWasSuper = baseIsSuper;
         baseIsSuper = false;
     }
 endMemberExpression:
@@ -4922,8 +4942,8 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseUnaryExpress
             failWithMessage("Cannot parse subexpression of ", operatorString(true, lastOperator), "operator");
         failWithMessage("Cannot parse member expression");
     }
-    if (UNLIKELY(isUpdateOp(static_cast<JSTokenType>(lastOperator)) && context.isNewTarget(expr)))
-        internalFailWithMessage(false, "new.target can't come after a prefix operator");
+    if (UNLIKELY(isUpdateOp(static_cast<JSTokenType>(lastOperator)) && context.isMetaProperty(expr)))
+        internalFailWithMessage(false, metaPropertyName(context, expr), " can't come after a prefix operator");
     bool isEvalOrArguments = false;
     if (strictMode() && !m_syntaxAlreadyValidated) {
         if (context.isResolve(expr))
@@ -4932,8 +4952,8 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseUnaryExpress
     failIfTrueIfStrict(isEvalOrArguments && modifiesExpr, "Cannot modify '", m_parserState.lastIdentifier->impl(), "' in strict mode");
     switch (m_token.m_type) {
     case PLUSPLUS:
-        if (UNLIKELY(context.isNewTarget(expr)))
-            internalFailWithMessage(false, "new.target can't come before a postfix operator");
+        if (UNLIKELY(context.isMetaProperty(expr)))
+            internalFailWithMessage(false, metaPropertyName(context, expr), " can't come before a postfix operator");
         m_parserState.nonTrivialExpressionCount++;
         m_parserState.nonLHSCount++;
         expr = context.makePostfixNode(location, expr, OpPlusPlus, subExprStart, lastTokenEndPosition(), tokenEndPosition());
@@ -4944,8 +4964,8 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseUnaryExpress
         next();
         break;
     case MINUSMINUS:
-        if (UNLIKELY(context.isNewTarget(expr)))
-            internalFailWithMessage(false, "new.target can't come before a postfix operator");
+        if (UNLIKELY(context.isMetaProperty(expr)))
+            internalFailWithMessage(false, metaPropertyName(context, expr), " can't come before a postfix operator");
         m_parserState.nonTrivialExpressionCount++;
         m_parserState.nonLHSCount++;
         expr = context.makePostfixNode(location, expr, OpMinusMinus, subExprStart, lastTokenEndPosition(), tokenEndPosition());

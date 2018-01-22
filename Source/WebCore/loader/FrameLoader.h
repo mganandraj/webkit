@@ -36,6 +36,7 @@
 #include "FrameLoaderTypes.h"
 #include "LayoutMilestones.h"
 #include "MixedContentChecker.h"
+#include "ReferrerPolicy.h"
 #include "ResourceLoadNotifier.h"
 #include "ResourceLoaderOptions.h"
 #include "ResourceRequestBase.h"
@@ -92,9 +93,7 @@ public:
     ~FrameLoader();
 
     WEBCORE_EXPORT void init();
-#if PLATFORM(IOS)
     void initForSynthesizedDocument(const URL&);
-#endif
 
     Frame& frame() const { return m_frame; }
 
@@ -147,6 +146,8 @@ public:
     WEBCORE_EXPORT bool frameHasLoaded() const;
 
     WEBCORE_EXPORT int numPendingOrLoadingRequests(bool recurse) const;
+
+    ReferrerPolicy effectiveReferrerPolicy() const;
     String referrer() const;
     WEBCORE_EXPORT String outgoingReferrer() const;
     String outgoingOrigin() const;
@@ -157,6 +158,9 @@ public:
     DocumentLoader* provisionalDocumentLoader() const { return m_provisionalDocumentLoader.get(); }
     FrameState state() const { return m_state; }
 
+    void setShouldReportResourceTimingToParentFrame(bool value) { m_shouldReportResourceTimingToParentFrame = value; }
+    bool shouldReportResourceTimingToParentFrame() { return m_shouldReportResourceTimingToParentFrame; };
+    
 #if PLATFORM(IOS)
     RetainPtr<CFDictionaryRef> connectionProperties(ResourceLoader*);
 #endif
@@ -257,7 +261,7 @@ public:
 
     WEBCORE_EXPORT Frame* findFrameForNavigation(const AtomicString& name, Document* activeDocument = nullptr);
 
-    void applyUserAgent(ResourceRequest&);
+    void applyUserAgentIfNeeded(ResourceRequest&);
 
     bool shouldInterruptLoadForXFrameOptions(const String&, const URL&, unsigned long requestIdentifier);
 
@@ -296,7 +300,8 @@ public:
     void setProvisionalLoadErrorBeingHandledURL(const URL& url) { m_provisionalLoadErrorBeingHandledURL = url; }
 
     bool isAlwaysOnLoggingAllowed() const;
-    bool shouldSuppressKeyboardInput() const;
+    bool shouldSuppressTextInputFromEditing() const;
+    bool isReloadingFromOrigin() const { return m_loadType == FrameLoadType::ReloadFromOrigin; }
 
 private:
     enum FormSubmissionCacheLoadPolicy {
@@ -414,6 +419,7 @@ private:
     bool m_quickRedirectComing;
     bool m_sentRedirectNotification;
     bool m_inStopAllLoaders;
+    bool m_shouldReportResourceTimingToParentFrame { true };
 
     String m_outgoingReferrer;
 

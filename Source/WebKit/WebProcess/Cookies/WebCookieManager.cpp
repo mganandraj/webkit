@@ -60,10 +60,7 @@ void WebCookieManager::getHostnamesWithCookies(PAL::SessionID sessionID, Callbac
     if (auto* storageSession = NetworkStorageSession::storageSession(sessionID))
         WebCore::getHostnamesWithCookies(*storageSession, hostnames);
 
-    Vector<String> hostnameList;
-    copyToVector(hostnames, hostnameList);
-
-    m_process.send(Messages::WebCookieManagerProxy::DidGetHostnamesWithCookies(hostnameList, callbackID), 0);
+    m_process.send(Messages::WebCookieManagerProxy::DidGetHostnamesWithCookies(copyToVector(hostnames), callbackID), 0);
 }
 
 void WebCookieManager::deleteCookiesForHostname(PAL::SessionID sessionID, const String& hostname)
@@ -87,7 +84,7 @@ void WebCookieManager::deleteCookie(PAL::SessionID sessionID, const Cookie& cook
     m_process.send(Messages::WebCookieManagerProxy::DidDeleteCookies(callbackID), 0);
 }
 
-void WebCookieManager::deleteAllCookiesModifiedSince(PAL::SessionID sessionID, std::chrono::system_clock::time_point time, CallbackID callbackID)
+void WebCookieManager::deleteAllCookiesModifiedSince(PAL::SessionID sessionID, WallTime time, CallbackID callbackID)
 {
     if (auto* storageSession = NetworkStorageSession::storageSession(sessionID))
         WebCore::deleteAllCookiesModifiedSince(*storageSession, time);

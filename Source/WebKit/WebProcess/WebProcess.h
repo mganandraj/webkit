@@ -71,6 +71,10 @@ class UserGestureToken;
 struct PluginInfo;
 struct SecurityOriginData;
 struct SoupNetworkProxySettings;
+
+#if ENABLE(SERVICE_WORKER)
+struct ServiceWorkerContextData;
+#endif
 }
 
 namespace WebKit {
@@ -161,7 +165,7 @@ public:
 
     EventDispatcher& eventDispatcher() { return *m_eventDispatcher; }
 
-    NetworkProcessConnection& networkConnection();
+    NetworkProcessConnection& ensureNetworkProcessConnection();
     void networkProcessConnectionClosed(NetworkProcessConnection*);
     WebLoaderStrategy& webLoaderStrategy();
 
@@ -170,11 +174,10 @@ public:
 #endif
 
     void webToStorageProcessConnectionClosed(WebToStorageProcessConnection*);
-    WebToStorageProcessConnection* webToStorageProcessConnection();
+    WebToStorageProcessConnection& ensureWebToStorageProcessConnection(PAL::SessionID initialSessionID);
 
     void setCacheModel(uint32_t);
 
-    void ensurePrivateBrowsingSession(PAL::SessionID);
     void ensureLegacyPrivateBrowsingSessionInNetworkProcess();
     void addWebsiteDataStore(WebsiteDataStoreParameters&&);
     void destroySession(PAL::SessionID);
@@ -229,6 +232,10 @@ public:
 
     WebCacheStorageProvider& cacheStorageProvider() { return m_cacheStorageProvider.get(); }
 
+#if PLATFORM(IOS)
+    void accessibilityProcessSuspendedNotification(bool);
+#endif
+
 private:
     WebProcess();
     ~WebProcess();
@@ -275,7 +282,7 @@ private:
 
     void setEnhancedAccessibility(bool);
     
-    void startMemorySampler(const SandboxExtension::Handle&, const String&, const double);
+    void startMemorySampler(SandboxExtension::Handle&&, const String&, const double);
     void stopMemorySampler();
     
     void getWebCoreStatistics(uint64_t callbackID);
@@ -285,20 +292,25 @@ private:
     void mainThreadPing();
     void backgroundResponsivenessPing();
 
+    void syncIPCMessageWhileWaitingForSyncReplyForTesting();
+
 #if ENABLE(GAMEPAD)
     void setInitialGamepads(const Vector<GamepadData>&);
     void gamepadConnected(const GamepadData&);
     void gamepadDisconnected(unsigned index);
 #endif
-
 #if USE(SOUP)
     void setNetworkProxySettings(const WebCore::SoupNetworkProxySettings&);
+#endif
+#if ENABLE(SERVICE_WORKER)
+    void establishWorkerContextConnectionToStorageProcess(uint64_t pageID, const WebPreferencesStore&, PAL::SessionID);
+    void registerServiceWorkerClients(PAL::SessionID);
 #endif
 
     void releasePageCache();
 
     void fetchWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, WebsiteData&);
-    void deleteWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, std::chrono::system_clock::time_point modifiedSince);
+    void deleteWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, WallTime modifiedSince);
     void deleteWebsiteDataForOrigins(PAL::SessionID, OptionSet<WebsiteDataType>, const Vector<WebCore::SecurityOriginData>& origins);
 
     void setMemoryCacheDisabled(bool);
@@ -378,7 +390,6 @@ private:
 
     TextCheckerState m_textCheckerState;
 
-    void ensureNetworkProcessConnection();
     RefPtr<NetworkProcessConnection> m_networkProcessConnection;
     WebLoaderStrategy& m_webLoaderStrategy;
 
@@ -393,7 +404,6 @@ private:
 
     std::unique_ptr<WebAutomationSessionProxy> m_automationSessionProxy;
 
-    void ensureWebToStorageProcessConnection();
     RefPtr<WebToStorageProcessConnection> m_webToStorageProcessConnection;
 
 #if ENABLE(NETSCAPE_PLUGIN_API)

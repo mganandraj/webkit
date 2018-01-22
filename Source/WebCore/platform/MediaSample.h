@@ -33,6 +33,7 @@
 #include <wtf/text/AtomicString.h>
 
 typedef struct opaqueCMSampleBuffer *CMSampleBufferRef;
+typedef struct _GstSample GstSample;
 
 namespace WebCore {
 
@@ -43,16 +44,18 @@ struct PlatformSample {
         None,
         MockSampleBoxType,
         CMSampleBufferType,
+        GStreamerSampleType,
     } type;
     union {
         MockSampleBox* mockSampleBox;
         CMSampleBufferRef cmSampleBuffer;
+        GstSample* gstSample;
     } sample;
 };
 
 class MediaSample : public RefCounted<MediaSample> {
 public:
-    virtual ~MediaSample() { }
+    virtual ~MediaSample() = default;
 
     virtual MediaTime presentationTime() const = 0;
     virtual MediaTime outputPresentationTime() const { return presentationTime(); }

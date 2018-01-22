@@ -442,13 +442,13 @@ private:
             }
 
             SpeculatedType prediction = node->child1()->prediction();
-            if (prediction) {
+            if (ecmaMode == StrictMode)
+                changed |= mergePrediction(node->getHeapPrediction());
+            else if (prediction) {
                 if (prediction & ~SpecObject) {
                     // Wrapper objects are created only in sloppy mode.
-                    if (ecmaMode != StrictMode) {
-                        prediction &= SpecObject;
-                        prediction = mergeSpeculations(prediction, SpecObjectOther);
-                    }
+                    prediction &= SpecObject;
+                    prediction = mergeSpeculations(prediction, SpecObjectOther);
                 }
                 changed |= mergePrediction(prediction);
             }
@@ -459,6 +459,13 @@ private:
             SpeculatedType child = node->child1()->prediction();
             if (child)
                 changed |= mergePrediction(resultOfToPrimitive(child));
+            break;
+        }
+
+        case NormalizeMapKey: {
+            SpeculatedType prediction = node->child1()->prediction();
+            if (prediction)
+                changed |= mergePrediction(prediction);
             break;
         }
 
@@ -689,7 +696,9 @@ private:
         case ArrayPop:
         case ArrayPush:
         case RegExpExec:
+        case RegExpExecNonGlobalOrSticky:
         case RegExpTest:
+        case RegExpMatchFast:
         case StringReplace:
         case StringReplaceRegExp:
         case GetById:
@@ -720,14 +729,18 @@ private:
         case LoadKeyFromMapBucket:
         case LoadValueFromMapBucket:
         case ToNumber:
+        case ToObject:
+        case CallObjectConstructor:
         case GetArgument:
         case CallDOMGetter:
         case GetDynamicVar:
-        case WeakMapGet: {
+        case GetPrototypeOf:
+        case ExtractValueFromWeakMapGet: {
             setPrediction(m_currentNode->getHeapPrediction());
             break;
         }
 
+        case WeakMapGet:
         case ResolveScopeForHoistingFuncDeclInEval: {
             setPrediction(SpecBytecodeTop);
             break;
@@ -762,6 +775,8 @@ private:
         case GetMapBucket:
         case GetMapBucketHead:
         case GetMapBucketNext:
+        case SetAdd:
+        case MapSet:
             setPrediction(SpecCellOther);
             break;
 
@@ -783,6 +798,7 @@ private:
             break;
         }
 
+        case StringSlice:
         case ToLowerCase:
             setPrediction(SpecString);
             break;
@@ -818,6 +834,8 @@ private:
         case CompareLessEq:
         case CompareGreater:
         case CompareGreaterEq:
+        case CompareBelow:
+        case CompareBelowEq:
         case CompareEq:
         case CompareStrictEq:
         case CompareEqPtr:
@@ -842,7 +860,6 @@ private:
             break;
         }
         case GetButterfly:
-        case GetButterflyWithoutCaging:
         case GetIndexedPropertyStorage:
         case AllocatePropertyStorage:
         case ReallocatePropertyStorage: {
@@ -853,10 +870,6 @@ private:
         case CheckSubClass:
             break;
 
-        case CallObjectConstructor: {
-            setPrediction(SpecObject);
-            break;
-        }
         case SkipScope:
         case GetGlobalObject: {
             setPrediction(SpecObjectOther);
@@ -1022,6 +1035,7 @@ private:
         case GetByVal:
         case ToThis:
         case ToPrimitive: 
+        case NormalizeMapKey:
         case AtomicsAdd:
         case AtomicsAnd:
         case AtomicsCompareExchange:
@@ -1040,9 +1054,16 @@ private:
             break;
         }
 
+        case CPUIntrinsic: {
+            if (m_currentNode->intrinsic() == CPURdtscIntrinsic)
+                setPrediction(SpecInt32Only);
+            else
+                setPrediction(SpecOther);
+            break;
+        }
+
         case PutByValAlias:
         case DoubleAsInt32:
-        case GetLocalUnlinked:
         case CheckArray:
         case CheckTypeInfoFlags:
         case Arrayify:
@@ -1069,7 +1090,9 @@ private:
         case PhantomCreateRest:
         case PhantomSpread:
         case PhantomNewArrayWithSpread:
+        case PhantomNewArrayBuffer:
         case PhantomClonedArguments:
+        case PhantomNewRegexp:
         case GetMyArgumentByVal:
         case GetMyArgumentByValOutOfBounds:
         case PutHint:
@@ -1142,6 +1165,7 @@ private:
         case CheckStructure:
         case CheckCell:
         case CheckNotEmpty:
+        case AssertNotEmpty:
         case CheckStringIdent:
         case CheckBadCell:
         case PutStructure:
@@ -1175,6 +1199,8 @@ private:
             
         // These gets ignored because it doesn't do anything.
         case CountExecution:
+        case SuperSamplerBegin:
+        case SuperSamplerEnd:
         case PhantomLocal:
         case Flush:
             break;

@@ -25,7 +25,7 @@
 
 WI.CollectionContentView = class CollectionContentView extends WI.ContentView
 {
-    constructor(collection, contentViewConstructor, contentPlaceholderText)
+    constructor(collection, contentViewConstructor, contentPlaceholder)
     {
         console.assert(collection instanceof WI.Collection);
 
@@ -33,33 +33,13 @@ WI.CollectionContentView = class CollectionContentView extends WI.ContentView
 
         this.element.classList.add("collection");
 
-        this._contentPlaceholderText = contentPlaceholderText || WI.CollectionContentView.titleForCollection(collection);
+        this._contentPlaceholder = contentPlaceholder || collection.displayName;
+        this._contentPlaceholderElement = null;
         this._contentViewConstructor = contentViewConstructor;
         this._contentViewMap = new Map;
         this._handleClickMap = new WeakMap;
         this._selectedItem = null;
         this._selectionEnabled = false;
-    }
-
-    static titleForCollection(collection)
-    {
-        switch (collection.typeVerifier) {
-        case WI.Collection.TypeVerifier.Frame:
-            return WI.UIString("Frames");
-        case WI.Collection.TypeVerifier.Resource:
-            return WI.UIString("Resources");
-        case WI.Collection.TypeVerifier.Script:
-            return WI.UIString("Scripts");
-        case WI.Collection.TypeVerifier.CSSStyleSheet:
-            return WI.UIString("Stylesheets");
-        case WI.Collection.TypeVerifier.Canvas:
-            return WI.UIString("Canvases");
-        case WI.Collection.TypeVerifier.ShaderProgram:
-            return WI.UIString("Shader Programs");
-        }
-
-        console.warn("No default title for Collection type verifier.", collection.typeVerifier);
-        return WI.UIString("Collection");
     }
 
     // Public
@@ -188,9 +168,6 @@ WI.CollectionContentView = class CollectionContentView extends WI.ContentView
             this._showContentPlaceholder();
             return;
         }
-
-        for (let item of items)
-            this.addContentViewForItem(item);
     }
 
     attached()
@@ -272,18 +249,20 @@ WI.CollectionContentView = class CollectionContentView extends WI.ContentView
 
     _showContentPlaceholder()
     {
-        if (!this._contentPlaceholder)
-            this._contentPlaceholder = new WI.TitleView(this._contentPlaceholderText);
+        if (!this._contentPlaceholderElement) {
+            if (typeof this._contentPlaceholder === "string")
+                this._contentPlaceholderElement = WI.createMessageTextView(this._contentPlaceholder);
+            else if (this._contentPlaceholder instanceof HTMLElement)
+                this._contentPlaceholderElement =  this._contentPlaceholder;
+        }
 
-        if (!this._contentPlaceholder.parentView)
-            this.debounce(250).addSubview(this._contentPlaceholder);
+        if (!this._contentPlaceholderElement.parentNode)
+            this.element.appendChild(this._contentPlaceholderElement);
     }
 
     _hideContentPlaceholder()
     {
-        this.addSubview.cancelDebounce();
-
-        if (this._contentPlaceholder && this._contentPlaceholder.parentView)
-            this.removeSubview(this._contentPlaceholder);
+        if (this._contentPlaceholderElement)
+            this._contentPlaceholderElement.remove();
     }
 };

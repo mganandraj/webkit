@@ -33,6 +33,7 @@
 #include "IntRect.h"
 #include "SharedBuffer.h"
 #include <wtf/Assertions.h>
+#include <wtf/Lock.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
@@ -41,10 +42,7 @@ namespace WebCore {
 
 // ScalableImageDecoder is a base for all format-specific decoders
 // (e.g. JPEGImageDecoder). This base manages the ImageFrame cache.
-//
-// ENABLE(IMAGE_DECODER_DOWN_SAMPLING) allows image decoders to downsample
-// at decode time. Image decoders will downsample any images larger than
-// |m_maxNumPixels|. FIXME: Not yet supported by all decoders.
+
 class ScalableImageDecoder : public ImageDecoder {
     WTF_MAKE_NONCOPYABLE(ScalableImageDecoder); WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -57,6 +55,8 @@ public:
     virtual ~ScalableImageDecoder()
     {
     }
+
+    static bool supportsMediaType(MediaType type) { return type == MediaType::Image; }
 
     // Returns nullptr if we can't sniff a supported type from the provided data (possibly
     // because there isn't enough data yet).
@@ -72,6 +72,7 @@ public:
 
     void setData(SharedBuffer& data, bool allDataReceived) override
     {
+        LockHolder lockHolder(m_mutex);
         if (m_encodedDataStatus == EncodedDataStatus::Error)
             return;
 
@@ -145,7 +146,7 @@ public:
 
     Seconds frameDurationAtIndex(size_t) const final;
 
-    NativeImagePtr createFrameImageAtIndex(size_t, SubsamplingLevel = SubsamplingLevel::Default, const DecodingOptions& = DecodingMode::Synchronous) override;
+    NativeImagePtr createFrameImageAtIndex(size_t, SubsamplingLevel = SubsamplingLevel::Default, const DecodingOptions& = DecodingOptions(DecodingMode::Synchronous)) override;
 
     void setIgnoreGammaAndColorProfile(bool flag) { m_ignoreGammaAndColorProfile = flag; }
     bool ignoresGammaAndColorProfile() const { return m_ignoreGammaAndColorProfile; }
@@ -205,6 +206,7 @@ protected:
 
     RefPtr<SharedBuffer> m_data; // The encoded data.
     Vector<ImageFrame, 1> m_frameBufferCache;
+    mutable Lock m_mutex;
     bool m_scaled { false };
     Vector<int> m_scaledColumns;
     Vector<int> m_scaledRows;
@@ -218,11 +220,12 @@ private:
     IntSize m_size;
     EncodedDataStatus m_encodedDataStatus { EncodedDataStatus::TypeAvailable };
     bool m_decodingSizeFromSetData { false };
-#if ENABLE(IMAGE_DECODER_DOWN_SAMPLING)
-    static const int m_maxNumPixels { 1024 * 1024 };
-#else
+
+    // FIXME: Evaluate the need for decoded data scaling. m_scaled,
+    // m_scaledColumns and m_scaledRows are member variables that are
+    // affected by this value, and are not used at all since the value
+    // is negavite (see prepareScaleDataIfNecessary()).
     static const int m_maxNumPixels { -1 };
-#endif
 };
 
 } // namespace WebCore

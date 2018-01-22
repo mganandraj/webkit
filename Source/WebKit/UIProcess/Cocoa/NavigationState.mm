@@ -33,6 +33,7 @@
 #import "APINavigationResponse.h"
 #import "APIString.h"
 #import "APIURL.h"
+#import "APIWebsiteDataStore.h"
 #import "AuthenticationDecisionListener.h"
 #import "CompletionHandlerCallChecker.h"
 #import "Logging.h"
@@ -161,6 +162,7 @@ void NavigationState::setNavigationDelegate(id <WKNavigationDelegate> delegate)
     m_navigationDelegateMethods.webViewRenderingProgressDidChange = [delegate respondsToSelector:@selector(_webView:renderingProgressDidChange:)];
     m_navigationDelegateMethods.webViewDidReceiveAuthenticationChallengeCompletionHandler = [delegate respondsToSelector:@selector(webView:didReceiveAuthenticationChallenge:completionHandler:)];
     m_navigationDelegateMethods.webViewWebContentProcessDidTerminate = [delegate respondsToSelector:@selector(webViewWebContentProcessDidTerminate:)];
+    m_navigationDelegateMethods.webViewWebContentProcessDidTerminateWithReason = [delegate respondsToSelector:@selector(_webView:webContentProcessDidTerminateWithReason:)];
     m_navigationDelegateMethods.webViewCanAuthenticateAgainstProtectionSpace = [delegate respondsToSelector:@selector(_webView:canAuthenticateAgainstProtectionSpace:)];
     m_navigationDelegateMethods.webViewDidReceiveAuthenticationChallenge = [delegate respondsToSelector:@selector(_webView:didReceiveAuthenticationChallenge:)];
     m_navigationDelegateMethods.webViewWebProcessDidCrash = [delegate respondsToSelector:@selector(_webViewWebProcessDidCrash:)];
@@ -184,6 +186,7 @@ void NavigationState::setNavigationDelegate(id <WKNavigationDelegate> delegate)
     m_navigationDelegateMethods.webViewWillGoToBackForwardListItemInPageCache = [delegate respondsToSelector:@selector(_webView:willGoToBackForwardListItem:inPageCache:)];
     m_navigationDelegateMethods.webViewDidFailToInitializePlugInWithInfo = [delegate respondsToSelector:@selector(_webView:didFailToInitializePlugInWithInfo:)];
     m_navigationDelegateMethods.webViewBackForwardListItemAddedRemoved = [delegate respondsToSelector:@selector(_webView:backForwardListItemAdded:removed:)];
+    m_navigationDelegateMethods.webViewDecidePolicyForPluginLoadWithCurrentPolicyPluginInfoUnavailabilityDescription = [delegate respondsToSelector:@selector(_webView:decidePolicyForPluginLoadWithCurrentPolicy:pluginInfo:unavailabilityDescription:)];
 #endif
 }
 
@@ -311,6 +314,50 @@ bool NavigationState::NavigationClient::didFailToInitializePlugIn(WebPageProxy&,
     return true;
 }
 
+static WebKit::PluginModuleLoadPolicy pluginModuleLoadPolicy(_WKPluginModuleLoadPolicy policy)
+{
+    switch (policy) {
+    case _WKPluginModuleLoadPolicyLoadNormally:
+        return WebKit::PluginModuleLoadNormally;
+    case _WKPluginModuleLoadPolicyLoadUnsandboxed:
+        return WebKit::PluginModuleLoadUnsandboxed;
+    case _WKPluginModuleLoadPolicyBlockedForSecurity:
+        return WebKit::PluginModuleBlockedForSecurity;
+    case _WKPluginModuleLoadPolicyBlockedForCompatibility:
+        return WebKit::PluginModuleBlockedForCompatibility;
+    }
+    ASSERT_NOT_REACHED();
+    return WebKit::PluginModuleLoadNormally;
+}
+
+static _WKPluginModuleLoadPolicy wkPluginModuleLoadPolicy(WebKit::PluginModuleLoadPolicy policy)
+{
+    switch (policy) {
+    case WebKit::PluginModuleLoadNormally:
+        return _WKPluginModuleLoadPolicyLoadNormally;
+    case WebKit::PluginModuleLoadUnsandboxed:
+        return _WKPluginModuleLoadPolicyLoadUnsandboxed;
+    case WebKit::PluginModuleBlockedForSecurity:
+        return _WKPluginModuleLoadPolicyBlockedForSecurity;
+    case WebKit::PluginModuleBlockedForCompatibility:
+        return _WKPluginModuleLoadPolicyBlockedForCompatibility;
+    }
+    ASSERT_NOT_REACHED();
+    return _WKPluginModuleLoadPolicyLoadNormally;
+}
+
+WebKit::PluginModuleLoadPolicy NavigationState::NavigationClient::decidePolicyForPluginLoad(WebKit::WebPageProxy&, WebKit::PluginModuleLoadPolicy currentPluginLoadPolicy, API::Dictionary& pluginInformation, WTF::String& unavailabilityDescription)
+{
+    if (!m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForPluginLoadWithCurrentPolicyPluginInfoUnavailabilityDescription)
+        return currentPluginLoadPolicy;
+    
+    auto navigationDelegate = m_navigationState.m_navigationDelegate.get();
+    if (!navigationDelegate)
+        return currentPluginLoadPolicy;
+
+    return pluginModuleLoadPolicy([(id <WKNavigationDelegatePrivate>)navigationDelegate _webView:m_navigationState.m_webView decidePolicyForPluginLoadWithCurrentPolicy:wkPluginModuleLoadPolicy(currentPluginLoadPolicy) pluginInfo:wrapper(pluginInformation) unavailabilityDescription:unavailabilityDescription]);
+}
+
 inline WebCore::WebGLLoadPolicy toWebCoreWebGLLoadPolicy(_WKWebGLLoadPolicy policy)
 {
     switch (policy) {
@@ -393,7 +440,7 @@ bool NavigationState::NavigationClient::willGoToBackForwardListItem(WebPageProxy
 }
 #endif
 
-static void tryAppLink(RefPtr<API::NavigationAction>&& navigationAction, const String& currentMainFrameURL, WTF::Function<void(bool)>&& completionHandler)
+static void tryAppLink(Ref<API::NavigationAction>&& navigationAction, const String& currentMainFrameURL, WTF::Function<void(bool)>&& completionHandler)
 {
 #if HAVE(APP_LINKS)
     if (!navigationAction->shouldOpenAppLinks()) {
@@ -416,6 +463,7 @@ static void tryAppLink(RefPtr<API::NavigationAction>&& navigationAction, const S
 void NavigationState::NavigationClient::decidePolicyForNavigationAction(WebPageProxy& webPageProxy, Ref<API::NavigationAction>&& navigationAction, Ref<WebFramePolicyListenerProxy>&& listener, API::Object* userInfo)
 {
     String mainFrameURLString = webPageProxy.mainFrame()->url();
+    bool subframeNavigation = navigationAction->targetFrame() && !navigationAction->targetFrame()->isMainFrame();
 
     if (!m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForNavigationActionDecisionHandler
         && !m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForNavigationActionDecisionHandlerWebsitePolicies
@@ -427,7 +475,7 @@ void NavigationState::NavigationClient::decidePolicyForNavigationAction(WebPageP
             }
 
             if (!navigationAction->targetFrame()) {
-                listener->use({ });
+                listener->use(std::nullopt);
                 return;
             }
 
@@ -436,7 +484,7 @@ void NavigationState::NavigationClient::decidePolicyForNavigationAction(WebPageP
                 if (navigationAction->shouldPerformDownload())
                     listener->download();
                 else
-                    listener->use({ });
+                    listener->use(std::nullopt);
                 return;
             }
 
@@ -460,24 +508,34 @@ void NavigationState::NavigationClient::decidePolicyForNavigationAction(WebPageP
     
     auto checker = CompletionHandlerCallChecker::create(navigationDelegate.get(), delegateHasWebsitePolicies ? @selector(_webView:decidePolicyForNavigationAction:decisionHandler:) : @selector(webView:decidePolicyForNavigationAction:decisionHandler:));
     
-    auto decisionHandlerWithPolicies = [localListener = RefPtr<WebFramePolicyListenerProxy>(WTFMove(listener)), localNavigationAction = navigationAction.copyRef(), checker = WTFMove(checker), mainFrameURLString](WKNavigationActionPolicy actionPolicy, _WKWebsitePolicies *websitePolicies) mutable {
+    auto decisionHandlerWithPolicies = [localListener = WTFMove(listener), navigationAction = navigationAction.copyRef(), checker = WTFMove(checker), mainFrameURLString, webPageProxy = makeRef(webPageProxy), subframeNavigation](WKNavigationActionPolicy actionPolicy, _WKWebsitePolicies *websitePolicies) mutable {
         if (checker->completionHandlerHasBeenCalled())
             return;
         checker->didCallCompletionHandler();
 
-        WebsitePolicies policies;
-        if (websitePolicies)
-            policies = websitePolicies->_websitePolicies->websitePolicies();
+        std::optional<WebsitePoliciesData> data;
+        if (websitePolicies) {
+            data = websitePolicies->_websitePolicies->data();
+            if (data->websiteDataStoreParameters) {
+                auto& sessionID = data->websiteDataStoreParameters->networkSessionParameters.sessionID;
+                if (!sessionID.isEphemeral() && sessionID != PAL::SessionID::defaultSessionID())
+                    [NSException raise:NSInvalidArgumentException format:@"_WKWebsitePolicies.websiteDataStore must be nil, default, or non-persistent."];
+                if (subframeNavigation)
+                    [NSException raise:NSInvalidArgumentException format:@"_WKWebsitePolicies.websiteDataStore must be nil for subframe navigations."];
+
+                webPageProxy->changeWebsiteDataStore(websitePolicies->_websitePolicies->websiteDataStore()->websiteDataStore());
+            }
+        }
 
         switch (actionPolicy) {
         case WKNavigationActionPolicyAllow:
-            tryAppLink(WTFMove(localNavigationAction), mainFrameURLString, [localListener = WTFMove(localListener), policies = WTFMove(policies)](bool followedLinkToApp) mutable {
+            tryAppLink(WTFMove(navigationAction), mainFrameURLString, [localListener = WTFMove(localListener), data = WTFMove(data)](bool followedLinkToApp) mutable {
                 if (followedLinkToApp) {
                     localListener->ignore();
                     return;
                 }
 
-                localListener->use(policies);
+                localListener->use(WTFMove(data));
             });
         
             break;
@@ -494,7 +552,7 @@ void NavigationState::NavigationClient::decidePolicyForNavigationAction(WebPageP
             break;
         case _WKNavigationActionPolicyAllowWithoutTryingAppLink:
 #pragma clang diagnostic pop
-            localListener->use(policies);
+            localListener->use(WTFMove(data));
             break;
         }
     };
@@ -535,23 +593,23 @@ void NavigationState::NavigationClient::contentRuleListNotification(WebPageProxy
     [(id <WKNavigationDelegatePrivate>)navigationDelegate _webView:m_navigationState.m_webView URL:url contentRuleListIdentifiers:identifiers.get() notifications:nsNotifications.get()];
 }
     
-void NavigationState::NavigationClient::decidePolicyForNavigationResponse(WebPageProxy&, API::NavigationResponse& navigationResponse, Ref<WebFramePolicyListenerProxy>&& listener, API::Object* userData)
+void NavigationState::NavigationClient::decidePolicyForNavigationResponse(WebPageProxy&, Ref<API::NavigationResponse>&& navigationResponse, Ref<WebFramePolicyListenerProxy>&& listener, API::Object* userData)
 {
     if (!m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForNavigationResponseDecisionHandler) {
-        NSURL *url = navigationResponse.response().nsURLResponse().URL;
+        NSURL *url = navigationResponse->response().nsURLResponse().URL;
         if ([url isFileURL]) {
             BOOL isDirectory = NO;
             BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:url.path isDirectory:&isDirectory];
 
-            if (exists && !isDirectory && navigationResponse.canShowMIMEType())
-                listener->use({ });
+            if (exists && !isDirectory && navigationResponse->canShowMIMEType())
+                listener->use(std::nullopt);
             else
                 listener->ignore();
             return;
         }
 
-        if (navigationResponse.canShowMIMEType())
-            listener->use({ });
+        if (navigationResponse->canShowMIMEType())
+            listener->use(std::nullopt);
         else
             listener->ignore();
         return;
@@ -570,7 +628,7 @@ void NavigationState::NavigationClient::decidePolicyForNavigationResponse(WebPag
 
         switch (responsePolicy) {
         case WKNavigationResponsePolicyAllow:
-            localListener->use({ });
+            localListener->use(std::nullopt);
             break;
 
         case WKNavigationResponsePolicyCancel:
@@ -819,53 +877,53 @@ bool NavigationState::NavigationClient::canAuthenticateAgainstProtectionSpace(We
     if (!navigationDelegate)
         return false;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     return [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webView:m_navigationState.m_webView canAuthenticateAgainstProtectionSpace:protectionSpace->protectionSpace().nsSpace()];
+#pragma clang diagnostic pop
 }
 
-void NavigationState::NavigationClient::didReceiveAuthenticationChallenge(WebPageProxy&, AuthenticationChallengeProxy* authenticationChallenge)
+void NavigationState::NavigationClient::didReceiveAuthenticationChallenge(WebPageProxy&, AuthenticationChallengeProxy& authenticationChallenge)
 {
     if (m_navigationState.m_navigationDelegateMethods.webViewDidReceiveAuthenticationChallengeCompletionHandler) {
         auto navigationDelegate = m_navigationState.m_navigationDelegate.get();
         if (!navigationDelegate) {
-            authenticationChallenge->listener()->performDefaultHandling();
+            authenticationChallenge.listener()->performDefaultHandling();
             return;
         }
 
-        RefPtr<AuthenticationChallengeProxy> challenge = authenticationChallenge;
-        RefPtr<CompletionHandlerCallChecker> checker = CompletionHandlerCallChecker::create(navigationDelegate.get(), @selector(webView:didReceiveAuthenticationChallenge:completionHandler:));
-        [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) webView:m_navigationState.m_webView didReceiveAuthenticationChallenge:wrapper(*authenticationChallenge)
-            completionHandler:[challenge, checker](NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
-                if (checker->completionHandlerHasBeenCalled())
-                    return;
-                checker->didCallCompletionHandler();
+        auto checker = CompletionHandlerCallChecker::create(navigationDelegate.get(), @selector(webView:didReceiveAuthenticationChallenge:completionHandler:));
+        [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) webView:m_navigationState.m_webView didReceiveAuthenticationChallenge:wrapper(authenticationChallenge) completionHandler:BlockPtr<void(NSURLSessionAuthChallengeDisposition, NSURLCredential *)>::fromCallable([challenge = makeRef(authenticationChallenge), checker = WTFMove(checker)](NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
+            if (checker->completionHandlerHasBeenCalled())
+                return;
+            checker->didCallCompletionHandler();
 
-                switch (disposition) {
-                case NSURLSessionAuthChallengeUseCredential: {
-                    RefPtr<WebCredential> webCredential;
-                    if (credential)
-                        webCredential = WebCredential::create(WebCore::Credential(credential));
+            switch (disposition) {
+            case NSURLSessionAuthChallengeUseCredential: {
+                RefPtr<WebCredential> webCredential;
+                if (credential)
+                    webCredential = WebCredential::create(WebCore::Credential(credential));
 
-                    challenge->listener()->useCredential(webCredential.get());
-                    break;
-                }
-
-                case NSURLSessionAuthChallengePerformDefaultHandling:
-                    challenge->listener()->performDefaultHandling();
-                    break;
-
-                case NSURLSessionAuthChallengeCancelAuthenticationChallenge:
-                    challenge->listener()->cancel();
-                    break;
-
-                case NSURLSessionAuthChallengeRejectProtectionSpace:
-                    challenge->listener()->rejectProtectionSpaceAndContinue();
-                    break;
-
-                default:
-                    [NSException raise:NSInvalidArgumentException format:@"Invalid NSURLSessionAuthChallengeDisposition (%ld)", (long)disposition];
-                }
+                challenge->listener()->useCredential(webCredential.get());
+                break;
             }
-        ];
+
+            case NSURLSessionAuthChallengePerformDefaultHandling:
+                challenge->listener()->performDefaultHandling();
+                break;
+
+            case NSURLSessionAuthChallengeCancelAuthenticationChallenge:
+                challenge->listener()->cancel();
+                break;
+
+            case NSURLSessionAuthChallengeRejectProtectionSpace:
+                challenge->listener()->rejectProtectionSpaceAndContinue();
+                break;
+
+            default:
+                [NSException raise:NSInvalidArgumentException format:@"Invalid NSURLSessionAuthChallengeDisposition (%ld)", (long)disposition];
+            }
+        }).get()];
         return;
     }
 
@@ -876,17 +934,43 @@ void NavigationState::NavigationClient::didReceiveAuthenticationChallenge(WebPag
     if (!navigationDelegate)
         return;
 
-    [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webView:m_navigationState.m_webView didReceiveAuthenticationChallenge:wrapper(*authenticationChallenge)];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webView:m_navigationState.m_webView didReceiveAuthenticationChallenge:wrapper(authenticationChallenge)];
+#pragma clang diagnostic pop
 }
 
-void NavigationState::NavigationClient::processDidTerminate(WebPageProxy& page, ProcessTerminationReason)
+static _WKProcessTerminationReason wkProcessTerminationReason(ProcessTerminationReason reason)
 {
-    if (!m_navigationState.m_navigationDelegateMethods.webViewWebContentProcessDidTerminate && !m_navigationState.m_navigationDelegateMethods.webViewWebProcessDidCrash)
+    switch (reason) {
+    case ProcessTerminationReason::ExceededMemoryLimit:
+        return _WKProcessTerminationReasonExceededMemoryLimit;
+    case ProcessTerminationReason::ExceededCPULimit:
+        return _WKProcessTerminationReasonExceededCPULimit;
+    case ProcessTerminationReason::RequestedByClient:
+        return _WKProcessTerminationReasonRequestedByClient;
+    case ProcessTerminationReason::Crash:
+        return _WKProcessTerminationReasonCrash;
+    }
+    ASSERT_NOT_REACHED();
+    return _WKProcessTerminationReasonCrash;
+}
+
+void NavigationState::NavigationClient::processDidTerminate(WebPageProxy& page, ProcessTerminationReason reason)
+{
+    if (!m_navigationState.m_navigationDelegateMethods.webViewWebContentProcessDidTerminate
+        && !m_navigationState.m_navigationDelegateMethods.webViewWebContentProcessDidTerminateWithReason
+        && !m_navigationState.m_navigationDelegateMethods.webViewWebProcessDidCrash)
         return;
 
     auto navigationDelegate = m_navigationState.m_navigationDelegate.get();
     if (!navigationDelegate)
         return;
+
+    if (m_navigationState.m_navigationDelegateMethods.webViewWebContentProcessDidTerminateWithReason) {
+        [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webView:m_navigationState.m_webView webContentProcessDidTerminateWithReason:wkProcessTerminationReason(reason)];
+        return;
+    }
 
     // We prefer webViewWebContentProcessDidTerminate: over _webViewWebProcessDidCrash:.
     if (m_navigationState.m_navigationDelegateMethods.webViewWebContentProcessDidTerminate) {
@@ -894,8 +978,8 @@ void NavigationState::NavigationClient::processDidTerminate(WebPageProxy& page, 
         return;
     }
 
-    if (m_navigationState.m_navigationDelegateMethods.webViewWebProcessDidCrash)
-        [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webViewWebProcessDidCrash:m_navigationState.m_webView];
+    ASSERT(m_navigationState.m_navigationDelegateMethods.webViewWebProcessDidCrash);
+    [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webViewWebProcessDidCrash:m_navigationState.m_webView];
 }
 
 void NavigationState::NavigationClient::processDidBecomeResponsive(WebPageProxy& page)

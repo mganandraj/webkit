@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
  *  Copyright (C) 2001 Peter Kelly (pmk@post.com)
- *  Copyright (C) 2003-2009, 2013, 2015-2016 Apple Inc. All rights reserved.
+ *  Copyright (C) 2003-2018 Apple Inc. All rights reserved.
  *  Copyright (C) 2007 Cameron Zwarich (cwzwarich@uwaterloo.ca)
  *  Copyright (C) 2007 Maks Orlovich
  *  Copyright (C) 2007 Eric Seidel <eric@webkit.org>
@@ -102,7 +102,7 @@ namespace JSC {
 
     class ParserArenaFreeable {
     public:
-        // ParserArenaFreeable objects are are freed when the arena is deleted.
+        // ParserArenaFreeable objects are freed when the arena is deleted.
         // Destructors are not called. Clients must not call delete on such objects.
         void* operator new(size_t, ParserArena&);
     };
@@ -162,6 +162,7 @@ namespace JSC {
 
         virtual bool isNumber() const { return false; }
         virtual bool isString() const { return false; }
+        virtual bool isBigInt() const { return false; }
         virtual bool isObjectLiteral() const { return false; }
         virtual bool isArrayLiteral() const { return false; }
         virtual bool isNull() const { return false; }
@@ -186,8 +187,11 @@ namespace JSC {
         virtual bool isSpreadExpression() const { return false; }
         virtual bool isSuperNode() const { return false; }
         virtual bool isImportNode() const { return false; }
+        virtual bool isMetaProperty() const { return false; }
         virtual bool isNewTarget() const { return false; }
+        virtual bool isImportMeta() const { return false; }
         virtual bool isBytecodeIntrinsicNode() const { return false; }
+        virtual bool isBinaryOpNode() const { return false; }
 
         virtual void emitBytecodeInConditionContext(BytecodeGenerator&, Label&, Label&, FallThroughMode);
 
@@ -323,6 +327,19 @@ namespace JSC {
         JSValue jsValue(BytecodeGenerator&) const override;
 
         const Identifier& m_value;
+    };
+
+    class BigIntNode final : public ConstantNode {
+    public:
+        BigIntNode(const JSTokenLocation&, const Identifier&, uint8_t radix);
+        const Identifier& value() { return m_value; }
+
+    private:
+        bool isBigInt() const final { return true; }
+        JSValue jsValue(BytecodeGenerator&) const final;
+
+        const Identifier& m_value;
+        const uint8_t m_radix;
     };
 
     class ThrowableExpressionData {
@@ -584,13 +601,32 @@ namespace JSC {
         ExpressionNode* m_expr;
     };
 
-    class NewTargetNode final : public ExpressionNode {
+    class MetaPropertyNode : public ExpressionNode {
+    public:
+        MetaPropertyNode(const JSTokenLocation&);
+
+    private:
+        bool isMetaProperty() const final { return true; }
+    };
+
+    class NewTargetNode final : public MetaPropertyNode {
     public:
         NewTargetNode(const JSTokenLocation&);
 
     private:
         bool isNewTarget() const final { return true; }
         RegisterID* emitBytecode(BytecodeGenerator&, RegisterID* = 0) override;
+    };
+
+    class ImportMetaNode final : public MetaPropertyNode {
+    public:
+        ImportMetaNode(const JSTokenLocation&, ExpressionNode*);
+
+    private:
+        bool isImportMeta() const final { return true; }
+        RegisterID* emitBytecode(BytecodeGenerator&, RegisterID* = 0) override;
+
+        ExpressionNode* m_expr;
     };
 
     class ResolveNode : public ExpressionNode {
@@ -661,6 +697,8 @@ namespace JSC {
         Type type() const { return static_cast<Type>(m_type); }
         bool needsSuperBinding() const { return m_needsSuperBinding; }
         bool isClassProperty() const { return m_isClassProperty; }
+        bool isOverriddenByDuplicate() const { return m_isOverriddenByDuplicate; }
+        void setIsOverriddenByDuplicate() { m_isOverriddenByDuplicate = true; }
         PutType putType() const { return static_cast<PutType>(m_putType); }
 
     private:
@@ -672,6 +710,7 @@ namespace JSC {
         unsigned m_needsSuperBinding : 1;
         unsigned m_putType : 1;
         unsigned m_isClassProperty: 1;
+        unsigned m_isOverriddenByDuplicate: 1;
     };
 
     class PropertyListNode : public ExpressionNode {
@@ -1064,7 +1103,11 @@ namespace JSC {
         ExpressionNode* lhs() { return m_expr1; };
         ExpressionNode* rhs() { return m_expr2; };
 
+        bool isBinaryOpNode() const override { return true; }
+
     private:
+        enum class UInt32Result { UInt32, Constant, };
+
         void tryFoldToBranch(BytecodeGenerator&, TriState& branchCondition, ExpressionNode*& branchExpression);
         RegisterID* emitBytecode(BytecodeGenerator&, RegisterID* = 0) override;
 
@@ -1078,6 +1121,7 @@ namespace JSC {
         OpcodeID m_opcodeID;
     protected:
         bool m_rightHasAssignments;
+        bool m_shouldToUnsignedResult { true };
     };
 
     class PowNode : public BinaryOpNode {

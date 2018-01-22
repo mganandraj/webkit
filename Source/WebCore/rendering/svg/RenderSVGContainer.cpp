@@ -30,13 +30,17 @@
 #include "LayoutRepainter.h"
 #include "RenderIterator.h"
 #include "RenderSVGResourceFilter.h"
+#include "RenderTreeBuilder.h"
 #include "RenderView.h"
 #include "SVGRenderingContext.h"
 #include "SVGResources.h"
 #include "SVGResourcesCache.h"
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/StackStats.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(RenderSVGContainer);
 
 RenderSVGContainer::RenderSVGContainer(SVGElement& element, RenderStyle&& style)
     : RenderSVGModelObject(element, WTFMove(style))
@@ -45,17 +49,15 @@ RenderSVGContainer::RenderSVGContainer(SVGElement& element, RenderStyle&& style)
 {
 }
 
-RenderSVGContainer::~RenderSVGContainer()
-{
-}
+RenderSVGContainer::~RenderSVGContainer() = default;
 
 void RenderSVGContainer::layout()
 {
     StackStats::LayoutCheckPoint layoutCheckPoint;
     ASSERT(needsLayout());
 
-    // RenderSVGRoot disables layoutState for the SVG rendering tree.
-    ASSERT(!view().layoutStateEnabled());
+    // RenderSVGRoot disables paint offset cache for the SVG rendering tree.
+    ASSERT(!view().frameView().layoutContext().isPaintOffsetCacheEnabled());
 
     LayoutRepainter repainter(*this, SVGRenderSupport::checkForSVGRepaintDuringLayout(*this) || selfWillPaint());
 
@@ -88,11 +90,9 @@ void RenderSVGContainer::layout()
     clearNeedsLayout();
 }
 
-void RenderSVGContainer::addChild(RenderPtr<RenderObject> newChild, RenderObject* beforeChild)
+void RenderSVGContainer::addChild(RenderTreeBuilder& builder, RenderPtr<RenderObject> newChild, RenderObject* beforeChild)
 {
-    auto& child = *newChild;
-    RenderSVGModelObject::addChild(WTFMove(newChild), beforeChild);
-    SVGResourcesCache::clientWasAddedToTree(child);
+    builder.insertChildToSVGContainer(*this, WTFMove(newChild), beforeChild);
 }
 
 RenderPtr<RenderObject> RenderSVGContainer::takeChild(RenderObject& child)

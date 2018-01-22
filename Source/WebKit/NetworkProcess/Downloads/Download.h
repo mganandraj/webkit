@@ -23,8 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef Download_h
-#define Download_h
+#pragma once
 
 #include "DownloadID.h"
 #include "MessageSender.h"
@@ -38,6 +37,8 @@
 #include <wtf/RetainPtr.h>
 
 #if USE(NETWORK_SESSION)
+#include "NetworkDataTask.h"
+#include <WebCore/AuthenticationChallenge.h>
 #if PLATFORM(COCOA)
 OBJC_CLASS NSURLSessionDownloadTask;
 #endif
@@ -47,10 +48,6 @@ OBJC_CLASS NSURLDownload;
 OBJC_CLASS WKDownloadAsDelegate;
 #endif
 #endif // USE(NETWORK_SESSION)
-
-#if USE(CFURLCONNECTION)
-#include <CFNetwork/CFURLDownloadPriv.h>
-#endif
 
 namespace IPC {
 class DataReference;
@@ -93,7 +90,7 @@ public:
     void start();
     void startWithHandle(WebCore::ResourceHandle*, const WebCore::ResourceResponse&);
 #endif
-    void resume(const IPC::DataReference& resumeData, const String& path, const SandboxExtension::Handle&);
+    void resume(const IPC::DataReference& resumeData, const String& path, SandboxExtension::Handle&&);
     void cancel();
 
     DownloadID downloadID() const { return m_downloadID; }
@@ -101,6 +98,7 @@ public:
 
 #if USE(NETWORK_SESSION)
     void setSandboxExtension(RefPtr<SandboxExtension>&& sandboxExtension) { m_sandboxExtension = WTFMove(sandboxExtension); }
+    void didReceiveChallenge(const WebCore::AuthenticationChallenge&, ChallengeCompletionHandler&&);
 #else
     const WebCore::ResourceRequest& request() const { return m_request; }
     void didReceiveAuthenticationChallenge(const WebCore::AuthenticationChallenge&);
@@ -110,7 +108,7 @@ public:
     bool shouldDecodeSourceDataOfMIMEType(const String& mimeType);
     String decideDestinationWithSuggestedFilename(const String& filename, bool& allowOverwrite);
     void decideDestinationWithSuggestedFilenameAsync(const String&);
-    void didDecideDownloadDestination(const String& destinationPath, const SandboxExtension::Handle&, bool allowOverwrite);
+    void didDecideDownloadDestination(const String& destinationPath, SandboxExtension::Handle&&, bool allowOverwrite);
     void continueDidReceiveResponse();
     void platformDidFinish();
 #endif
@@ -153,9 +151,6 @@ private:
     RetainPtr<NSURLDownload> m_nsURLDownload;
     RetainPtr<WKDownloadAsDelegate> m_delegate;
 #endif
-#if USE(CFURLCONNECTION)
-    RetainPtr<CFURLDownloadRef> m_download;
-#endif
     std::unique_ptr<WebCore::ResourceHandleClient> m_downloadClient;
     RefPtr<WebCore::ResourceHandle> m_resourceHandle;
 #endif // USE(NETWORK_SESSION)
@@ -164,5 +159,3 @@ private:
 };
 
 } // namespace WebKit
-
-#endif // Download_h

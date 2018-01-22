@@ -28,6 +28,7 @@
 #if USE(CURL)
 #include "ResourceResponse.h"
 
+#include "CurlContext.h"
 #include "CurlResponse.h"
 #include "HTTPParsers.h"
 
@@ -65,10 +66,10 @@ bool ResourceResponse::isAppendableHeader(const String &key)
     };
 
     // Custom headers start with 'X-', and need no further checking.
-    if (key.startsWith("x-", /* caseSensitive */ false))
+    if (startsWithLettersIgnoringASCIICase(key, "x-"))
         return true;
 
-    for (auto& header : appendableHeaders) {
+    for (const auto& header : appendableHeaders) {
         if (equalIgnoringASCIICase(key, header))
             return true;
     }
@@ -81,25 +82,41 @@ ResourceResponse::ResourceResponse(const CurlResponse& response)
 {
     setHTTPStatusCode(response.statusCode);
 
-    for (auto header : response.headers)
+    for (const auto& header : response.headers)
         appendHTTPHeaderField(header);
 
+    switch (response.httpVersion) {
+    case CURL_HTTP_VERSION_1_0:
+        setHTTPVersion("HTTP/1.0");
+        break;
+    case CURL_HTTP_VERSION_1_1:
+        setHTTPVersion("HTTP/1.1");
+        break;
+    case CURL_HTTP_VERSION_2_0:
+    case CURL_HTTP_VERSION_2TLS:
+    case CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE:
+        setHTTPVersion("HTTP/2");
+        break;
+    case CURL_HTTP_VERSION_NONE:
+    default:
+        break;
+    }
     setMimeType(extractMIMETypeFromMediaType(httpHeaderField(HTTPHeaderName::ContentType)).convertToASCIILowercase());
     setTextEncodingName(extractCharsetFromMediaType(httpHeaderField(HTTPHeaderName::ContentType)));
 }
 
 void ResourceResponse::appendHTTPHeaderField(const String& header)
 {
-    auto splitPosistion = header.find(":");
-    if (splitPosistion != notFound) {
-        auto key = header.left(splitPosistion).stripWhiteSpace();
-        auto value = header.substring(splitPosistion + 1).stripWhiteSpace();
+    auto splitPosition = header.find(':');
+    if (splitPosition != notFound) {
+        auto key = header.left(splitPosition).stripWhiteSpace();
+        auto value = header.substring(splitPosition + 1).stripWhiteSpace();
 
         if (isAppendableHeader(key))
             addHTTPHeaderField(key, value);
         else
             setHTTPHeaderField(key, value);
-    } else if (header.startsWith("HTTP", false)) {
+    } else if (startsWithLettersIgnoringASCIICase(header, "http")) {
         // This is the first line of the response.
         setStatusLine(header);
     }
@@ -109,16 +126,13 @@ void ResourceResponse::setStatusLine(const String& header)
 {
     auto statusLine = header.stripWhiteSpace();
 
-    auto httpVersionEndPosition = statusLine.find(" ");
+    auto httpVersionEndPosition = statusLine.find(' ');
     auto statusCodeEndPosition = notFound;
 
     // Extract the http version
     if (httpVersionEndPosition != notFound) {
-        auto httpVersion = statusLine.left(httpVersionEndPosition);
-        setHTTPVersion(httpVersion.stripWhiteSpace());
-
         statusLine = statusLine.substring(httpVersionEndPosition + 1).stripWhiteSpace();
-        statusCodeEndPosition = statusLine.find(" ");
+        statusCodeEndPosition = statusLine.find(' ');
     }
 
     // Extract the http status text

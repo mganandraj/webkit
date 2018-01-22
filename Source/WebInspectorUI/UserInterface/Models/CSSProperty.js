@@ -121,7 +121,9 @@ WI.CSSProperty = class CSSProperty extends WI.Object
     remove()
     {
         // Setting name or value to an empty string removes the entire CSSProperty.
-        this.name = "";
+        this._name = "";
+        const forceRemove = true;
+        this._updateStyleText(forceRemove);
     }
 
     commentOut(disabled)
@@ -325,7 +327,7 @@ WI.CSSProperty = class CSSProperty extends WI.Object
 
     // Private
 
-    _updateStyleText()
+    _updateStyleText(forceRemove = false)
     {
         let text = "";
 
@@ -334,24 +336,32 @@ WI.CSSProperty = class CSSProperty extends WI.Object
 
         let oldText = this._text;
         this._text = text;
-        this._updateOwnerStyleText(oldText, this._text);
+        this._updateOwnerStyleText(oldText, this._text, forceRemove);
     }
 
-    _updateOwnerStyleText(oldText, newText)
+    _updateOwnerStyleText(oldText, newText, forceRemove = false)
     {
-        if (oldText === newText)
+        if (oldText === newText) {
+            if (forceRemove) {
+                const lineDelta = 0;
+                const columnDelta = 0;
+                this._ownerStyle.shiftPropertiesAfter(this, lineDelta, columnDelta, forceRemove);
+            }
             return;
+        }
 
         let styleText = this._ownerStyle.text || "";
 
         // _styleSheetTextRange is the position of the property within the stylesheet.
         // range is the position of the property within the rule.
         let range = this._styleSheetTextRange.relativeTo(this._ownerStyle.styleSheetTextRange.startLine, this._ownerStyle.styleSheetTextRange.startColumn);
-        range.resolveOffsets(styleText);
+
+        // Append a line break to count the last line of styleText towards endOffset.
+        range.resolveOffsets(styleText + "\n");
 
         console.assert(oldText === styleText.slice(range.startOffset, range.endOffset), "_styleSheetTextRange data is invalid.");
 
-        let newStyleText = styleText.slice(0, range.startOffset) + newText + styleText.slice(range.endOffset);
+        let newStyleText = this._appendSemicolonIfNeeded(styleText.slice(0, range.startOffset)) + newText + styleText.slice(range.endOffset);
 
         let lineDelta = newText.lineCount - oldText.lineCount;
         let columnDelta = newText.lastLine.length - oldText.lastLine.length;
@@ -361,6 +371,14 @@ WI.CSSProperty = class CSSProperty extends WI.Object
 
         let propertyWasRemoved = !newText;
         this._ownerStyle.shiftPropertiesAfter(this, lineDelta, columnDelta, propertyWasRemoved);
+    }
+
+    _appendSemicolonIfNeeded(styleText)
+    {
+        if (/[^;\s]\s*$/.test(styleText))
+            return styleText.trimRight() + "; ";
+
+        return styleText;
     }
 };
 

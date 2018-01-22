@@ -281,7 +281,7 @@ Object.defineProperty(Node.prototype, "rangeOfWord",
                 }
 
                 if (node.nodeType === Node.TEXT_NODE) {
-                    var start = (node === this ? (offset - 1) : (node.nodeValue.length - 1));
+                    let start = node === this ? (offset - 1) : (node.nodeValue.length - 1);
                     for (var i = start; i >= 0; --i) {
                         if (stopCharacters.indexOf(node.nodeValue[i]) !== -1) {
                             startNode = node;
@@ -316,7 +316,7 @@ Object.defineProperty(Node.prototype, "rangeOfWord",
                 }
 
                 if (node.nodeType === Node.TEXT_NODE) {
-                    var start = (node === this ? offset : 0);
+                    let start = node === this ? offset : 0;
                     for (var i = start; i < node.nodeValue.length; ++i) {
                         if (stopCharacters.indexOf(node.nodeValue[i]) !== -1) {
                             endNode = node;
@@ -1089,19 +1089,21 @@ Object.defineProperty(Number, "secondsToString",
         if (!ms)
             return WI.UIString("%.0fms").format(0);
 
-        if (Math.abs(ms) < 10) {
+        const epsilon = 0.0001;
+
+        if (Math.abs(ms) < (10 + epsilon)) {
             if (higherResolution)
                 return WI.UIString("%.3fms").format(ms);
             return WI.UIString("%.2fms").format(ms);
         }
 
-        if (Math.abs(ms) < 100) {
+        if (Math.abs(ms) < (100 + epsilon)) {
             if (higherResolution)
                 return WI.UIString("%.2fms").format(ms);
             return WI.UIString("%.1fms").format(ms);
         }
 
-        if (Math.abs(ms) < 1000) {
+        if (Math.abs(ms) < (1000 + epsilon)) {
             if (higherResolution)
                 return WI.UIString("%.1fms").format(ms);
             return WI.UIString("%.0fms").format(ms);
@@ -1479,6 +1481,62 @@ Object.defineProperty(Array.prototype, "binaryIndexOf",
             return this[requestAnimationFrameProxySymbol];
         }
     });
+
+    const throttleTimeoutSymbol = Symbol("throttle-timeout");
+
+    Object.defineProperty(Object.prototype, "throttle",
+    {
+        value(delay)
+        {
+            console.assert(delay >= 0);
+
+            let lastFireTime = NaN;
+            let mostRecentArguments = null;
+
+            return new Proxy(this, {
+                get(target, property, receiver) {
+                    return (...args) => {
+                        let original = target[property];
+                        console.assert(typeof original === "function");
+                        mostRecentArguments = args;
+
+                        function performWork() {
+                            lastFireTime = Date.now();
+                            original[throttleTimeoutSymbol] = undefined;
+                            original.apply(target, mostRecentArguments);
+                        }
+
+                        if (isNaN(lastFireTime)) {
+                            performWork();
+                            return;
+                        }
+
+                        let remaining = delay - (Date.now() - lastFireTime);
+                        if (remaining <= 0) {
+                            original.cancelThrottle();
+                            performWork();
+                            return;
+                        }
+
+                        if (!original[throttleTimeoutSymbol])
+                            original[throttleTimeoutSymbol] = setTimeout(performWork, remaining);
+                    };
+                }
+            });
+        }
+    });
+
+    Object.defineProperty(Function.prototype, "cancelThrottle",
+    {
+        value()
+        {
+            if (!this[throttleTimeoutSymbol])
+                return;
+
+            clearTimeout(this[throttleTimeoutSymbol]);
+            this[throttleTimeoutSymbol] = undefined;
+        }
+    });
 })();
 
 function appendWebInspectorSourceURL(string)
@@ -1570,7 +1628,7 @@ function insertObjectIntoSortedArray(object, array, comparator)
 
 function decodeBase64ToBlob(base64Data, mimeType)
 {
-    mimeType = mimeType || '';
+    mimeType = mimeType || "";
 
     const sliceSize = 1024;
     var byteCharacters = atob(base64Data);
@@ -1583,13 +1641,26 @@ function decodeBase64ToBlob(base64Data, mimeType)
         var end = Math.min(begin + sliceSize, bytesLength);
 
         var bytes = new Array(end - begin);
-        for (var offset = begin, i = 0 ; offset < end; ++i, ++offset)
+        for (var offset = begin, i = 0; offset < end; ++i, ++offset)
             bytes[i] = byteCharacters[offset].charCodeAt(0);
 
         byteArrays[sliceIndex] = new Uint8Array(bytes);
     }
 
     return new Blob(byteArrays, {type: mimeType});
+}
+
+function textToBlob(text, mimeType)
+{
+    return new Blob([text], {type: mimeType});
+}
+
+function blobAsText(blob, callback)
+{
+    console.assert(blob instanceof Blob);
+    let fileReader = new FileReader;
+    fileReader.addEventListener("loadend", () => { callback(fileReader.result); });
+    fileReader.readAsText(blob);
 }
 
 if (!window.handlePromiseException) {

@@ -42,14 +42,17 @@
 #include <wtf/HashMap.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/text/win/WCharStringExtras.h>
 
 namespace WebCore {
+
+namespace FileSystem {
 
 static const ULONGLONG kSecondsFromFileTimeToTimet = 11644473600;
 
 static bool getFindData(String path, WIN32_FIND_DATAW& findData)
 {
-    HANDLE handle = FindFirstFileW(path.charactersWithNullTermination().data(), &findData);
+    HANDLE handle = FindFirstFileW(stringToNullTerminatedWChar(path).data(), &findData);
     if (handle == INVALID_HANDLE_VALUE)
         return false;
     FindClose(handle);
@@ -143,7 +146,7 @@ bool getFileCreationTime(const String& path, time_t& time)
 
 static String getFinalPathName(const String& path)
 {
-    auto handle = openFile(path, OpenForRead);
+    auto handle = openFile(path, FileOpenMode::Read);
     if (!isHandleValid(handle))
         return String();
 
@@ -217,7 +220,7 @@ std::optional<FileMetadata> fileMetadataFollowingSymlinks(const String& path)
 
 bool createSymbolicLink(const String& targetPath, const String& symbolicLinkPath)
 {
-    return !::CreateSymbolicLinkW(symbolicLinkPath.charactersWithNullTermination().data(), targetPath.charactersWithNullTermination().data(), 0);
+    return !::CreateSymbolicLinkW(stringToNullTerminatedWChar(symbolicLinkPath).data(), stringToNullTerminatedWChar(targetPath).data(), 0);
 }
 
 bool fileExists(const String& path)
@@ -229,20 +232,20 @@ bool fileExists(const String& path)
 bool deleteFile(const String& path)
 {
     String filename = path;
-    return !!DeleteFileW(filename.charactersWithNullTermination().data());
+    return !!DeleteFileW(stringToNullTerminatedWChar(filename).data());
 }
 
 bool deleteEmptyDirectory(const String& path)
 {
     String filename = path;
-    return !!RemoveDirectoryW(filename.charactersWithNullTermination().data());
+    return !!RemoveDirectoryW(stringToNullTerminatedWChar(filename).data());
 }
 
 bool moveFile(const String& oldPath, const String& newPath)
 {
     String oldFilename = oldPath;
     String newFilename = newPath;
-    return !!::MoveFileEx(oldFilename.charactersWithNullTermination().data(), newFilename.charactersWithNullTermination().data(), MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING);
+    return !!::MoveFileEx(stringToNullTerminatedWChar(oldFilename).data(), stringToNullTerminatedWChar(newFilename).data(), MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING);
 }
 
 String pathByAppendingComponent(const String& path, const String& component)
@@ -255,7 +258,7 @@ String pathByAppendingComponent(const String& path, const String& component)
     StringView(path).getCharactersWithUpconvert(buffer.data());
     buffer[path.length()] = '\0';
 
-    if (!PathAppendW(buffer.data(), component.charactersWithNullTermination().data()))
+    if (!PathAppendW(buffer.data(), stringToNullTerminatedWChar(component).data()))
         return String();
 
     buffer.shrink(wcslen(buffer.data()));
@@ -293,7 +296,7 @@ CString fileSystemRepresentation(const String& path)
 bool makeAllDirectories(const String& path)
 {
     String fullPath = path;
-    if (SHCreateDirectoryEx(0, fullPath.charactersWithNullTermination().data(), 0) != ERROR_SUCCESS) {
+    if (SHCreateDirectoryEx(0, stringToNullTerminatedWChar(fullPath).data(), 0) != ERROR_SUCCESS) {
         DWORD error = GetLastError();
         if (error != ERROR_FILE_EXISTS && error != ERROR_ALREADY_EXISTS) {
             LOG_ERROR("Failed to create path %s", path.ascii().data());
@@ -311,7 +314,7 @@ String homeDirectoryPath()
 
 String pathGetFileName(const String& path)
 {
-    return String(::PathFindFileName(String(path).charactersWithNullTermination().data()));
+    return nullTerminatedWCharToString(::PathFindFileName(stringToNullTerminatedWChar(path).data()));
 }
 
 String directoryName(const String& path)
@@ -396,12 +399,12 @@ String openTemporaryFile(const String&, PlatformFileHandle& handle)
 
         ASSERT(wcslen(tempFile) == WTF_ARRAY_LENGTH(tempFile) - 1);
 
-        proposedPath = pathByAppendingComponent(tempPath, tempFile);
+        proposedPath = pathByAppendingComponent(nullTerminatedWCharToString(tempPath), nullTerminatedWCharToString(tempFile));
         if (proposedPath.isEmpty())
             break;
 
         // use CREATE_NEW to avoid overwriting an existing file with the same name
-        handle = ::CreateFileW(proposedPath.charactersWithNullTermination().data(), GENERIC_READ | GENERIC_WRITE, 0, 0, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0);
+        handle = ::CreateFileW(stringToNullTerminatedWChar(proposedPath).data(), GENERIC_READ | GENERIC_WRITE, 0, 0, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0);
     } while (!isHandleValid(handle) && GetLastError() == ERROR_ALREADY_EXISTS);
 
     if (!isHandleValid(handle))
@@ -416,12 +419,12 @@ PlatformFileHandle openFile(const String& path, FileOpenMode mode)
     DWORD creationDisposition = 0;
     DWORD shareMode = 0;
     switch (mode) {
-    case OpenForRead:
+    case FileOpenMode::Read:
         desiredAccess = GENERIC_READ;
         creationDisposition = OPEN_EXISTING;
         shareMode = FILE_SHARE_READ;
         break;
-    case OpenForWrite:
+    case FileOpenMode::Write:
         desiredAccess = GENERIC_WRITE;
         creationDisposition = CREATE_ALWAYS;
         break;
@@ -430,7 +433,7 @@ PlatformFileHandle openFile(const String& path, FileOpenMode mode)
     }
 
     String destination = path;
-    return CreateFile(destination.charactersWithNullTermination().data(), desiredAccess, shareMode, 0, creationDisposition, FILE_ATTRIBUTE_NORMAL, 0);
+    return CreateFile(stringToNullTerminatedWChar(destination).data(), desiredAccess, shareMode, 0, creationDisposition, FILE_ATTRIBUTE_NORMAL, 0);
 }
 
 void closeFile(PlatformFileHandle& handle)
@@ -445,9 +448,9 @@ long long seekFile(PlatformFileHandle handle, long long offset, FileSeekOrigin o
 {
     DWORD moveMethod = FILE_BEGIN;
 
-    if (origin == SeekFromCurrent)
+    if (origin == FileSeekOrigin::Current)
         moveMethod = FILE_CURRENT;
-    else if (origin == SeekFromEnd)
+    else if (origin == FileSeekOrigin::End)
         moveMethod = FILE_END;
 
     LARGE_INTEGER largeOffset;
@@ -489,7 +492,7 @@ int readFromFile(PlatformFileHandle handle, char* data, int length)
 
 bool hardLinkOrCopyFile(const String& source, const String& destination)
 {
-    return !!::CopyFile(source.charactersWithNullTermination().data(), destination.charactersWithNullTermination().data(), TRUE);
+    return !!::CopyFile(stringToNullTerminatedWChar(source).data(), stringToNullTerminatedWChar(destination).data(), TRUE);
 }
 
 String localUserSpecificStorageDirectory()
@@ -528,7 +531,7 @@ bool getVolumeFreeSpace(const String&, uint64_t&)
 
 std::optional<int32_t> getFileDeviceId(const CString& fsFile)
 {
-    auto handle = openFile(fsFile.data(), OpenForRead);
+    auto handle = openFile(fsFile.data(), FileOpenMode::Read);
     if (!isHandleValid(handle))
         return std::nullopt;
 
@@ -543,4 +546,5 @@ std::optional<int32_t> getFileDeviceId(const CString& fsFile)
     return fileInformation.dwVolumeSerialNumber;
 }
 
+} // namespace FileSystem
 } // namespace WebCore

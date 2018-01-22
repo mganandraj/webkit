@@ -28,6 +28,7 @@
 #if ENABLE(VIDEO)
 
 #include "ActiveDOMObject.h"
+#include "ApplicationStateChangeListener.h"
 #include "AutoplayEvent.h"
 #include "GenericEventQueue.h"
 #include "GenericTaskQueue.h"
@@ -39,8 +40,8 @@
 #include "MediaPlayer.h"
 #include "MediaProducer.h"
 #include "VisibilityChangeClient.h"
-#include <pal/LoggerHelper.h>
 #include <wtf/Function.h>
+#include <wtf/LoggerHelper.h>
 #include <wtf/WeakPtr.h>
 
 #if ENABLE(VIDEO_TRACK)
@@ -66,7 +67,6 @@
 #endif
 
 namespace PAL {
-class Logger;
 class SleepDisabler;
 }
 
@@ -129,6 +129,7 @@ class HTMLMediaElement
     , private MediaPlayerClient
     , private MediaProducer
     , private VisibilityChangeClient
+    , private ApplicationStateChangeListener
 #if ENABLE(VIDEO_TRACK)
     , private AudioTrackClient
     , private TextTrackClient
@@ -141,12 +142,12 @@ class HTMLMediaElement
     , private CDMClient
 #endif
 #if !RELEASE_LOG_DISABLED
-    , public PAL::LoggerHelper
+    , private LoggerHelper
 #endif
 {
 public:
     WeakPtr<HTMLMediaElement> createWeakPtr() { return m_weakFactory.createWeakPtr(*this); }
-    MediaPlayer* player() const { return m_player.get(); }
+    RefPtr<MediaPlayer> player() const { return m_player; }
 
     virtual bool isVideo() const { return false; }
     bool hasVideo() const override { return false; }
@@ -184,10 +185,12 @@ public:
     using HTMLMediaElementEnums::DelayedActionType;
     void scheduleDelayedAction(DelayedActionType);
     void scheduleResolvePendingPlayPromises();
-    void rejectPendingPlayPromises(DOMException&);
-    void resolvePendingPlayPromises();
+    void scheduleRejectPendingPlayPromises(Ref<DOMException>&&);
+    using PlayPromiseVector = Vector<DOMPromiseDeferred<void>>;
+    void rejectPendingPlayPromises(PlayPromiseVector&&, Ref<DOMException>&&);
+    void resolvePendingPlayPromises(PlayPromiseVector&&);
     void scheduleNotifyAboutPlaying();
-    void notifyAboutPlaying();
+    void notifyAboutPlaying(PlayPromiseVector&&);
     
     MediaPlayerEnums::MovieLoadType movieLoadType() const;
     
@@ -226,6 +229,7 @@ public:
 // playback state
     WEBCORE_EXPORT double currentTime() const override;
     void setCurrentTime(double) override;
+    void setCurrentTimeWithTolerance(double, double toleranceBefore, double toleranceAfter);
     double currentTimeForBindings() const { return currentTime(); }
     WEBCORE_EXPORT ExceptionOr<void> setCurrentTimeForBindings(double);
     WEBCORE_EXPORT double getStartDate() const;
@@ -420,6 +424,7 @@ public:
     void enterFullscreen(VideoFullscreenMode);
     void enterFullscreen() override;
     WEBCORE_EXPORT void exitFullscreen();
+    WEBCORE_EXPORT void setVideoFullscreenStandby(bool);
 
     bool hasClosedCaptions() const override;
     bool closedCaptionsVisible() const override;
@@ -436,7 +441,7 @@ public:
     WEBCORE_EXPORT static void setMediaCacheDirectory(const String&);
     WEBCORE_EXPORT static const String& mediaCacheDirectory();
     WEBCORE_EXPORT static HashSet<RefPtr<SecurityOrigin>> originsInMediaCache(const String&);
-    WEBCORE_EXPORT static void clearMediaCache(const String&, std::chrono::system_clock::time_point modifiedSince = { });
+    WEBCORE_EXPORT static void clearMediaCache(const String&, WallTime modifiedSince = { });
     WEBCORE_EXPORT static void clearMediaCacheForOrigins(const String&, const HashSet<RefPtr<SecurityOrigin>>&);
     static void resetMediaEngines();
 
@@ -539,12 +544,16 @@ public:
     bool supportsSeeking() const override;
 
 #if !RELEASE_LOG_DISABLED
-    const PAL::Logger& logger() const final { return *m_logger.get(); }
+    const Logger& logger() const final { return *m_logger.get(); }
     const void* logIdentifier() const final { return reinterpret_cast<const void*>(m_logIdentifier); }
+    WTFLogChannel& logChannel() const final;
 #endif
+
+    bool willLog(WTFLogLevel) const;
 
 protected:
     HTMLMediaElement(const QualifiedName&, Document&, bool createdByParser);
+    virtual void finishInitialization();
     virtual ~HTMLMediaElement();
 
     void parseAttribute(const QualifiedName&, const AtomicString&) override;
@@ -582,15 +591,13 @@ protected:
 private:
     void createMediaPlayer();
 
-    bool alwaysCreateUserAgentShadowRoot() const override { return true; }
-
     bool supportsFocus() const override;
     bool isMouseFocusable() const override;
     bool rendererIsNeeded(const RenderStyle&) override;
     bool childShouldCreateRenderer(const Node&) const override;
-    InsertionNotificationRequest insertedInto(ContainerNode&) override;
-    void finishedInsertingSubtree() override;
-    void removedFrom(ContainerNode&) override;
+    InsertedIntoAncestorResult insertedIntoAncestor(InsertionType, ContainerNode&) override;
+    void didFinishInsertingNode() override;
+    void removedFromAncestor(RemovalType, ContainerNode&) override;
     void didRecalcStyle(Style::Change) override;
 
     void willBecomeFullscreenElement() override;
@@ -660,7 +667,7 @@ private:
     void enqueuePlaybackTargetAvailabilityChangedEvent();
 
     using EventTarget::dispatchEvent;
-    bool dispatchEvent(Event&) override;
+    void dispatchEvent(Event&) override;
 #endif
 
 #if ENABLE(MEDIA_SESSION)
@@ -768,7 +775,7 @@ private:
 #endif
 
     // These "internal" functions do not check user gesture restrictions.
-    bool playInternal();
+    void playInternal();
     void pauseInternal();
 
     void prepareForLoad();
@@ -835,7 +842,7 @@ private:
     SleepType shouldDisableSleep() const;
 
 #if ENABLE(MEDIA_CONTROLS_SCRIPT)
-    void didAddUserAgentShadowRoot(ShadowRoot*) override;
+    void didAddUserAgentShadowRoot(ShadowRoot&) override;
     DOMWrapperWorld& ensureIsolatedWorld();
     bool ensureMediaControlsInjectedScript();
 #endif
@@ -899,15 +906,15 @@ private:
     void handleSeekToPlaybackPosition(double);
     void seekToPlaybackPositionEndedTimerFired();
 
+    void applicationWillResignActive() final;
+    void applicationDidBecomeActive() final;
+
 #if !RELEASE_LOG_DISABLED
     const char* logClassName() const final { return "HTMLMediaElement"; }
-    WTFLogChannel& logChannel() const final;
 
     const void* mediaPlayerLogIdentifier() final { return logIdentifier(); }
-    const PAL::Logger& mediaPlayerLogger() final { return logger(); }
+    const Logger& mediaPlayerLogger() final { return logger(); }
 #endif
-
-    bool willLog(WTFLogLevel) const;
 
     WeakPtrFactory<HTMLMediaElement> m_weakFactory;
     Timer m_pendingActionTimer;
@@ -927,7 +934,7 @@ private:
     RefPtr<TimeRanges> m_playedTimeRanges;
     GenericEventQueue m_asyncEventQueue;
 
-    Vector<DOMPromiseDeferred<void>> m_pendingPlayPromises;
+    PlayPromiseVector m_pendingPlayPromises;
 
     double m_requestedPlaybackRate { 1 };
     double m_reportedPlaybackRate { 1 };
@@ -976,6 +983,7 @@ private:
     RefPtr<HTMLSourceElement> m_nextChildNodeToConsider;
 
     VideoFullscreenMode m_videoFullscreenMode { VideoFullscreenModeNone };
+    bool m_videoFullscreenStandby { false };
     bool m_preparedForInline;
     WTF::Function<void()> m_preparedForInlineCompletionHandler;
 
@@ -1127,7 +1135,7 @@ private:
     size_t m_reportedExtraMemoryCost { 0 };
 
 #if !RELEASE_LOG_DISABLED
-    RefPtr<PAL::Logger> m_logger;
+    RefPtr<Logger> m_logger;
     uint64_t m_logIdentifier;
 #endif
 

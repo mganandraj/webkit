@@ -104,6 +104,8 @@ public:
 
     bool computeFailureState() const;
 
+    void opportunisticallyStartFontDataURLLoading(CSSFontSelector&);
+
     void adoptSource(std::unique_ptr<CSSFontFaceSource>&&);
     void sourcesPopulated() { m_sourcesPopulated = true; }
 
@@ -117,7 +119,7 @@ public:
 
     class Client {
     public:
-        virtual ~Client() { }
+        virtual ~Client() = default;
         virtual void fontLoaded(CSSFontFace&) { }
         virtual void fontStateChanged(CSSFontFace&, Status /*oldState*/, Status /*newState*/) { }
         virtual void fontPropertyChanged(CSSFontFace&, CSSValueList* /*oldFamilies*/ = nullptr) { }

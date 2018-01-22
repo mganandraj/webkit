@@ -27,60 +27,98 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-#include "ServiceWorkerJobData.h"
+#include "SWServer.h"
+#include "ServiceWorkerClientIdentifier.h"
 #include "ServiceWorkerRegistrationData.h"
-#include "Timer.h"
-#include <wtf/Deque.h>
-#include <wtf/Identified.h>
+#include "ServiceWorkerTypes.h"
+#include <wtf/HashCountedSet.h>
+#include <wtf/MonotonicTime.h>
+#include <wtf/WallTime.h>
 
 namespace WebCore {
 
 class SWServer;
 class SWServerWorker;
+enum class ServiceWorkerRegistrationState;
+enum class ServiceWorkerState;
 struct ExceptionData;
+struct ServiceWorkerContextData;
 struct ServiceWorkerFetchResult;
 
-class SWServerRegistration : public ThreadSafeIdentified<SWServerRegistration> {
+class SWServerRegistration {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    explicit SWServerRegistration(SWServer&, const ServiceWorkerRegistrationKey&);
-    SWServerRegistration(const SWServerRegistration&) = delete;
+    SWServerRegistration(SWServer&, const ServiceWorkerRegistrationKey&, ServiceWorkerUpdateViaCache, const URL& scopeURL, const URL& scriptURL);
     ~SWServerRegistration();
 
-    void enqueueJob(const ServiceWorkerJobData&);
-    void scriptFetchFinished(const ServiceWorkerFetchResult&);
+    const ServiceWorkerRegistrationKey& key() const { return m_registrationKey; }
+    ServiceWorkerRegistrationIdentifier identifier() const { return m_identifier; }
 
-    ServiceWorkerRegistrationData data() const;
+    SWServerWorker* getNewestWorker();
+    WEBCORE_EXPORT ServiceWorkerRegistrationData data() const;
+
+    bool isUninstalling() const { return m_uninstalling; }
+    void setIsUninstalling(bool);
+
+    void setLastUpdateTime(WallTime);
+    WallTime lastUpdateTime() const { return m_lastUpdateTime; }
+
+    void setUpdateViaCache(ServiceWorkerUpdateViaCache);
+    ServiceWorkerUpdateViaCache updateViaCache() const { return m_updateViaCache; }
+
+    void updateRegistrationState(ServiceWorkerRegistrationState, SWServerWorker*);
+    void updateWorkerState(SWServerWorker&, ServiceWorkerState);
+    void fireUpdateFoundEvent();
+
+    void addClientServiceWorkerRegistration(SWServerConnectionIdentifier);
+    void removeClientServiceWorkerRegistration(SWServerConnectionIdentifier);
+
+    void setPreInstallationWorker(SWServerWorker*);
+    SWServerWorker* preInstallationWorker() const { return m_preInstallationWorker.get(); }
+    SWServerWorker* installingWorker() const { return m_installingWorker.get(); }
+    SWServerWorker* waitingWorker() const { return m_waitingWorker.get(); }
+    SWServerWorker* activeWorker() const { return m_activeWorker.get(); }
+
+    MonotonicTime creationTime() const { return m_creationTime; }
+
+    bool hasClientsUsingRegistration() const { return !m_clientsUsingRegistration.isEmpty(); }
+    void addClientUsingRegistration(const ServiceWorkerClientIdentifier&);
+    void removeClientUsingRegistration(const ServiceWorkerClientIdentifier&);
+    void unregisterServerConnection(SWServerConnectionIdentifier);
+
+    void notifyClientsOfControllerChange();
+    void controlClient(ServiceWorkerClientIdentifier);
+
+    void clear();
+    bool tryClear();
+    void tryActivate();
+    void didFinishActivation(ServiceWorkerIdentifier);
+
+    void forEachConnection(const WTF::Function<void(SWServer::Connection&)>&);
 
 private:
-    void jobTimerFired();
-    void startNextJob();
-    void rejectCurrentJob(const ExceptionData&);
-    void resolveCurrentJob(const ServiceWorkerRegistrationData&);
-    void startScriptFetchForCurrentJob();
-    void finishCurrentJob();
+    void activate();
+    void handleClientUnload();
 
-    void runRegisterJob(const ServiceWorkerJobData&);
-    void runUpdateJob(const ServiceWorkerJobData&);
-
-    void rejectWithExceptionOnMainThread(const ExceptionData&);
-    void resolveWithRegistrationOnMainThread();
-    void startScriptFetchFromMainThread();
-    bool isEmpty();
-    SWServerWorker* getNewestWorker();
-
-    Deque<ServiceWorkerJobData> m_jobQueue;
-    std::unique_ptr<ServiceWorkerJobData> m_currentJob;
+    ServiceWorkerRegistrationIdentifier m_identifier;
+    ServiceWorkerRegistrationKey m_registrationKey;
+    ServiceWorkerUpdateViaCache m_updateViaCache;
+    URL m_scopeURL;
+    URL m_scriptURL;
 
     bool m_uninstalling { false };
-    std::unique_ptr<SWServerWorker> m_installingWorker;
-    std::unique_ptr<SWServerWorker> m_waitingWorker;
-    std::unique_ptr<SWServerWorker> m_activeWorker;
-    URL m_scopeURL;
-    std::optional<ServiceWorkerUpdateViaCache> m_updateViaCache;
+    RefPtr<SWServerWorker> m_preInstallationWorker; // Implementation detail, not part of the specification.
+    RefPtr<SWServerWorker> m_installingWorker;
+    RefPtr<SWServerWorker> m_waitingWorker;
+    RefPtr<SWServerWorker> m_activeWorker;
 
-    Timer m_jobTimer;
+    WallTime m_lastUpdateTime;
+    
+    HashCountedSet<SWServerConnectionIdentifier> m_connectionsWithClientRegistrations;
     SWServer& m_server;
-    ServiceWorkerRegistrationKey m_registrationKey;
+
+    MonotonicTime m_creationTime;
+    HashMap<SWServerConnectionIdentifier, HashSet<DocumentIdentifier>> m_clientsUsingRegistration;
 };
 
 } // namespace WebCore

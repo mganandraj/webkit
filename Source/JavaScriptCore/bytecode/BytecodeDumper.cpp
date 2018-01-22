@@ -226,7 +226,7 @@ void BytecodeDumper<CodeBlock>::dumpProfilesForBytecodeOffset(PrintStream& out, 
     }
 
 #if ENABLE(DFG_JIT)
-    Vector<DFG::FrequentExitSite> exitSites = block()->exitProfile().exitSitesFor(location);
+    Vector<DFG::FrequentExitSite> exitSites = block()->unlinkedCodeBlock()->exitProfile().exitSitesFor(location);
     if (!exitSites.isEmpty()) {
         out.print(" !! frequent exits: ");
         CommaPrinter comma;
@@ -357,6 +357,16 @@ void BytecodeDumper<Block>::printConditionalJump(PrintStream& out, const typenam
     int offset = (++it)->u.operand;
     printLocationAndOp(out, location, it, op);
     out.printf("%s, %d(->%d)", registerName(r0).data(), offset, location + offset);
+}
+
+template<class Block>
+void BytecodeDumper<Block>::printCompareJump(PrintStream& out, const typename Block::Instruction*, const typename Block::Instruction*& it, int location, const char* op)
+{
+    int r0 = (++it)->u.operand;
+    int r1 = (++it)->u.operand;
+    int offset = (++it)->u.operand;
+    printLocationAndOp(out, location, it, op);
+    out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
 }
 
 template<class Block>
@@ -568,16 +578,21 @@ void BytecodeDumper<Block>::printCallOp(PrintStream& out, int location, const ty
     if (cacheDumpMode == DumpCaches) {
         LLIntCallLinkInfo* callLinkInfo = getCallLinkInfo(it[1]);
         if (callLinkInfo->lastSeenCallee) {
-            out.printf(
-                " llint(%p, exec %p)",
-                callLinkInfo->lastSeenCallee.get(),
-                callLinkInfo->lastSeenCallee->executable());
+            JSObject* object = callLinkInfo->lastSeenCallee.get();
+            if (auto* function = jsDynamicCast<JSFunction*>(*vm(), object))
+                out.printf(" llint(%p, exec %p)", function, function->executable());
+            else
+                out.printf(" llint(%p)", object);
         }
 #if ENABLE(JIT)
         if (CallLinkInfo* info = map.get(CodeOrigin(location))) {
-            JSFunction* target = info->lastSeenCallee();
-            if (target)
-                out.printf(" jit(%p, exec %p)", target, target->executable());
+            if (info->haveLastSeenCallee()) {
+                JSObject* object = info->lastSeenCallee();
+                if (auto* function = jsDynamicCast<JSFunction*>(*vm(), object))
+                    out.printf(" jit(%p, exec %p)", function, function->executable());
+                else
+                    out.printf(" jit(%p)", object);
+            }
         }
 
         dumpCallLinkStatus(out, location, map);
@@ -690,6 +705,7 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
         if (structure)
             out.print(", cache(struct = ", RawPointer(structure), ")");
         out.print(", ", getToThisStatus(*(++it)));
+        dumpValueProfiling(out, it, hasPrintedProfiling);
         break;
     }
     case op_check_tdz: {
@@ -748,10 +764,9 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
     }
     case op_new_array_buffer: {
         int dst = (++it)->u.operand;
-        int argv = (++it)->u.operand;
-        int argc = (++it)->u.operand;
+        int array = (++it)->u.operand;
         printLocationAndOp(out, location, it, "new_array_buffer");
-        out.printf("%s, %d, %d", registerName(dst).data(), argv, argc);
+        out.printf("%s, %s", registerName(dst).data(), registerName(array).data());
         ++it; // Skip array allocation profile.
         break;
     }
@@ -834,6 +849,14 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
         printBinaryOp(out, location, it, "greatereq");
         break;
     }
+    case op_below: {
+        printBinaryOp(out, location, it, "below");
+        break;
+    }
+    case op_beloweq: {
+        printBinaryOp(out, location, it, "beloweq");
+        break;
+    }
     case op_inc: {
         int r0 = (++it)->u.operand;
         printLocationOpAndRegisterOperand(out, location, it, "inc", r0);
@@ -851,6 +874,13 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
     }
     case op_to_string: {
         printUnaryOp(out, location, it, "to_string");
+        break;
+    }
+    case op_to_object: {
+        printUnaryOp(out, location, it, "to_object");
+        int id0 = (++it)->u.operand;
+        out.printf(" %s", idName(id0, identifier(id0)).data());
+        dumpValueProfiling(out, it, hasPrintedProfiling);
         break;
     }
     case op_negate: {
@@ -1197,67 +1227,43 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
         break;
     }
     case op_jless: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jless");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jless");
         break;
     }
     case op_jlesseq: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jlesseq");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jlesseq");
         break;
     }
     case op_jgreater: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jgreater");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jgreater");
         break;
     }
     case op_jgreatereq: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jgreatereq");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jgreatereq");
         break;
     }
     case op_jnless: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jnless");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jnless");
         break;
     }
     case op_jnlesseq: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jnlesseq");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jnlesseq");
         break;
     }
     case op_jngreater: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jngreater");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jngreater");
         break;
     }
     case op_jngreatereq: {
-        int r0 = (++it)->u.operand;
-        int r1 = (++it)->u.operand;
-        int offset = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "jngreatereq");
-        out.printf("%s, %s, %d(->%d)", registerName(r0).data(), registerName(r1).data(), offset, location + offset);
+        printCompareJump(out, begin, it, location, "jngreatereq");
+        break;
+    }
+    case op_jbelow: {
+        printCompareJump(out, begin, it, location, "jbelow");
+        break;
+    }
+    case op_jbeloweq: {
+        printCompareJump(out, begin, it, location, "jbeloweq");
         break;
     }
     case op_loop_hint: {
@@ -1270,6 +1276,14 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
     }
     case op_nop: {
         printLocationAndOp(out, location, it, "nop");
+        break;
+    }
+    case op_super_sampler_begin: {
+        printLocationAndOp(out, location, it, "super_sampler_begin");
+        break;
+    }
+    case op_super_sampler_end: {
+        printLocationAndOp(out, location, it, "super_sampler_end");
         break;
     }
     case op_log_shadow_chicken_prologue: {
@@ -1579,13 +1593,6 @@ void BytecodeDumper<Block>::dumpBytecode(PrintStream& out, const typename Block:
         int hasBreakpointFlag = (++it)->u.operand;
         printLocationAndOp(out, location, it, "debug");
         out.printf("%s, %d", debugHookName(debugHookType), hasBreakpointFlag);
-        break;
-    }
-    case op_assert: {
-        int condition = (++it)->u.operand;
-        int line = (++it)->u.operand;
-        printLocationAndOp(out, location, it, "assert");
-        out.printf("%s, %d", registerName(condition).data(), line);
         break;
     }
     case op_identity_with_profile: {

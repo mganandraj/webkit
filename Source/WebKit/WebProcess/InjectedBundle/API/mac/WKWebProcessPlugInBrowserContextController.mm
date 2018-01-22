@@ -65,6 +65,7 @@
 #import <WebCore/HTMLFormElement.h>
 #import <WebCore/HTMLInputElement.h>
 #import <WebCore/MainFrame.h>
+#import <pal/spi/cocoa/NSKeyedArchiverSPI.h>
 
 using namespace WebCore;
 using namespace WebKit;
@@ -483,9 +484,13 @@ static void setUpResourceLoadClient(WKWebProcessPlugInBrowserContextController *
             if (!userObject)
                 return;
 
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200)
             auto data = adoptNS([[NSMutableData alloc] init]);
             auto archiver = adoptNS([[NSKeyedArchiver alloc] initForWritingWithMutableData:data.get()]);
             [archiver setRequiresSecureCoding:YES];
+#else
+            auto archiver = secureArchiver();
+#endif
             @try {
                 [archiver encodeObject:userObject forKey:@"userObject"];
             } @catch (NSException *exception) {
@@ -493,6 +498,10 @@ static void setUpResourceLoadClient(WKWebProcessPlugInBrowserContextController *
                 return;
             }
             [archiver finishEncoding];
+
+#if (!PLATFORM(MAC) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101200)
+            auto data = retainPtr(archiver.get().encodedData);
+#endif
 
             userData = API::Data::createWithoutCopying(WTFMove(data));
         }
@@ -519,7 +528,7 @@ static void setUpResourceLoadClient(WKWebProcessPlugInBrowserContextController *
                 [formDelegate _webProcessPlugInBrowserContextController:m_controller textDidChangeInTextField:wrapper(*WebKit::InjectedBundleNodeHandle::getOrCreate(inputElement)) inFrame:wrapper(*frame) initiatedByUserTyping:initiatedByUserTyping];
         }
 
-        void willBeginInputSession(WebPage*, Element* element, WebFrame* frame, RefPtr<API::Object>& userData, bool userIsInteracting) override
+        void willBeginInputSession(WebPage*, Element* element, WebFrame* frame, bool userIsInteracting, RefPtr<API::Object>& userData) override
         {
             auto formDelegate = m_controller->_formDelegate.get();
 
@@ -669,6 +678,16 @@ static inline WKEditorInsertAction toWK(EditorInsertAction action)
             return [m_controller->_editingDelegate.get() _webProcessPlugInBrowserContextController:m_controller performTwoStepDrop:wrapper(*nodeHandle) atDestination:wrapper(*rangeHandle) isMove:isMove];
         }
 
+        WTF::String replacementURLForResource(WebKit::WebPage&, Ref<WebCore::SharedBuffer>&& resourceData, const WTF::String& mimeType)
+        {
+            if (!m_delegateMethods.replacementURLForResource)
+                return { };
+
+            NSString *type = (NSString *)mimeType;
+            auto data = resourceData->createNSData();
+            return [m_controller->_editingDelegate.get() _webProcessPlugInBrowserContextController:m_controller replacementURLForResource:data.get() mimeType:type];
+        }
+
         WKWebProcessPlugInBrowserContextController *m_controller;
         const struct DelegateMethods {
             DelegateMethods(RetainPtr<id <WKWebProcessPlugInEditingDelegate>> delegate)
@@ -679,6 +698,7 @@ static inline WKEditorInsertAction toWK(EditorInsertAction action)
                 , getPasteboardDataForRange([delegate respondsToSelector:@selector(_webProcessPlugInBrowserContextController:pasteboardDataForRange:)])
                 , didWriteToPasteboard([delegate respondsToSelector:@selector(_webProcessPlugInBrowserContextControllerDidWriteToPasteboard:)])
                 , performTwoStepDrop([delegate respondsToSelector:@selector(_webProcessPlugInBrowserContextController:performTwoStepDrop:atDestination:isMove:)])
+                , replacementURLForResource([delegate respondsToSelector:@selector(_webProcessPlugInBrowserContextController:replacementURLForResource:mimeType:)])
             {
             }
 
@@ -689,6 +709,7 @@ static inline WKEditorInsertAction toWK(EditorInsertAction action)
             bool getPasteboardDataForRange;
             bool didWriteToPasteboard;
             bool performTwoStepDrop;
+            bool replacementURLForResource;
         } m_delegateMethods;
     };
 

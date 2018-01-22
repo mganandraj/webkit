@@ -37,6 +37,10 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
         this._style = style;
         this._propertiesEditor = null;
         this._selectorElements = [];
+        this._mediaElements = [];
+        this._filterText = null;
+        this._shouldFocusSelectorElement = false;
+        this._wasFocused = false;
     }
 
     // Public
@@ -54,7 +58,7 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
     {
         super.initialLayout();
 
-        this._headerElement = document.createElement("span");
+        this._headerElement = document.createElement("div");
         this._headerElement.classList.add("header");
 
         this._originElement = document.createElement("span");
@@ -63,32 +67,47 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
 
         this._selectorElement = document.createElement("span");
         this._selectorElement.classList.add("selector");
-        this._selectorElement.tabIndex = 0;
+        this._selectorElement.addEventListener("mouseenter", this._highlightNodesWithSelector.bind(this));
+        this._selectorElement.addEventListener("mouseleave", this._hideDOMNodeHighlight.bind(this));
         this._headerElement.append(this._selectorElement);
 
-        if (this._style.selectorEditable)
+        this._openBrace = document.createElement("span");
+        this._openBrace.classList.add("open-brace");
+        this._openBrace.textContent = " {";
+        this._headerElement.append(this._openBrace);
+
+        if (this._style.selectorEditable) {
             this._selectorTextField = new WI.SpreadsheetSelectorField(this, this._selectorElement);
+            this._selectorElement.tabIndex = 0;
+            this._selectorElement.addEventListener("focus", () => this._headerElement.classList.add("editing-selector"));
+            this._selectorElement.addEventListener("blur", () => this._headerElement.classList.remove("editing-selector"));
+        }
 
         this._propertiesEditor = new WI.SpreadsheetCSSStyleDeclarationEditor(this, this._style);
         this._propertiesEditor.element.classList.add("properties");
+        this._propertiesEditor.addEventListener(WI.SpreadsheetCSSStyleDeclarationEditor.Event.FilterApplied, this._handleEditorFilterApplied, this);
 
-        let openBrace = document.createElement("span");
-        openBrace.classList.add("open-brace");
-        openBrace.textContent = " {";
+        this._closeBrace = document.createElement("span");
+        this._closeBrace.classList.add("close-brace");
+        this._closeBrace.textContent = "}";
 
-        let closeBrace = document.createElement("span");
-        closeBrace.classList.add("close-brace");
-        closeBrace.textContent = "}";
-
-        this._element.append(this._createMediaHeader(), this._headerElement, openBrace);
+        this._element.append(this._createMediaHeader(), this._headerElement);
         this.addSubview(this._propertiesEditor);
         this._propertiesEditor.needsLayout();
-        this._element.append(closeBrace);
+        this._element.append(this._closeBrace);
 
         if (!this._style.editable)
             this._element.classList.add("locked");
         else if (!this._style.ownerRule)
             this._element.classList.add("selector-locked");
+
+        if (this._style.editable) {
+            this.element.addEventListener("click", this._handleClick.bind(this));
+            this.element.addEventListener("mousedown", this._handleMouseDown.bind(this));
+
+            new WI.KeyboardShortcut(WI.KeyboardShortcut.Modifier.CommandOrControl, "S", this._save.bind(this), this._element);
+            new WI.KeyboardShortcut(WI.KeyboardShortcut.Modifier.CommandOrControl | WI.KeyboardShortcut.Modifier.Shift, "S", this._save.bind(this), this._element);
+        }
     }
 
     layout()
@@ -97,11 +116,35 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
 
         this._renderOrigin();
         this._renderSelector();
+
+        if (this._shouldFocusSelectorElement)
+            this.startEditingRuleSelector();
     }
 
     startEditingRuleSelector()
     {
+        if (!this._selectorElement) {
+            this._shouldFocusSelectorElement = true;
+            return;
+        }
+
         this._selectorElement.focus();
+        this._shouldFocusSelectorElement = false;
+    }
+
+    highlightProperty(property)
+    {
+        // When navigating from the Computed panel to the Styles panel, the latter
+        // could be empty. Layout all properties so they can be highlighted.
+        if (!this.didInitialLayout)
+            this.updateLayout();
+
+        if (this._propertiesEditor.highlightProperty(property)) {
+            this._element.scrollIntoView();
+            return true;
+        }
+
+        return false;
     }
 
     cssStyleDeclarationTextEditorStartEditingRuleSelector()
@@ -149,6 +192,18 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
             this._delegate.cssStyleDeclarationSectionStartEditingNextRule(this);
     }
 
+    applyFilter(filterText)
+    {
+        this._filterText = filterText;
+
+        if (!this.didInitialLayout)
+            return;
+
+        this._element.classList.remove(WI.GeneralStyleDetailsSidebarPanel.NoFilterMatchInSectionClassName);
+
+        this._propertiesEditor.applyFilter(this._filterText);
+    }
+
     // Private
 
     _discardSelectorChange()
@@ -171,8 +226,8 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
             if (matched)
                 selectorElement.classList.add(WI.SpreadsheetCSSStyleDeclarationSection.MatchedSelectorElementStyleClassName);
 
-            let specificity = selector.specificity.map((number) => number.toLocaleString());
-            if (specificity) {
+            if (selector.specificity) {
+                let specificity = selector.specificity.map((number) => number.toLocaleString());
                 let tooltip = WI.UIString("Specificity: (%d, %d, %d)").format(...specificity);
                 if (selector.dynamic) {
                     tooltip += "\n";
@@ -202,9 +257,9 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
         case WI.CSSStyleDeclaration.Type.Rule:
             console.assert(this._style.ownerRule);
 
-            let selectors = this._style.ownerRule.selectors;
-            let matchedSelectorIndices = this._style.ownerRule.matchedSelectorIndices;
-            let alwaysMatch = !matchedSelectorIndices.length;
+            var selectors = this._style.ownerRule.selectors;
+            var matchedSelectorIndices = this._style.ownerRule.matchedSelectorIndices;
+            var alwaysMatch = !matchedSelectorIndices.length;
             if (selectors.length) {
                 let hasMatchingPseudoElementSelector = false;
                 for (let i = 0; i < selectors.length; ++i) {
@@ -230,6 +285,9 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
             appendSelectorTextKnownToMatch(this._style.node.displayName);
             break;
         }
+
+        if (this._filterText)
+            this.applyFilter(this._filterText);
     }
 
     _renderOrigin()
@@ -299,14 +357,8 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
 
     _createMediaHeader()
     {
-        if (!this._style.ownerRule)
-            return "";
-
-        console.assert(Array.isArray(this._style.ownerRule.mediaList));
-
-        let mediaList = this._style.ownerRule.mediaList;
-        let mediaText = mediaList.map((media) => media.text).join(", ");
-        if (!mediaText || mediaText === "all" || mediaText === "screen")
+        let mediaList = this._style.mediaList;
+        if (!mediaList.length || (mediaList.length === 1 && (mediaList[0].text === "all" || mediaList[0].text === "screen")))
             return "";
 
         let mediaElement = document.createElement("div");
@@ -314,11 +366,136 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
 
         let mediaLabel = mediaElement.appendChild(document.createElement("div"));
         mediaLabel.className = "media-label";
-        mediaLabel.append("@media ", mediaText);
-        mediaElement.append(mediaLabel);
+        mediaLabel.append("@media ");
+
+        this._mediaElements = mediaList.map((media, i) => {
+            if (i)
+                mediaLabel.append(", ");
+
+            let span = mediaLabel.appendChild(document.createElement("span"));
+            span.textContent = media.text;
+            return span;
+        });
 
         return mediaElement;
     }
+
+    _save(event)
+    {
+        event.stop();
+
+        if (this._style.type !== WI.CSSStyleDeclaration.Type.Rule) {
+            // FIXME: Can't save CSS inside <style></style> <https://webkit.org/b/150357>
+            InspectorFrontendHost.beep();
+            return;
+        }
+
+        console.assert(this._style.ownerRule instanceof WI.CSSRule);
+        console.assert(this._style.ownerRule.sourceCodeLocation instanceof WI.SourceCodeLocation);
+
+        let sourceCode = this._style.ownerRule.sourceCodeLocation.sourceCode;
+        if (sourceCode.type !== WI.Resource.Type.Stylesheet) {
+            // FIXME: Can't save CSS inside style="" <https://webkit.org/b/150357>
+            InspectorFrontendHost.beep();
+            return;
+        }
+
+        let url;
+        if (sourceCode.urlComponents.scheme === "data") {
+            let mainResource = WI.frameResourceManager.mainFrame.mainResource;
+            if (mainResource.urlComponents.lastPathComponent.endsWith(".html"))
+                url = mainResource.url.replace(/\.html$/, "-data.css");
+            else {
+                let pathDirectory = mainResource.url.slice(0, -mainResource.urlComponents.lastPathComponent.length);
+                url = pathDirectory + "data.css";
+            }
+        } else
+            url = sourceCode.url;
+
+        const saveAs = event.shiftKey;
+        WI.saveDataToFile({url: url, content: sourceCode.content}, saveAs);
+    }
+
+    _handleMouseDown(event)
+    {
+        this._wasFocused = this._propertiesEditor.isFocused();
+    }
+
+    _handleClick(event)
+    {
+        if (this._wasFocused)
+            return;
+
+        if (window.getSelection().type === "Range")
+            return;
+
+        event.stop();
+
+        if (event.target.classList.contains(WI.SpreadsheetStyleProperty.StyleClassName)) {
+            let propertyIndex = parseInt(event.target.dataset.propertyIndex);
+            this._propertiesEditor.addBlankProperty(propertyIndex + 1);
+            return;
+        }
+
+        if (event.target === this._headerElement || event.target === this._openBrace) {
+            this._propertiesEditor.addBlankProperty(0);
+            return;
+        }
+
+        if (event.target === this._element || event.target === this._closeBrace) {
+            const appendAfterLast = -1;
+            this._propertiesEditor.addBlankProperty(appendAfterLast);
+        }
+    }
+
+    _highlightNodesWithSelector()
+    {
+        if (!this._style.ownerRule) {
+            WI.domTreeManager.highlightDOMNode(this._style.node.id);
+            return;
+        }
+
+        let selectorText = this._selectorElement.textContent.trim();
+        WI.domTreeManager.highlightSelector(selectorText, this._style.node.ownerDocument.frameIdentifier);
+    }
+
+    _hideDOMNodeHighlight()
+    {
+        WI.domTreeManager.hideDOMNodeHighlight();
+    }
+
+    _handleEditorFilterApplied(event)
+    {
+        let matchesMedia = false;
+        for (let mediaElement of this._mediaElements) {
+            mediaElement.classList.remove(WI.GeneralStyleDetailsSidebarPanel.FilterMatchSectionClassName);
+
+            if (mediaElement.textContent.includes(this._filterText)) {
+                mediaElement.classList.add(WI.GeneralStyleDetailsSidebarPanel.FilterMatchSectionClassName);
+                matchesMedia = true;
+            }
+        }
+
+        let matchesSelector = false;
+        for (let selectorElement of this._selectorElements) {
+            selectorElement.classList.remove(WI.GeneralStyleDetailsSidebarPanel.FilterMatchSectionClassName);
+
+            if (selectorElement.textContent.includes(this._filterText)) {
+                selectorElement.classList.add(WI.GeneralStyleDetailsSidebarPanel.FilterMatchSectionClassName);
+                matchesSelector = true;
+            }
+        }
+
+        let matches = event.data.matches || matchesMedia || matchesSelector;
+        if (!matches)
+            this._element.classList.add(WI.GeneralStyleDetailsSidebarPanel.NoFilterMatchInSectionClassName);
+
+        this.dispatchEventToListeners(WI.SpreadsheetCSSStyleDeclarationSection.Event.FilterApplied, {matches});
+    }
+};
+
+WI.SpreadsheetCSSStyleDeclarationSection.Event = {
+    FilterApplied: "spreadsheet-css-style-declaration-section-filter-applied",
 };
 
 WI.SpreadsheetCSSStyleDeclarationSection.MatchedSelectorElementStyleClassName = "matched";

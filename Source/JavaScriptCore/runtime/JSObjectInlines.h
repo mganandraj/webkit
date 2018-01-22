@@ -73,7 +73,7 @@ ALWAYS_INLINE bool JSObject::canPerformFastPutInline(VM& vm, PropertyName proper
         if (obj->structure(vm)->hasReadOnlyOrGetterSetterPropertiesExcludingProto() || obj->methodTable(vm)->getPrototype != defaultGetPrototype)
             return false;
 
-        prototype = obj->getPrototypeDirect();
+        prototype = obj->getPrototypeDirect(vm);
         if (prototype.isNull())
             return true;
 
@@ -116,7 +116,7 @@ ALWAYS_INLINE bool JSObject::getPropertySlot(ExecState* exec, unsigned propertyN
             return true;
         JSValue prototype;
         if (LIKELY(structure->classInfo()->methodTable.getPrototype == defaultGetPrototype || slot.internalMethodType() == PropertySlot::InternalMethodType::VMInquiry))
-            prototype = object->getPrototypeDirect();
+            prototype = object->getPrototypeDirect(vm);
         else {
             prototype = object->getPrototype(vm, exec);
             RETURN_IF_EXCEPTION(scope, false);
@@ -150,7 +150,7 @@ ALWAYS_INLINE bool JSObject::getNonIndexPropertySlot(ExecState* exec, PropertyNa
         }
         JSValue prototype;
         if (LIKELY(structure->classInfo()->methodTable.getPrototype == defaultGetPrototype || slot.internalMethodType() == PropertySlot::InternalMethodType::VMInquiry))
-            prototype = object->getPrototypeDirect();
+            prototype = object->getPrototypeDirect(vm);
         else {
             prototype = object->getPrototype(vm, exec);
             RETURN_IF_EXCEPTION(scope, false);
@@ -185,7 +185,7 @@ ALWAYS_INLINE PropertyOffset JSObject::prepareToPutDirectWithoutTransition(VM& v
             unsigned newOutOfLineCapacity = Structure::outOfLineCapacity(newLastOffset);
             if (newOutOfLineCapacity != oldOutOfLineCapacity) {
                 Butterfly* butterfly = allocateMoreOutOfLineStorage(vm, oldOutOfLineCapacity, newOutOfLineCapacity);
-                nukeStructureAndSetButterfly(vm, structureID, butterfly);
+                nukeStructureAndSetButterfly(vm, structureID, butterfly, structure->indexingType());
                 structure->setLastOffset(newLastOffset);
                 WTF::storeStoreFence();
                 setStructureIDDirectly(structureID);
@@ -260,6 +260,12 @@ ALWAYS_INLINE bool JSObject::putDirectInternal(VM& vm, PropertyName propertyName
     ASSERT(!Heap::heap(value) || Heap::heap(value) == Heap::heap(this));
     ASSERT(!parseIndex(propertyName));
 
+    switch (methodTable(vm)->reifyPropertyNameIfNeeded(this, globalObject(vm)->globalExec(), propertyName)) {
+    case PropertyReificationResult::Nothing: break;
+    case PropertyReificationResult::Something: break;
+    case PropertyReificationResult::TriedButFailed: RELEASE_ASSERT_NOT_REACHED();
+    }
+
     StructureID structureID = this->structureID();
     Structure* structure = vm.heap.structureIDTable().get(structureID);
     if (structure->isDictionary()) {
@@ -306,7 +312,7 @@ ALWAYS_INLINE bool JSObject::putDirectInternal(VM& vm, PropertyName propertyName
         if (currentCapacity != newStructure->outOfLineCapacity()) {
             ASSERT(newStructure != this->structure());
             newButterfly = allocateMoreOutOfLineStorage(vm, currentCapacity, newStructure->outOfLineCapacity());
-            nukeStructureAndSetButterfly(vm, structureID, newButterfly);
+            nukeStructureAndSetButterfly(vm, structureID, newButterfly, newStructure->indexingType());
         }
 
         validateOffset(offset);
@@ -360,7 +366,7 @@ ALWAYS_INLINE bool JSObject::putDirectInternal(VM& vm, PropertyName propertyName
     ASSERT(oldCapacity <= newCapacity);
     if (oldCapacity != newCapacity) {
         Butterfly* newButterfly = allocateMoreOutOfLineStorage(vm, oldCapacity, newCapacity);
-        nukeStructureAndSetButterfly(vm, structureID, newButterfly);
+        nukeStructureAndSetButterfly(vm, structureID, newButterfly, newStructure->indexingType());
     }
     putDirect(vm, offset, value);
     setStructure(vm, newStructure);

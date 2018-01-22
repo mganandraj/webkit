@@ -27,6 +27,7 @@
 
 #if ENABLE(WEBASSEMBLY)
 
+#include "MacroAssemblerCodeRef.h"
 #include "WasmCallee.h"
 #include "WebAssemblyFunctionBase.h"
 #include <wtf/Noncopyable.h>
@@ -41,11 +42,11 @@ namespace B3 {
 class Compilation;
 }
 
-class WebAssemblyFunction : public WebAssemblyFunctionBase {
+class WebAssemblyFunction final : public WebAssemblyFunctionBase {
 public:
     using Base = WebAssemblyFunctionBase;
 
-    const static unsigned StructureFlags = Base::StructureFlags;
+    const static unsigned StructureFlags = Base::StructureFlags | TypeOfShouldCallGetCallData;
 
     DECLARE_EXPORT_INFO;
 
@@ -56,7 +57,7 @@ public:
     Wasm::WasmEntrypointLoadLocation wasmEntrypointLoadLocation() const { return m_wasmFunction.code; }
     Wasm::CallableFunction callableFunction() const { return m_wasmFunction; }
 
-    void* jsEntrypoint() { return m_jsEntrypoint; }
+    MacroAssemblerCodePtr jsEntrypoint() { return m_jsEntrypoint; }
 
     static ptrdiff_t offsetOfWasmEntrypointLoadLocation() { return OBJECT_OFFSETOF(WebAssemblyFunction, m_wasmFunction) + Wasm::CallableFunction::offsetOfWasmEntrypointLoadLocation(); }
 
@@ -66,7 +67,7 @@ private:
     // It's safe to just hold the raw CallableFunction/jsEntrypoint because we have a reference
     // to our Instance, which points to the Module that exported us, which
     // ensures that the actual Signature/code doesn't get deallocated.
-    void* m_jsEntrypoint;
+    MacroAssemblerCodePtr m_jsEntrypoint;
     Wasm::CallableFunction m_wasmFunction;
 };
 

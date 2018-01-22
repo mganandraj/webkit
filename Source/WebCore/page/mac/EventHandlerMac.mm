@@ -933,7 +933,7 @@ void EventHandler::platformPrepareForWheelEvents(const PlatformWheelEvent& wheel
             scrollableArea = scrollableAreaForEventTarget(wheelEventTarget.get());
         } else {
             scrollableContainer = findEnclosingScrollableContainer(wheelEventTarget.get(), wheelEvent.deltaX(), wheelEvent.deltaY());
-            if (scrollableContainer && !is<HTMLIFrameElement>(wheelEventTarget.get()))
+            if (scrollableContainer && !is<HTMLIFrameElement>(wheelEventTarget))
                 scrollableArea = scrollableAreaForContainerNode(*scrollableContainer);
             else {
                 scrollableContainer = view->frame().document()->bodyOrFrameset();
@@ -1090,8 +1090,7 @@ VisibleSelection EventHandler::selectClosestWordFromHitTestResultBasedOnLookup(c
     if (!m_frame.editor().behavior().shouldSelectBasedOnDictionaryLookup())
         return VisibleSelection();
 
-    NSDictionary *options = nil;
-    if (RefPtr<Range> range = DictionaryLookup::rangeAtHitTestResult(result, &options))
+    if (auto range = DictionaryLookup::rangeAtHitTestResult(result, nullptr))
         return VisibleSelection(*range);
 
     return VisibleSelection();
@@ -1142,7 +1141,7 @@ static IntSize autoscrollAdjustmentFactorForScreenBoundaries(const IntPoint& scr
     return adjustmentFactor;
 }
 
-IntPoint EventHandler::effectiveMousePositionForSelectionAutoscroll() const
+IntPoint EventHandler::targetPositionInWindowForSelectionAutoscroll() const
 {
     Page* page = m_frame.page();
     if (!page)

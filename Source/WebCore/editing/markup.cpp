@@ -34,13 +34,16 @@
 #include "CSSPropertyNames.h"
 #include "CSSValue.h"
 #include "CSSValueKeywords.h"
+#include "CacheStorageProvider.h"
 #include "ChildListMutationScope.h"
 #include "DocumentFragment.h"
 #include "DocumentLoader.h"
 #include "DocumentType.h"
 #include "Editing.h"
 #include "Editor.h"
+#include "EditorClient.h"
 #include "ElementIterator.h"
+#include "EmptyClients.h"
 #include "File.h"
 #include "Frame.h"
 #include "FrameLoader.h"
@@ -55,15 +58,20 @@
 #include "HTMLTableElement.h"
 #include "HTMLTextAreaElement.h"
 #include "HTMLTextFormControlElement.h"
-#include "URL.h"
+#include "LibWebRTCProvider.h"
+#include "MainFrame.h"
 #include "MarkupAccumulator.h"
 #include "NodeList.h"
+#include "Page.h"
+#include "PageConfiguration.h"
 #include "Range.h"
 #include "RenderBlock.h"
 #include "Settings.h"
+#include "SocketProvider.h"
 #include "StyleProperties.h"
 #include "TextIterator.h"
 #include "TypedElementDescendantIterator.h"
+#include "URL.h"
 #include "VisibleSelection.h"
 #include "VisibleUnits.h"
 #include <wtf/StdLibExtras.h>
@@ -135,6 +143,51 @@ void replaceSubresourceURLs(Ref<DocumentFragment>&& fragment, HashMap<AtomicStri
     for (auto& change : changes)
         change.apply();
 }
+
+std::unique_ptr<Page> createPageForSanitizingWebContent()
+{
+    PageConfiguration pageConfiguration(createEmptyEditorClient(), SocketProvider::create(), LibWebRTCProvider::create(), CacheStorageProvider::create());
+
+    fillWithEmptyClients(pageConfiguration);
+    
+    auto page = std::make_unique<Page>(WTFMove(pageConfiguration));
+    page->settings().setMediaEnabled(false);
+    page->settings().setScriptEnabled(false);
+    page->settings().setPluginsEnabled(false);
+    page->settings().setAcceleratedCompositingEnabled(false);
+
+    Frame& frame = page->mainFrame();
+    frame.setView(FrameView::create(frame));
+    frame.init();
+
+    FrameLoader& loader = frame.loader();
+    static char markup[] = "<!DOCTYPE html><html><body></body></html>";
+    ASSERT(loader.activeDocumentLoader());
+    loader.activeDocumentLoader()->writer().setMIMEType("text/html");
+    loader.activeDocumentLoader()->writer().begin();
+    loader.activeDocumentLoader()->writer().addData(markup, sizeof(markup));
+    loader.activeDocumentLoader()->writer().end();
+
+    return page;
+}
+
+
+String sanitizeMarkup(const String& rawHTML)
+{
+    auto page = createPageForSanitizingWebContent();
+    Document* stagingDocument = page->mainFrame().document();
+    ASSERT(stagingDocument);
+    auto* bodyElement = stagingDocument->body();
+    ASSERT(bodyElement);
+
+    auto fragment = createFragmentFromMarkup(*stagingDocument, rawHTML, emptyString(), DisallowScriptingAndPluginContent);
+    bodyElement->appendChild(fragment.get());
+
+    auto range = Range::create(*stagingDocument);
+    range->selectNodeContents(*bodyElement);
+    return createMarkup(range.get(), nullptr, AnnotateForInterchange, false, ResolveNonLocalURLs);
+}
+
     
 class StyledMarkupAccumulator final : public MarkupAccumulator {
 public:
@@ -318,15 +371,20 @@ String StyledMarkupAccumulator::stringValueForRange(const Node& node, const Rang
     return nodeValue;
 }
 
-void StyledMarkupAccumulator::appendCustomAttributes(StringBuilder& out, const Element&element, Namespaces* namespaces)
+void StyledMarkupAccumulator::appendCustomAttributes(StringBuilder& out, const Element& element, Namespaces* namespaces)
 {
 #if ENABLE(ATTACHMENT_ELEMENT)
     if (!is<HTMLAttachmentElement>(element))
         return;
     
     const HTMLAttachmentElement& attachment = downcast<HTMLAttachmentElement>(element);
-    if (attachment.file())
-        appendAttribute(out, element, Attribute(webkitattachmentpathAttr, attachment.file()->path()), namespaces);
+    appendAttribute(out, element, { webkitattachmentidAttr, attachment.uniqueIdentifier() }, namespaces);
+    if (auto* file = attachment.file()) {
+        // These attributes are only intended for File deserialization, and are removed from the generated attachment
+        // element after we've deserialized and set its backing File.
+        appendAttribute(out, element, { webkitattachmentpathAttr, file->path() }, namespaces);
+        appendAttribute(out, element, { webkitattachmentbloburlAttr, file->url().string() }, namespaces);
+    }
 #else
     UNUSED_PARAM(out);
     UNUSED_PARAM(element);
@@ -347,6 +405,8 @@ void StyledMarkupAccumulator::appendElement(StringBuilder& out, const Element& e
         for (const Attribute& attribute : element.attributesIterator()) {
             // We'll handle the style attribute separately, below.
             if (attribute.name() == styleAttr && shouldOverrideStyleAttr)
+                continue;
+            if (element.isEventHandlerAttribute(attribute) || element.isJavaScriptURLAttribute(attribute))
                 continue;
             appendAttribute(out, element, attribute, 0);
         }
@@ -708,8 +768,18 @@ Ref<DocumentFragment> createFragmentFromMarkup(Document& document, const String&
         attachments.append(attachment);
 
     for (auto& attachment : attachments) {
-        attachment->setFile(File::create(attachment->attributeWithoutSynchronization(webkitattachmentpathAttr)).ptr());
+        attachment->setUniqueIdentifier(attachment->attributeWithoutSynchronization(webkitattachmentidAttr));
+
+        auto attachmentPath = attachment->attachmentPath();
+        auto blobURL = attachment->blobURL();
+        if (!attachmentPath.isEmpty())
+            attachment->setFile(File::create(attachmentPath));
+        else if (!blobURL.isEmpty())
+            attachment->setFile(File::deserialize({ }, blobURL, attachment->attachmentType(), attachment->attachmentTitle()));
+
+        attachment->removeAttribute(webkitattachmentidAttr);
         attachment->removeAttribute(webkitattachmentpathAttr);
+        attachment->removeAttribute(webkitattachmentbloburlAttr);
     }
 #endif
     if (!baseURL.isEmpty() && baseURL != blankURL() && baseURL != document.baseURL())

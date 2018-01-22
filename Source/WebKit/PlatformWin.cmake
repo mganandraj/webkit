@@ -11,19 +11,54 @@ add_definitions(-DBUILDING_WEBKIT)
 list(APPEND WebKit_SOURCES
     NetworkProcess/Downloads/curl/DownloadCurl.cpp
 
+    NetworkProcess/cache/NetworkCacheCodersCurl.cpp
+    NetworkProcess/cache/NetworkCacheDataCurl.cpp
+    NetworkProcess/cache/NetworkCacheIOChannelCurl.cpp
+
     NetworkProcess/curl/NetworkProcessCurl.cpp
     NetworkProcess/curl/RemoteNetworkingContextCurl.cpp
 
     NetworkProcess/win/NetworkProcessMainWin.cpp
     NetworkProcess/win/SystemProxyWin.cpp
 
+    Platform/win/LoggingWin.cpp
+    Platform/win/ModuleWin.cpp
+    Platform/win/SharedMemoryWin.cpp
+
     Shared/Authentication/curl/AuthenticationManagerCurl.cpp
 
     Shared/curl/WebCoreArgumentCodersCurl.cpp
 
+    Platform/IPC/win/AttachmentWin.cpp
+    Platform/IPC/win/ConnectionWin.cpp
+
     StorageProcess/win/StorageProcessMainWin.cpp
 
+    WebProcess/Cookies/curl/WebCookieManagerCurl.cpp
+
+    WebProcess/InjectedBundle/win/InjectedBundleWin.cpp
+
+    WebProcess/MediaCache/WebMediaKeyStorageManager.cpp
+
+    WebProcess/Plugins/Netscape/win/PluginProxyWin.cpp
+
+    WebProcess/WebCoreSupport/win/WebContextMenuClientWin.cpp
+    WebProcess/WebCoreSupport/win/WebFrameNetworkingContext.cpp
+    WebProcess/WebCoreSupport/win/WebPopupMenuWin.cpp
+
+    WebProcess/WebPage/AcceleratedDrawingArea.cpp
+    WebProcess/WebPage/AcceleratedSurface.cpp
+    WebProcess/WebPage/DrawingAreaImpl.cpp
+
+    WebProcess/WebPage/CoordinatedGraphics/CompositingCoordinator.cpp
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
+    WebProcess/WebPage/CoordinatedGraphics/ThreadedCoordinatedLayerTreeHost.cpp
+
+    WebProcess/WebPage/win/WebInspectorUIWin.cpp
+    WebProcess/WebPage/win/WebPageWin.cpp
+
     WebProcess/win/WebProcessMainWin.cpp
+    WebProcess/win/WebProcessWin.cpp
 )
 
 # DerivedSources/JavaScriptCore/inspector/InspectorBackendCommands.js is
@@ -88,16 +123,11 @@ if (${WTF_PLATFORM_WIN_CAIRO})
     add_definitions(-DUSE_CAIRO=1 -DUSE_CURL=1)
 
     list(APPEND WebKit_LIBRARIES
-        libeay32.lib
+        ${OPENSSL_LIBRARIES}
         mfuuid.lib
-        ssleay32.lib
         strmiids.lib
     )
 endif ()
-
-list(APPEND WebKit_LIBRARIES
-    WebCoreDerivedSources${DEBUG_SUFFIX}
-)
 
 set(SharedWebKitLibraries
     ${WebKit_LIBRARIES}

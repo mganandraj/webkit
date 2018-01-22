@@ -447,8 +447,7 @@ list(APPEND WebKitLegacy_LIBRARIES
     PRIVATE Usp10
     PRIVATE Version
     PRIVATE Winmm
-    PRIVATE WebKitLegacyGUID${DEBUG_SUFFIX}
-    PRIVATE WebCoreDerivedSources${DEBUG_SUFFIX}
+    PRIVATE WebKitGUID${DEBUG_SUFFIX}
     PRIVATE WindowsCodecs
 )
 
@@ -469,21 +468,19 @@ string(REPLACE " " "\;" CXX_LIBS ${CMAKE_CXX_STANDARD_LIBRARIES})
 list(APPEND WebKitLegacy_LIBRARIES ${CXX_LIBS})
 set(CMAKE_CXX_STANDARD_LIBRARIES "")
 
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:MSVCRT /NODEFAULTLIB:MSVCRTD")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MSVC_RUNTIME_LINKER_FLAGS}")
 
 # If this directory isn't created before midl runs and attempts to output WebKit.tlb,
 # It fails with an unusual error - midl failed - failed to save all changes
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 file(MAKE_DIRECTORY ${DERIVED_SOURCES_WEBKITLEGACY_DIR}/Interfaces)
 
-set(WebKitLegacyGUID_PRE_BUILD_COMMAND "${CMAKE_BINARY_DIR}/DerivedSources/WebKitLegacy/preBuild.cmd")
-file(WRITE "${WebKitLegacyGUID_PRE_BUILD_COMMAND}" "@xcopy /y /d /f \"${CMAKE_CURRENT_SOURCE_DIR}/win/WebKitCOMAPI.h\" \"${FORWARDING_HEADERS_DIR}/WebKitLegacy\" >nul 2>nul\n@xcopy /y /d /f \"${CMAKE_CURRENT_SOURCE_DIR}/win/CFDictionaryPropertyBag.h\" \"${FORWARDING_HEADERS_DIR}/WebKitLegacy\" >nul 2>nul\n")
-file(MAKE_DIRECTORY ${FORWARDING_HEADERS_DIR}/WebKitLegacy)
-add_custom_command(TARGET WebKitLegacyGUID PRE_BUILD COMMAND ${WebKitLegacyGUID_PRE_BUILD_COMMAND} VERBATIM)
-
-set(WebKitLegacyGUID_POST_BUILD_COMMAND "${CMAKE_BINARY_DIR}/DerivedSources/WebKitLegacy/postBuild.cmd")
-file(WRITE "${WebKitLegacyGUID_POST_BUILD_COMMAND}" "@xcopy /y /d /f \"${DERIVED_SOURCES_WEBKITLEGACY_DIR}/Interfaces/*.h\" \"${FORWARDING_HEADERS_DIR}/WebKitLegacy\" >nul 2>nul")
-add_custom_command(TARGET WebKitLegacyGUID POST_BUILD COMMAND ${WebKitLegacyGUID_POST_BUILD_COMMAND} VERBATIM)
+WEBKIT_MAKE_FORWARDING_HEADERS(WebKitLegacyGUID
+    DESTINATION ${FORWARDING_HEADERS_DIR}/WebKitLegacy
+    FILES win/WebKitCOMAPI.h win/CFDictionaryPropertyBag.h
+    DERIVED_SOURCE_DIRECTORIES ${DERIVED_SOURCES_WEBKITLEGACY_DIR}/Interfaces
+    FLATTENED
+)
 
 set(WebKitLegacy_OUTPUT_NAME
     WebKit${DEBUG_SUFFIX}

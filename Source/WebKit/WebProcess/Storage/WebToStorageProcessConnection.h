@@ -51,10 +51,11 @@ public:
     IPC::Connection& connection() { return m_connection.get(); }
 
 #if ENABLE(INDEXED_DATABASE)
-    WebIDBConnectionToServer& idbConnectionToServerForSession(const PAL::SessionID&);
+    WebIDBConnectionToServer& idbConnectionToServerForSession(PAL::SessionID);
 #endif
 #if ENABLE(SERVICE_WORKER)
-    WebSWClientConnection& serviceWorkerConnectionForSession(const PAL::SessionID&);
+    WebSWClientConnection* existingServiceWorkerConnectionForSession(PAL::SessionID sessionID) { return m_swConnectionsBySession.get(sessionID); }
+    WebSWClientConnection& serviceWorkerConnectionForSession(PAL::SessionID);
 #endif
 
 private:
@@ -62,6 +63,7 @@ private:
 
     // IPC::Connection::Client
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
+    void didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, std::unique_ptr<IPC::Encoder>&) override;
     void didClose(IPC::Connection&) override;
     void didReceiveInvalidMessage(IPC::Connection&, IPC::StringReference messageReceiverName, IPC::StringReference messageName) override;
 
@@ -77,8 +79,8 @@ private:
 #endif
 
 #if ENABLE(SERVICE_WORKER)
-    HashMap<PAL::SessionID, std::unique_ptr<WebSWClientConnection>> m_swConnectionsBySession;
-    HashMap<uint64_t, WebSWClientConnection*> m_swConnectionsByIdentifier;
+    HashMap<PAL::SessionID, RefPtr<WebSWClientConnection>> m_swConnectionsBySession;
+    HashMap<WebCore::SWServerConnectionIdentifier, WebSWClientConnection*> m_swConnectionsByIdentifier;
 #endif
 };
 

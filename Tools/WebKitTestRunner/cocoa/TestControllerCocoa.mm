@@ -45,6 +45,7 @@
 #import <WebKit/WKWebsiteDataRecordPrivate.h>
 #import <WebKit/WKWebsiteDataStorePrivate.h>
 #import <WebKit/WKWebsiteDataStoreRef.h>
+#import <WebKit/_WKApplicationManifest.h>
 #import <WebKit/_WKProcessPoolConfiguration.h>
 #import <WebKit/_WKUserContentExtensionStore.h>
 #import <WebKit/_WKUserContentExtensionStorePrivate.h>
@@ -67,7 +68,7 @@ void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injecte
     [globalWebViewConfiguration release];
     globalWebViewConfiguration = [[WKWebViewConfiguration alloc] init];
 
-    globalWebViewConfiguration.processPool = WTF::adoptNS([[WKProcessPool alloc] _initWithConfiguration:(_WKProcessPoolConfiguration *)contextConfiguration]).get();
+    globalWebViewConfiguration.processPool = (WKProcessPool *)context;
     globalWebViewConfiguration.websiteDataStore = (WKWebsiteDataStore *)WKContextGetWebsiteDataStore(context);
     globalWebViewConfiguration._allowUniversalAccessFromFileURLs = YES;
 
@@ -77,7 +78,15 @@ void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injecte
 
 #if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300) || PLATFORM(IOS)
     WKCookieManagerSetCookieStoragePartitioningEnabled(WKContextGetCookieManager(context), true);
+    WKCookieManagerSetStorageAccessAPIEnabled(WKContextGetCookieManager(context), true);
 #endif
+
+    WKWebsiteDataStore* poolWebsiteDataStore = (WKWebsiteDataStore *)WKContextGetWebsiteDataStore((WKContextRef)globalWebViewConfiguration.processPool);
+    [poolWebsiteDataStore _setCacheStoragePerOriginQuota: 400 * 1024];
+    if (libraryPath) {
+        String cacheStorageDirectory = String(libraryPath) + '/' + "CacheStorage";
+        [poolWebsiteDataStore _setCacheStorageDirectory: cacheStorageDirectory];
+    }
 
     [globalWebViewConfiguration.websiteDataStore _setResourceLoadStatisticsEnabled:YES];
     [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsSetShouldSubmitTelemetry:NO];
@@ -144,6 +153,12 @@ void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOpt
 
     if (options.enableAttachmentElement)
         [copiedConfiguration _setAttachmentElementEnabled: YES];
+
+    if (options.applicationManifest.length()) {
+        auto manifestPath = [NSString stringWithUTF8String:options.applicationManifest.c_str()];
+        NSString *text = [NSString stringWithContentsOfFile:manifestPath usedEncoding:nullptr error:nullptr];
+        [copiedConfiguration _setApplicationManifest:[_WKApplicationManifest applicationManifestFromJSON:text manifestURL:nil documentURL:nil]];
+    }
 
     m_mainWebView = std::make_unique<PlatformWebView>(copiedConfiguration.get(), options);
 #else
@@ -265,9 +280,40 @@ bool TestController::isStatisticsPrevalentResource(WKStringRef hostName)
     return isPrevalentResource;
 }
 
+bool TestController::isStatisticsRegisteredAsSubFrameUnder(WKStringRef subFrameHost, WKStringRef topFrameHost)
+{
+    __block bool isDataReady = false;
+    __block bool isRegisteredAsSubFrameUnder = false;
+    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsIsRegisteredAsSubFrameUnder:toNSString(subFrameHost) topFrameHost:toNSString(topFrameHost) completionHandler:^(BOOL _isRegisteredAsSubFrameUnder) {
+        isRegisteredAsSubFrameUnder = _isRegisteredAsSubFrameUnder;
+        isDataReady = true;
+    }];
+    platformRunUntil(isDataReady, 0);
+    
+    return isRegisteredAsSubFrameUnder;
+}
+
+bool TestController::isStatisticsRegisteredAsRedirectingTo(WKStringRef hostRedirectedFrom, WKStringRef hostRedirectedTo)
+{
+    __block bool isDataReady = false;
+    __block bool isRegisteredAsRedirectingTo = false;
+    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsIsRegisteredAsRedirectingTo:toNSString(hostRedirectedFrom) hostRedirectedTo:toNSString(hostRedirectedTo) completionHandler:^(BOOL _isRegisteredAsRedirectingTo) {
+        isRegisteredAsRedirectingTo = _isRegisteredAsRedirectingTo;
+        isDataReady = true;
+    }];
+    platformRunUntil(isDataReady, 0);
+    
+    return isRegisteredAsRedirectingTo;
+}
+
 void TestController::setStatisticsHasHadUserInteraction(WKStringRef hostName, bool value)
 {
     [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsSetHadUserInteraction:value forHost:toNSString(hostName)];
+}
+
+void TestController::setStatisticsHasHadNonRecentUserInteraction(WKStringRef hostName)
+{
+    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsSetHasHadNonRecentUserInteractionForHost:toNSString(hostName)];
 }
 
 bool TestController::isStatisticsHasHadUserInteraction(WKStringRef hostName)
@@ -383,12 +429,16 @@ void TestController::setStatisticsPruneEntriesDownTo(unsigned entries)
     
 void TestController::statisticsClearInMemoryAndPersistentStore()
 {
-    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsClearInMemoryAndPersistentStore];
+    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsClearInMemoryAndPersistentStore:^() {
+        m_currentInvocation->didClearStatisticsThroughWebsiteDataRemoval();
+    }];
 }
 
 void TestController::statisticsClearInMemoryAndPersistentStoreModifiedSinceHours(unsigned hours)
 {
-    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsClearInMemoryAndPersistentStoreModifiedSinceHours:hours];
+    [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsClearInMemoryAndPersistentStoreModifiedSinceHours:hours completionHandler:^() {
+        m_currentInvocation->didClearStatisticsThroughWebsiteDataRemoval();
+    }];
 }
 
 void TestController::statisticsClearThroughWebsiteDataRemoval()

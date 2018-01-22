@@ -84,6 +84,9 @@ public:
 #if ENABLE(VIDEO_TRACK)
         , TextTrackResource
 #endif
+#if ENABLE(APPLICATION_MANIFEST)
+        , ApplicationManifest
+#endif
     };
 
     enum Status {
@@ -102,8 +105,8 @@ public:
     virtual void setEncoding(const String&) { }
     virtual String encoding() const { return String(); }
     virtual const TextResourceDecoder* textResourceDecoder() const { return nullptr; }
-    virtual void addDataBuffer(SharedBuffer&);
-    virtual void addData(const char* data, unsigned length);
+    virtual void updateBuffer(SharedBuffer&);
+    virtual void updateData(const char* data, unsigned length);
     virtual void finishLoading(SharedBuffer*);
     virtual void error(CachedResource::Status);
 
@@ -201,7 +204,7 @@ public:
 
     SharedBuffer* resourceBuffer() const { return m_data.get(); }
 
-    virtual void redirectReceived(ResourceRequest&, const ResourceResponse&);
+    virtual void redirectReceived(ResourceRequest&&, const ResourceResponse&, CompletionHandler<void(ResourceRequest&&)>&&);
     virtual void responseReceived(const ResourceResponse&);
     virtual bool shouldCacheResponse(const ResourceResponse&) { return true; }
     void setResponse(const ResourceResponse&);
@@ -231,7 +234,7 @@ public:
     DataBufferingPolicy dataBufferingPolicy() const { return m_options.dataBufferingPolicy; }
 
     bool allowsCaching() const { return m_options.cachingPolicy == CachingPolicy::AllowCaching; }
-    const FetchOptions& options() const { return m_options; }
+    const ResourceLoaderOptions& options() const { return m_options; }
 
     virtual void destroyDecodedData() { }
 
@@ -276,14 +279,11 @@ public:
     WEBCORE_EXPORT void tryReplaceEncodedData(SharedBuffer&);
 #endif
 
-#if USE(SOUP)
-    virtual char* getOrCreateReadBuffer(size_t /* requestedSize */, size_t& /* actualSize */) { return nullptr; }
-#endif
-
     unsigned long identifierForLoadWithoutResourceLoader() const { return m_identifierForLoadWithoutResourceLoader; }
     static ResourceLoadPriority defaultPriorityForResourceType(Type);
 
-    void setOriginalRequestHeaders(std::optional<HTTPHeaderMap>&& originalRequestHeaders) { m_originalRequestHeaders = WTFMove(originalRequestHeaders); }
+    void setOriginalRequest(std::unique_ptr<ResourceRequest>&& originalRequest) { m_originalRequest = WTFMove(originalRequest); }
+    const std::unique_ptr<ResourceRequest>& originalRequest() const { return m_originalRequest; }
 
 protected:
     // CachedResource constructor that may be used when the CachedResource can already be filled with response data.
@@ -300,7 +300,7 @@ protected:
     // FIXME: Make the rest of these data members private and use functions in derived classes instead.
     HashCountedSet<CachedResourceClient*> m_clients;
     ResourceRequest m_resourceRequest;
-    std::optional<HTTPHeaderMap> m_originalRequestHeaders; // Needed by Ping loads.
+    std::unique_ptr<ResourceRequest> m_originalRequest; // Needed by Ping loads.
     RefPtr<SubresourceLoader> m_loader;
     ResourceLoaderOptions m_options;
     ResourceResponse m_response;
@@ -318,7 +318,7 @@ private:
     virtual void checkNotify();
     virtual bool mayTryReplaceEncodedData() const { return false; }
 
-    std::chrono::microseconds freshnessLifetime(const ResourceResponse&) const;
+    Seconds freshnessLifetime(const ResourceResponse&) const;
 
     void addAdditionalRequestHeaders(CachedResourceLoader&);
     void failBeforeStarting();
@@ -326,7 +326,7 @@ private:
     HashMap<CachedResourceClient*, std::unique_ptr<Callback>> m_clientsAwaitingCallback;
     PAL::SessionID m_sessionID;
     ResourceLoadPriority m_loadPriority;
-    std::chrono::system_clock::time_point m_responseTimestamp;
+    WallTime m_responseTimestamp;
 
     String m_fragmentIdentifierForRequest;
 

@@ -48,18 +48,17 @@
 #include <sys/time.h>
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
-#include "CoreMediaSoftLink.h"
+#include <pal/cf/CoreMediaSoftLink.h>
 
 namespace WebCore {
+using namespace PAL;
 
 class CoreAudioCaptureSourceFactory : public RealtimeMediaSource::AudioCaptureFactory
-#if PLATFORM(IOS)
-    , public RealtimeMediaSource::SingleSourceFactory<CoreAudioCaptureSource>
-#endif
 {
 public:
-    CaptureSourceOrError createAudioCaptureSource(const String& deviceID, const MediaConstraints* constraints) final {
-        return CoreAudioCaptureSource::create(deviceID, constraints);
+    CaptureSourceOrError createAudioCaptureSource(const CaptureDevice& device, const MediaConstraints* constraints) final
+    {
+        return CoreAudioCaptureSource::create(device.persistentId(), constraints);
     }
 };
 
@@ -793,6 +792,7 @@ const RealtimeMediaSourceSettings& CoreAudioCaptureSource::settings() const
         settings.setVolume(volume());
         settings.setSampleRate(sampleRate());
         settings.setDeviceId(id());
+        settings.setLabel(name());
         settings.setEchoCancellation(echoCancellation());
 
         RealtimeMediaSourceSupportedConstraints supportedConstraints;

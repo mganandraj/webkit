@@ -30,6 +30,7 @@
 #include "TextCheckerState.h"
 #include "UserData.h"
 #include <pal/SessionID.h>
+#include <wtf/HashMap.h>
 #include <wtf/ProcessID.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/Vector.h>
@@ -37,7 +38,6 @@
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(COCOA)
-#include "MachPort.h"
 #include <WebCore/MachSendRight.h>
 #endif
 
@@ -95,6 +95,7 @@ struct WebProcessCreationParameters {
     String mediaKeyStorageDirectory;
 
     String webCoreLoggingChannels;
+    String webKitLoggingChannels;
 
     Vector<String> urlSchemesRegisteredAsEmptyDocument;
     Vector<String> urlSchemesRegisteredAsSecure;
@@ -106,6 +107,7 @@ struct WebProcessCreationParameters {
     Vector<String> urlSchemesRegisteredAsCORSEnabled;
     Vector<String> urlSchemesRegisteredAsAlwaysRevalidated;
     Vector<String> urlSchemesRegisteredAsCachePartitioned;
+    Vector<String> urlSchemesServiceWorkersCanHandle;
 
     Vector<String> fontWhitelist;
     Vector<String> languages;
@@ -129,11 +131,15 @@ struct WebProcessCreationParameters {
     bool hasRichContentServices { false };
 #endif
 
+#if ENABLE(SERVICE_WORKER)
+    bool hasRegisteredServiceWorkers { true };
+#endif
+
     Seconds terminationTimeout;
 
     TextCheckerState textCheckerState;
 
-#if PLATFORM(COCOA) || USE(CFURLCONNECTION)
+#if PLATFORM(COCOA)
     String uiProcessBundleIdentifier;
 #endif
 
@@ -177,6 +183,10 @@ struct WebProcessCreationParameters {
 
 #if USE(SOUP)
     WebCore::SoupNetworkProxySettings proxySettings;
+#endif
+
+#if HAVE(CFNETWORK_STORAGE_PARTITIONING) && !RELEASE_LOG_DISABLED
+    bool shouldLogUserInteraction { false };
 #endif
 };
 

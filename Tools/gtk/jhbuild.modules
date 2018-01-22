@@ -8,6 +8,7 @@
   <metamodule id="webkitgtk-testing-dependencies">
     <dependencies>
       <dep package="brotli"/>
+      <dep package="woff2"/>
       <dep package="cairo"/>
       <dep package="fonts"/>
       <dep package="dicts"/>
@@ -25,7 +26,6 @@
       <dep package="libsoup"/>
       <dep package="atk"/>
       <dep package="webkit-gstreamer-testing-dependencies"/>
-      <dep package="openwebrtc"/>
       <dep package="pango"/>
       <dep package="llvm"/>
       <dep package="shared-mime-info"/>
@@ -82,6 +82,13 @@
 
   <cmake id="brotli">
     <branch repo="github.com" module="google/brotli.git" checkoutdir="brotli" tag="v1.0.1"/>
+  </cmake>
+
+  <cmake id="woff2">
+    <branch repo="github.com" module="google/woff2.git" checkoutdir="woff2" tag="v1.0.2"/>
+    <dependencies>
+      <dep package="brotli"/>
+    </dependencies>
   </cmake>
 
   <autotools id="cairo"
@@ -206,10 +213,11 @@
     <dependencies>
       <dep package="libffi"/>
     </dependencies>
-    <branch module="/pub/GNOME/sources/glib/2.52/glib-2.52.1.tar.xz" version="2.52.1"
+    <branch module="/pub/GNOME/sources/glib/2.54/glib-2.54.2.tar.xz" version="2.54.2"
             repo="ftp.gnome.org"
-            hash="sha256:948c26b817f2d77e2a6cdd5082c60a51bf5dea854890286a1d5d4ccde5ce586f">
-      <patch file="gdate-suppress-string-format-literal-warning.patch" strip="1"/>
+            hash="sha256:bb89e5c5aad33169a8c7f28b45671c7899c12f74caf707737f784d7102758e6c">
+      <!-- This patch landed in glib-2-54 branch and will be available in 2.54.3. -->
+      <patch file="glib-gtester-do-not-consider-skipped-tests-as-failures.patch" strip="1"/>
     </branch>
   </autotools>
 
@@ -314,10 +322,10 @@
     <dependencies>
       <dep package="pixman"/>
     </dependencies>
-    <branch module="/releases/individual/xserver/xorg-server-1.16.4.tar.bz2" version="1.16.4"
+    <branch module="/releases/individual/xserver/xorg-server-1.19.6.tar.bz2" version="1.16.4"
             repo="xorg"
-            hash="sha256:abb6e1cc9213a9915a121f48576ff6739a0b8cdb3d32796f9a7743c9a6efc871"
-            md5sum="80d140f631d862b76dc67ae983151c77">
+            hash="sha256:a732502f1db000cf36a376cd0c010ffdbf32ecdd7f1fa08ba7f5bdf9601cc197"
+            md5sum="3e47777ff034a331aed2322b078694a8">
       <patch file="xserver-remove-bogus-dependencies.patch" strip="1"/>
       <patch file="xserver-search-for-DRI-drivers-at-LIBGL_DRIVERS_PATH-environ.patch" strip="1"/>
     </branch>
@@ -397,39 +405,6 @@
       <dep package="libdrm"/>
       <dep package="wayland"/>
     </dependencies>
-  </autotools>
-
-  <autotools id="libusrsctp" supports-non-srcdir-builds="no" autogen-sh="./bootstrap; ./configure --disable-warnings-as-errors">
-    <branch repo="github.com" module="sctplab/usrsctp.git" checkoutdir="usrsctp" tag="078ff3252f73327e0ac11d6fd5eff62011f6646e"/>
-  </autotools>
-
-   <autotools id="gst-plugins-openwebrtc" supports-parallel-builds="no" supports-non-srcdir-builds="no" autogen-sh="./autogen.sh; ./configure">
-     <dependencies>
-       <dep package="gst-plugins-base"/>
-       <dep package="libusrsctp"/>
-     </dependencies>
-    <branch repo="github.com" module="Igalia/openwebrtc-gst-plugins.git" checkoutdir="gst-plugins-openwebrtc" tag="9b2199ea970369dbf1d9ca2f8e61c95f21db2b6e"/>
-   </autotools>
-
-   <autotools id="libnice"
-              supports-non-srcdir-builds="no">
-    <dependencies>
-      <dep package="gstreamer"/>
-    </dependencies>
-    <branch module="libnice/libnice/archive/${version}.tar.gz" version="2803a0b4b70af9684e05ef5ed3f0c2fbca4b6c93"
-            checkoutdir="libnice-${version}" repo="github-tarball">
-      <patch file="libnice-0001-nicesrc-spin-the-agent-mainloop-in-a-separate-thread.patch" strip="1"/>
-      <patch file="libnice-0001-TURN-allow-REALM-to-be-empty.patch" strip="1"/>
-    </branch>
-  </autotools>
-
-  <autotools id="openwebrtc" autogenargs="--enable-bridge=no --enable-owr-gst=yes">
-    <dependencies>
-      <dep package="gst-plugins-openwebrtc"/>
-      <dep package="gst-plugins-bad"/>
-      <dep package="libnice"/>
-     </dependencies>
-    <branch repo="github.com" module="Igalia/openwebrtc.git" checkoutdir="openwebrtc" tag="7f3d23e034818893db198f4b56e41609abd8847b"/>
   </autotools>
 
   <autotools id="llvm"

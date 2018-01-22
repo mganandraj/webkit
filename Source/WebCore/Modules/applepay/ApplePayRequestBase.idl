@@ -29,10 +29,11 @@
     required sequence<ApplePayMerchantCapability> merchantCapabilities;
     required sequence<DOMString> supportedNetworks; // FIXME: Should this be an sequence of enums?
     required DOMString countryCode;
-    required DOMString currencyCode;
 
     sequence<ApplePayContactField> requiredBillingContactFields;
     ApplePayPaymentContact billingContact;
+
+    ApplePayPaymentContact shippingContact;
 
     DOMString applicationData;
     [Conditional=APPLE_PAY_SESSION_V3] sequence<DOMString> supportedCountries;

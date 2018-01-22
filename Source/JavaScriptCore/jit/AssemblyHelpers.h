@@ -360,28 +360,37 @@ public:
     void copyCalleeSavesToVMEntryFrameCalleeSavesBuffer(GPRReg vmGPR)
     {
 #if NUMBER_OF_CALLEE_SAVES_REGISTERS > 0
-        loadPtr(Address(vmGPR, VM::topVMEntryFrameOffset()), vmGPR);
-        copyCalleeSavesToVMEntryFrameCalleeSavesBufferImpl(vmGPR);
+        loadPtr(Address(vmGPR, VM::topEntryFrameOffset()), vmGPR);
+        copyCalleeSavesToEntryFrameCalleeSavesBufferImpl(vmGPR);
 #else
         UNUSED_PARAM(vmGPR);
 #endif
     }
 
-    void copyCalleeSavesToVMEntryFrameCalleeSavesBuffer(VM& vm, const TempRegisterSet& usedRegisters = { RegisterSet::stubUnavailableRegisters() })
+    void copyCalleeSavesToEntryFrameCalleeSavesBuffer(EntryFrame*& topEntryFrame)
     {
 #if NUMBER_OF_CALLEE_SAVES_REGISTERS > 0
+        const TempRegisterSet& usedRegisters = { RegisterSet::stubUnavailableRegisters() };
         GPRReg temp1 = usedRegisters.getFreeGPR(0);
-        loadPtr(&vm.topVMEntryFrame, temp1);
-        copyCalleeSavesToVMEntryFrameCalleeSavesBufferImpl(temp1);
+        loadPtr(&topEntryFrame, temp1);
+        copyCalleeSavesToEntryFrameCalleeSavesBufferImpl(temp1);
 #else
-        UNUSED_PARAM(vm);
-        UNUSED_PARAM(usedRegisters);
+        UNUSED_PARAM(topEntryFrame);
+#endif
+    }
+    
+    void copyCalleeSavesToEntryFrameCalleeSavesBuffer(GPRReg topEntryFrame)
+    {
+#if NUMBER_OF_CALLEE_SAVES_REGISTERS > 0
+        copyCalleeSavesToEntryFrameCalleeSavesBufferImpl(topEntryFrame);
+#else
+        UNUSED_PARAM(topEntryFrame);
 #endif
     }
 
-    void restoreCalleeSavesFromVMEntryFrameCalleeSavesBuffer(VM&);
+    void restoreCalleeSavesFromEntryFrameCalleeSavesBuffer(EntryFrame*&);
 
-    void copyCalleeSavesFromFrameOrRegisterToVMEntryFrameCalleeSavesBuffer(VM& vm, const TempRegisterSet& usedRegisters = { RegisterSet::stubUnavailableRegisters() })
+    void copyCalleeSavesFromFrameOrRegisterToEntryFrameCalleeSavesBuffer(EntryFrame*& topEntryFrame, const TempRegisterSet& usedRegisters = { RegisterSet::stubUnavailableRegisters() })
     {
 #if NUMBER_OF_CALLEE_SAVES_REGISTERS > 0
         GPRReg temp1 = usedRegisters.getFreeGPR(0);
@@ -392,21 +401,21 @@ public:
         ASSERT(codeBlock());
 
         // Copy saved calleeSaves on stack or unsaved calleeSaves in register to vm calleeSave buffer
-        loadPtr(&vm.topVMEntryFrame, temp1);
-        addPtr(TrustedImm32(VMEntryFrame::calleeSaveRegistersBufferOffset()), temp1);
+        loadPtr(&topEntryFrame, temp1);
+        addPtr(TrustedImm32(EntryFrame::calleeSaveRegistersBufferOffset()), temp1);
 
-        RegisterAtOffsetList* allCalleeSaves = VM::getAllCalleeSaveRegisterOffsets();
+        RegisterAtOffsetList* allCalleeSaves = RegisterSet::vmCalleeSaveRegisterOffsets();
         RegisterAtOffsetList* currentCalleeSaves = codeBlock()->calleeSaveRegisters();
         RegisterSet dontCopyRegisters = RegisterSet::stackRegisters();
         unsigned registerCount = allCalleeSaves->size();
 
         for (unsigned i = 0; i < registerCount; i++) {
-            RegisterAtOffset vmEntry = allCalleeSaves->at(i);
-            if (dontCopyRegisters.get(vmEntry.reg()))
+            RegisterAtOffset entry = allCalleeSaves->at(i);
+            if (dontCopyRegisters.get(entry.reg()))
                 continue;
-            RegisterAtOffset* currentFrameEntry = currentCalleeSaves->find(vmEntry.reg());
+            RegisterAtOffset* currentFrameEntry = currentCalleeSaves->find(entry.reg());
 
-            if (vmEntry.reg().isGPR()) {
+            if (entry.reg().isGPR()) {
                 GPRReg regToStore;
                 if (currentFrameEntry) {
                     // Load calleeSave from stack into temp register
@@ -414,9 +423,9 @@ public:
                     loadPtr(Address(framePointerRegister, currentFrameEntry->offset()), regToStore);
                 } else
                     // Just store callee save directly
-                    regToStore = vmEntry.reg().gpr();
+                    regToStore = entry.reg().gpr();
 
-                storePtr(regToStore, Address(temp1, vmEntry.offset()));
+                storePtr(regToStore, Address(temp1, entry.offset()));
             } else {
                 FPRReg fpRegToStore;
                 if (currentFrameEntry) {
@@ -425,13 +434,13 @@ public:
                     loadDouble(Address(framePointerRegister, currentFrameEntry->offset()), fpRegToStore);
                 } else
                     // Just store callee save directly
-                    fpRegToStore = vmEntry.reg().fpr();
+                    fpRegToStore = entry.reg().fpr();
 
-                storeDouble(fpRegToStore, Address(temp1, vmEntry.offset()));
+                storeDouble(fpRegToStore, Address(temp1, entry.offset()));
             }
         }
 #else
-        UNUSED_PARAM(vm);
+        UNUSED_PARAM(topEntryFrame);
         UNUSED_PARAM(usedRegisters);
 #endif
     }
@@ -1345,24 +1354,27 @@ public:
         UNUSED_PARAM(scratch);
 #endif
     }
-    
-    void storeButterfly(VM& vm, GPRReg butterfly, GPRReg object)
+
+    void emitComputeButterflyIndexingMask(GPRReg vectorLengthGPR, GPRReg scratchGPR, GPRReg resultGPR)
     {
-        if (isX86()) {
-            storePtr(butterfly, Address(object, JSObject::butterflyOffset()));
-            return;
+        ASSERT(scratchGPR != resultGPR);
+        Jump done;
+        if (isX86() && !isX86_64()) {
+            Jump nonZero = branchTest32(NonZero, vectorLengthGPR);
+            move(TrustedImm32(0), resultGPR);
+            done = jump();
+            nonZero.link(this);
         }
-        
-        Jump ok = jumpIfMutatorFenceNotNeeded(vm);
-        storeFence();
-        storePtr(butterfly, Address(object, JSObject::butterflyOffset()));
-        storeFence();
-        Jump done = jump();
-        ok.link(this);
-        storePtr(butterfly, Address(object, JSObject::butterflyOffset()));
-        done.link(this);
+        // If vectorLength == 0 then clz will return 32 on both ARM and x86. On 64-bit systems, we can then do a 64-bit right shift on a 32-bit -1 to get a 0 mask for zero vectorLength. On 32-bit ARM, shift masks with 0xff, which means it will still create a 0 mask.
+        countLeadingZeros32(vectorLengthGPR, scratchGPR);
+        move(TrustedImm32(-1), resultGPR);
+        urshiftPtr(scratchGPR, resultGPR);
+        if (done.isSet())
+            done.link(this);
     }
-    
+
+    // If for whatever reason the butterfly is going to change vector length this function does NOT
+    // update the indexing mask.
     void nukeStructureAndStoreButterfly(VM& vm, GPRReg butterfly, GPRReg object)
     {
         if (isX86()) {
@@ -1370,7 +1382,7 @@ public:
             storePtr(butterfly, Address(object, JSObject::butterflyOffset()));
             return;
         }
-        
+
         Jump ok = jumpIfMutatorFenceNotNeeded(vm);
         or32(TrustedImm32(bitwise_cast<int32_t>(nukedStructureIDBit())), Address(object, JSCell::structureIDOffset()));
         storeFence();
@@ -1480,7 +1492,7 @@ public:
     // Call this if you know that the value held in allocatorGPR is non-null. This DOES NOT mean
     // that allocator is non-null; allocator can be null as a signal that we don't know what the
     // value of allocatorGPR is.
-    void emitAllocateWithNonNullAllocator(GPRReg resultGPR, MarkedAllocator* allocator, GPRReg allocatorGPR, GPRReg scratchGPR, JumpList& slowPath)
+    void emitAllocateWithNonNullAllocator(GPRReg resultGPR, BlockDirectory* allocator, GPRReg allocatorGPR, GPRReg scratchGPR, JumpList& slowPath)
     {
         // NOTE: This is carefully written so that we can call it while we disallow scratch
         // register usage.
@@ -1493,22 +1505,22 @@ public:
         Jump popPath;
         Jump done;
         
-        load32(Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfRemaining()), resultGPR);
+        load32(Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfRemaining()), resultGPR);
         popPath = branchTest32(Zero, resultGPR);
         if (allocator)
             add32(TrustedImm32(-allocator->cellSize()), resultGPR, scratchGPR);
         else {
             if (isX86()) {
                 move(resultGPR, scratchGPR);
-                sub32(Address(allocatorGPR, MarkedAllocator::offsetOfCellSize()), scratchGPR);
+                sub32(Address(allocatorGPR, BlockDirectory::offsetOfCellSize()), scratchGPR);
             } else {
-                load32(Address(allocatorGPR, MarkedAllocator::offsetOfCellSize()), scratchGPR);
+                load32(Address(allocatorGPR, BlockDirectory::offsetOfCellSize()), scratchGPR);
                 sub32(resultGPR, scratchGPR, scratchGPR);
             }
         }
         negPtr(resultGPR);
-        store32(scratchGPR, Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfRemaining()));
-        Address payloadEndAddr = Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfPayloadEnd());
+        store32(scratchGPR, Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfRemaining()));
+        Address payloadEndAddr = Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfPayloadEnd());
         if (isX86())
             addPtr(payloadEndAddr, resultGPR);
         else {
@@ -1520,11 +1532,11 @@ public:
         
         popPath.link(this);
         
-        loadPtr(Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfScrambledHead()), resultGPR);
+        loadPtr(Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfScrambledHead()), resultGPR);
         if (isX86())
-            xorPtr(Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfSecret()), resultGPR);
+            xorPtr(Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfSecret()), resultGPR);
         else {
-            loadPtr(Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfSecret()), scratchGPR);
+            loadPtr(Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfSecret()), scratchGPR);
             xorPtr(scratchGPR, resultGPR);
         }
         slowPath.append(branchTestPtr(Zero, resultGPR));
@@ -1532,12 +1544,12 @@ public:
         // The object is half-allocated: we have what we know is a fresh object, but
         // it's still on the GC's free list.
         loadPtr(Address(resultGPR), scratchGPR);
-        storePtr(scratchGPR, Address(allocatorGPR, MarkedAllocator::offsetOfFreeList() + FreeList::offsetOfScrambledHead()));
+        storePtr(scratchGPR, Address(allocatorGPR, BlockDirectory::offsetOfFreeList() + FreeList::offsetOfScrambledHead()));
         
         done.link(this);
     }
     
-    void emitAllocate(GPRReg resultGPR, MarkedAllocator* allocator, GPRReg allocatorGPR, GPRReg scratchGPR, JumpList& slowPath)
+    void emitAllocate(GPRReg resultGPR, BlockDirectory* allocator, GPRReg allocatorGPR, GPRReg scratchGPR, JumpList& slowPath)
     {
         if (!allocator)
             slowPath.append(branchTestPtr(Zero, allocatorGPR));
@@ -1545,42 +1557,43 @@ public:
     }
     
     template<typename StructureType>
-    void emitAllocateJSCell(GPRReg resultGPR, MarkedAllocator* allocator, GPRReg allocatorGPR, StructureType structure, GPRReg scratchGPR, JumpList& slowPath)
+    void emitAllocateJSCell(GPRReg resultGPR, BlockDirectory* allocator, GPRReg allocatorGPR, StructureType structure, GPRReg scratchGPR, JumpList& slowPath)
     {
         emitAllocate(resultGPR, allocator, allocatorGPR, scratchGPR, slowPath);
         emitStoreStructureWithTypeInfo(structure, resultGPR, scratchGPR);
     }
     
-    template<typename StructureType, typename StorageType>
-    void emitAllocateJSObject(GPRReg resultGPR, MarkedAllocator* allocator, GPRReg allocatorGPR, StructureType structure, StorageType storage, GPRReg scratchGPR, JumpList& slowPath)
+    template<typename StructureType, typename StorageType, typename MaskType>
+    void emitAllocateJSObject(GPRReg resultGPR, BlockDirectory* allocator, GPRReg allocatorGPR, StructureType structure, StorageType storage, MaskType mask, GPRReg scratchGPR, JumpList& slowPath)
     {
         emitAllocateJSCell(resultGPR, allocator, allocatorGPR, structure, scratchGPR, slowPath);
         storePtr(storage, Address(resultGPR, JSObject::butterflyOffset()));
+        store32(mask, Address(resultGPR, JSObject::butterflyIndexingMaskOffset()));
     }
     
-    template<typename ClassType, typename StructureType, typename StorageType>
+    template<typename ClassType, typename StructureType, typename StorageType, typename MaskType>
     void emitAllocateJSObjectWithKnownSize(
-        VM& vm, GPRReg resultGPR, StructureType structure, StorageType storage, GPRReg scratchGPR1,
+        VM& vm, GPRReg resultGPR, StructureType structure, StorageType storage, MaskType mask, GPRReg scratchGPR1,
         GPRReg scratchGPR2, JumpList& slowPath, size_t size)
     {
-        MarkedAllocator* allocator = subspaceFor<ClassType>(vm)->allocatorFor(size);
+        BlockDirectory* allocator = subspaceFor<ClassType>(vm)->allocatorForNonVirtual(size, AllocatorForMode::AllocatorIfExists);
         if (!allocator) {
             slowPath.append(jump());
             return;
         }
         move(TrustedImmPtr(allocator), scratchGPR1);
-        emitAllocateJSObject(resultGPR, allocator, scratchGPR1, structure, storage, scratchGPR2, slowPath);
+        emitAllocateJSObject(resultGPR, allocator, scratchGPR1, structure, storage, mask, scratchGPR2, slowPath);
     }
     
-    template<typename ClassType, typename StructureType, typename StorageType>
-    void emitAllocateJSObject(VM& vm, GPRReg resultGPR, StructureType structure, StorageType storage, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
+    template<typename ClassType, typename StructureType, typename StorageType, typename MaskType>
+    void emitAllocateJSObject(VM& vm, GPRReg resultGPR, StructureType structure, StorageType storage, MaskType mask, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
     {
-        emitAllocateJSObjectWithKnownSize<ClassType>(vm, resultGPR, structure, storage, scratchGPR1, scratchGPR2, slowPath, ClassType::allocationSize(0));
+        emitAllocateJSObjectWithKnownSize<ClassType>(vm, resultGPR, structure, storage, mask, scratchGPR1, scratchGPR2, slowPath, ClassType::allocationSize(0));
     }
     
     // allocationSize can be aliased with any of the other input GPRs. If it's not aliased then it
     // won't be clobbered.
-    void emitAllocateVariableSized(GPRReg resultGPR, Subspace& subspace, GPRReg allocationSize, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
+    void emitAllocateVariableSized(GPRReg resultGPR, CompleteSubspace& subspace, GPRReg allocationSize, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
     {
         static_assert(!(MarkedSpace::sizeStep & (MarkedSpace::sizeStep - 1)), "MarkedSpace::sizeStep must be a power of two.");
         
@@ -1598,7 +1611,7 @@ public:
     template<typename ClassType, typename StructureType>
     void emitAllocateVariableSizedCell(VM& vm, GPRReg resultGPR, StructureType structure, GPRReg allocationSize, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
     {
-        Subspace& subspace = *subspaceFor<ClassType>(vm);
+        CompleteSubspace& subspace = *subspaceFor<ClassType>(vm);
         emitAllocateVariableSized(resultGPR, subspace, allocationSize, scratchGPR1, scratchGPR2, slowPath);
         emitStoreStructureWithTypeInfo(structure, resultGPR, scratchGPR2);
     }
@@ -1607,7 +1620,8 @@ public:
     void emitAllocateVariableSizedJSObject(VM& vm, GPRReg resultGPR, StructureType structure, GPRReg allocationSize, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
     {
         emitAllocateVariableSizedCell<ClassType>(vm, resultGPR, structure, allocationSize, scratchGPR1, scratchGPR2, slowPath);
-        storePtr(TrustedImmPtr(0), Address(resultGPR, JSObject::butterflyOffset()));
+        storePtr(TrustedImmPtr(nullptr), Address(resultGPR, JSObject::butterflyOffset()));
+        store32(TrustedImm32(0), Address(resultGPR, JSObject::butterflyIndexingMaskOffset()));
     }
 
     void emitConvertValueToBoolean(VM&, JSValueRegs value, GPRReg result, GPRReg scratchIfShouldCheckMasqueradesAsUndefined, FPRReg, FPRReg, bool shouldCheckMasqueradesAsUndefined, JSGlobalObject*, bool negateResult = false);
@@ -1615,8 +1629,10 @@ public:
     template<typename ClassType>
     void emitAllocateDestructibleObject(VM& vm, GPRReg resultGPR, Structure* structure, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
     {
-        emitAllocateJSObject<ClassType>(vm, resultGPR, TrustedImmPtr(structure), TrustedImmPtr(0), scratchGPR1, scratchGPR2, slowPath);
-        storePtr(TrustedImmPtr(structure->classInfo()), Address(resultGPR, JSDestructibleObject::classInfoOffset()));
+        auto butterfly = TrustedImmPtr(nullptr);
+        auto mask = TrustedImm32(0);
+        emitAllocateJSObject<ClassType>(vm, resultGPR, TrustedImmPtr(structure), butterfly, mask, scratchGPR1, scratchGPR2, slowPath);
+        storePtr(TrustedImmPtr(PoisonedClassInfoPtr(structure->classInfo()).bits()), Address(resultGPR, JSDestructibleObject::classInfoOffset()));
     }
     
     void emitInitializeInlineStorage(GPRReg baseGPR, unsigned inlineCapacity)
@@ -1646,14 +1662,14 @@ public:
 #endif
 
 #if ENABLE(WEBASSEMBLY)
-    void loadWasmContext(GPRReg dst);
-    void storeWasmContext(GPRReg src);
-    static bool loadWasmContextNeedsMacroScratchRegister();
-    static bool storeWasmContextNeedsMacroScratchRegister();
+    void loadWasmContextInstance(GPRReg dst);
+    void storeWasmContextInstance(GPRReg src);
+    static bool loadWasmContextInstanceNeedsMacroScratchRegister();
+    static bool storeWasmContextInstanceNeedsMacroScratchRegister();
 #endif
 
 protected:
-    void copyCalleeSavesToVMEntryFrameCalleeSavesBufferImpl(GPRReg calleeSavesBuffer);
+    void copyCalleeSavesToEntryFrameCalleeSavesBufferImpl(GPRReg calleeSavesBuffer);
 
     CodeBlock* m_codeBlock;
     CodeBlock* m_baselineCodeBlock;

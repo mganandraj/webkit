@@ -641,10 +641,10 @@ WI.DataGrid = class DataGrid extends WI.View
         for (var identifier of this.columns.keys()) {
             var width = Math.round(100 * widths[identifier] / totalColumnWidths);
             if (minPercent && width < minPercent) {
-                recoupPercent += (minPercent - width);
+                recoupPercent += minPercent - width;
                 width = minPercent;
             } else if (maxPercent && width > maxPercent) {
-                recoupPercent -= (width - maxPercent);
+                recoupPercent -= width - maxPercent;
                 width = maxPercent;
             }
             widths[identifier] = width;
@@ -1570,10 +1570,14 @@ WI.DataGrid = class DataGrid extends WI.View
     _mouseDownInDataTable(event)
     {
         var gridNode = this.dataGridNodeFromNode(event.target);
-        if (!gridNode || !gridNode.selectable)
+        if (!gridNode) {
+            if (this.selectedNode)
+                this.selectedNode.deselect();
+            
             return;
+        }
 
-        if (gridNode.isEventWithinDisclosureTriangle(event))
+        if (!gridNode.selectable || gridNode.isEventWithinDisclosureTriangle(event))
             return;
 
         if (event.metaKey) {
@@ -1628,6 +1632,9 @@ WI.DataGrid = class DataGrid extends WI.View
                 if (!didAddSeparator) {
                     contextMenu.appendSeparator();
                     didAddSeparator = true;
+
+                    const disabled = true;
+                    contextMenu.appendItem(WI.UIString("Displayed Columns"), () => {}, disabled);
                 }
 
                 contextMenu.appendCheckboxItem(columnInfo.title, () => {

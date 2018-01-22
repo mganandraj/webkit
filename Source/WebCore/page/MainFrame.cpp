@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,7 +49,10 @@ inline MainFrame::MainFrame(Page& page, PageConfiguration& configuration)
     , m_recentWheelEventDeltaFilter(WheelEventDeltaFilter::create())
     , m_pageOverlayController(std::make_unique<PageOverlayController>(*this))
 #if ENABLE(APPLE_PAY)
-    , m_paymentCoordinator(std::make_unique<PaymentCoordinator>(*configuration.paymentCoordinatorClient))
+    , m_paymentCoordinator(std::make_unique<PaymentCoordinator>(*configuration.paymentCoordinatorClient, configuration.availablePaymentNetworks))
+#endif
+#if ENABLE(APPLICATION_MANIFEST)
+    , m_applicationManifest(configuration.applicationManifest)
 #endif
     , m_performanceLogging(std::make_unique<PerformanceLogging>(*this))
 {
@@ -134,6 +137,13 @@ void MainFrame::removeLatchingStateForTarget(Element& targetNode)
 
         return targetNode.isEqualNode(wheelElement);
     });
+}
+#endif
+
+#if ENABLE(APPLE_PAY)
+void MainFrame::setPaymentCoordinator(std::unique_ptr<PaymentCoordinator>&& paymentCoordinator)
+{
+    m_paymentCoordinator = WTFMove(paymentCoordinator);
 }
 #endif
 

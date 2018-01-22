@@ -21,6 +21,11 @@ find_library(XML2_LIBRARY XML2)
 find_package(Sqlite REQUIRED)
 find_package(ZLIB REQUIRED)
 
+list(APPEND WebCore_UNIFIED_SOURCE_LIST_FILES
+    "SourcesCocoa.txt"
+    "SourcesMac.txt"
+)
+
 list(APPEND WebCore_LIBRARIES
     ${ACCELERATE_LIBRARY}
     ${AUDIOTOOLBOX_LIBRARY}
@@ -85,6 +90,7 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/ForwardingHeaders/replay"
     "${WEBCORE_DIR}/ForwardingHeaders/runtime"
     "${WEBCORE_DIR}/ForwardingHeaders/yarr"
+    "${WEBCORE_DIR}/html/shadow/cocoa"
     "${WEBCORE_DIR}/icu"
     "${WEBCORE_DIR}/loader/archive/cf"
     "${WEBCORE_DIR}/loader/cf"
@@ -133,146 +139,48 @@ set(WebCore_USER_AGENT_SCRIPTS
     ${WEBCORE_DIR}/Modules/plugins/QuickTimePluginReplacement.js
 )
 
-#FIXME: Use ios-encodings.txt once we get CMake working for iOS.
-add_custom_command(
-    OUTPUT ${DERIVED_SOURCES_WEBCORE_DIR}/CharsetData.cpp
-    MAIN_DEPENDENCY ${WEBCORE_DIR}/platform/text/mac/make-charset-table.pl
-    DEPENDS platform/text/mac/character-sets.txt
-    DEPENDS platform/text/mac/mac-encodings.txt
-    COMMAND ${PERL_EXECUTABLE} ${WEBCORE_DIR}/platform/text/mac/make-charset-table.pl ${WEBCORE_DIR}/platform/text/mac/character-sets.txt ${WEBCORE_DIR}/platform/text/mac/mac-encodings.txt kTextEncoding > ${DERIVED_SOURCES_WEBCORE_DIR}/CharsetData.cpp
-    VERBATIM)
-
-list(APPEND WebCore_DERIVED_SOURCES
-    ${DERIVED_SOURCES_WEBCORE_DIR}/CharsetData.cpp
-)
-
 list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES
     "${CMAKE_OSX_SYSROOT}/usr/include/libxslt"
     "${CMAKE_OSX_SYSROOT}/usr/include/libxml2"
 )
 
 list(APPEND WebCore_SOURCES
-    Modules/plugins/QuickTimePluginReplacement.mm
-    Modules/plugins/YouTubePluginReplacement.cpp
+    Modules/paymentrequest/MerchantValidationEvent.cpp
 
     accessibility/mac/AXObjectCacheMac.mm
     accessibility/mac/AccessibilityObjectMac.mm
-    accessibility/mac/WebAccessibilityObjectWrapperBase.mm
     accessibility/mac/WebAccessibilityObjectWrapperMac.mm
-
-    bindings/js/ScriptControllerMac.mm
-
-    bridge/objc/ObjCRuntimeObject.mm
-    bridge/objc/WebScriptObject.mm
-    bridge/objc/objc_class.mm
-    bridge/objc/objc_instance.mm
-    bridge/objc/objc_runtime.mm
-    bridge/objc/objc_utility.mm
-
-    crypto/CommonCryptoUtilities.cpp
-
-    crypto/mac/CommonCryptoDERUtilities.cpp
-    crypto/mac/CryptoAlgorithmAES_CBCMac.cpp
-    crypto/mac/CryptoAlgorithmAES_CFBMac.cpp
-    crypto/mac/CryptoAlgorithmAES_CTRMac.cpp
-    crypto/mac/CryptoAlgorithmAES_GCMMac.cpp
-    crypto/mac/CryptoAlgorithmAES_KWMac.cpp
-    crypto/mac/CryptoAlgorithmECDHMac.cpp
-    crypto/mac/CryptoAlgorithmECDSAMac.cpp
-    crypto/mac/CryptoAlgorithmHKDFMac.cpp
-    crypto/mac/CryptoAlgorithmHMACMac.cpp
-    crypto/mac/CryptoAlgorithmPBKDF2Mac.cpp
-    crypto/mac/CryptoAlgorithmRSAES_PKCS1_v1_5Mac.cpp
-    crypto/mac/CryptoAlgorithmRSASSA_PKCS1_v1_5Mac.cpp
-    crypto/mac/CryptoAlgorithmRSA_OAEPMac.cpp
-    crypto/mac/CryptoAlgorithmRSA_PSSMac.cpp
-    crypto/mac/CryptoAlgorithmRegistryMac.cpp
-    crypto/mac/CryptoKeyECMac.cpp
-    crypto/mac/CryptoKeyMac.cpp
-    crypto/mac/CryptoKeyRSAMac.cpp
-    crypto/mac/SerializedCryptoKeyWrapMac.mm
 
     dom/DataTransferMac.mm
     dom/SlotAssignment.cpp
-
-    editing/SelectionRectGatherer.cpp
-    editing/SmartReplaceCF.cpp
-
-    editing/cocoa/DataDetection.mm
-    editing/cocoa/EditorCocoa.mm
-    editing/cocoa/HTMLConverter.mm
-    editing/cocoa/WebArchiveResourceFromNSAttributedString.mm
-    editing/cocoa/WebArchiveResourceWebResourceHandler.mm
-    editing/cocoa/WebContentReaderCocoa.mm
 
     editing/ios/AutofillElements.cpp
 
     editing/mac/AlternativeTextUIController.mm
     editing/mac/DictionaryLookup.mm
     editing/mac/EditorMac.mm
-    editing/mac/FrameSelectionMac.mm
     editing/mac/TextAlternativeWithRange.mm
     editing/mac/TextUndoInsertionMarkupMac.mm
     editing/mac/WebContentReaderMac.mm
 
-    fileapi/FileCocoa.mm
-
     html/HTMLSlotElement.cpp
-
-    html/shadow/ImageControlsRootElement.cpp
-    html/shadow/YouTubeEmbedShadowElement.cpp
 
     html/shadow/mac/ImageControlsButtonElementMac.cpp
     html/shadow/mac/ImageControlsRootElementMac.cpp
 
-    history/mac/HistoryItemMac.mm
-
-    loader/ResourceLoadInfo.cpp
-
-    loader/archive/cf/LegacyWebArchive.cpp
-    loader/archive/cf/LegacyWebArchiveMac.mm
-
-    loader/cocoa/DiskCacheMonitorCocoa.mm
-    loader/cocoa/SubresourceLoaderCocoa.mm
-
-    loader/cf/ResourceLoaderCFNet.cpp
-
-    loader/mac/DocumentLoaderMac.cpp
-    loader/mac/LoaderNSURLExtras.mm
-    loader/mac/ResourceLoaderMac.mm
-
-    page/CaptionUserPreferencesMediaAF.cpp
     page/PageDebuggable.cpp
 
-    page/cocoa/MemoryReleaseCocoa.mm
-    page/cocoa/PerformanceLoggingCocoa.mm
-    page/cocoa/ResourceUsageOverlayCocoa.mm
-    page/cocoa/ResourceUsageThreadCocoa.mm
-    page/cocoa/SettingsCocoa.mm
-    page/cocoa/UserAgent.mm
-
-    page/mac/ChromeMac.mm
-    page/mac/DragControllerMac.mm
     page/mac/EventHandlerMac.mm
-    page/mac/PageMac.mm
     page/mac/ServicesOverlayController.mm
     page/mac/TextIndicatorWindow.mm
     page/mac/UserAgentMac.mm
     page/mac/WheelEventDeltaFilterMac.mm
 
-    page/scrolling/AsyncScrollingCoordinator.cpp
-    page/scrolling/ScrollingMomentumCalculator.cpp
-
-    page/scrolling/cocoa/ScrollingStateNode.mm
-
     page/scrolling/mac/ScrollingCoordinatorMac.mm
     page/scrolling/mac/ScrollingMomentumCalculatorMac.mm
     page/scrolling/mac/ScrollingStateFrameScrollingNodeMac.mm
-    page/scrolling/mac/ScrollingThreadMac.mm
-    page/scrolling/mac/ScrollingTreeFixedNode.mm
     page/scrolling/mac/ScrollingTreeFrameScrollingNodeMac.mm
     page/scrolling/mac/ScrollingTreeMac.cpp
-    page/scrolling/mac/ScrollingTreeStickyNode.mm
 
     platform/CPUMonitor.cpp
     platform/LocalizedStrings.cpp
@@ -294,7 +202,6 @@ list(APPEND WebCore_SOURCES
     platform/audio/mac/MediaSessionManagerMac.mm
 
     platform/cf/CFURLExtras.cpp
-    platform/cf/CoreMediaSoftLink.cpp
     platform/cf/FileSystemCF.cpp
     platform/cf/KeyedDecoderCF.cpp
     platform/cf/KeyedEncoderCF.cpp
@@ -389,7 +296,6 @@ list(APPEND WebCore_SOURCES
     platform/graphics/cg/IOSurfacePool.cpp
     platform/graphics/cg/ImageBufferCG.cpp
     platform/graphics/cg/ImageBufferDataCG.cpp
-    platform/graphics/cg/ImageCG.cpp
     platform/graphics/cg/ImageDecoderCG.cpp
     platform/graphics/cg/ImageSourceCGMac.mm
     platform/graphics/cg/IntPointCG.cpp
@@ -512,7 +418,6 @@ list(APPEND WebCore_SOURCES
     platform/mac/WebCoreFullScreenPlaceholderView.mm
     platform/mac/WebCoreFullScreenWarningView.mm
     platform/mac/WebCoreFullScreenWindow.mm
-    platform/mac/WebCoreNSStringExtras.mm
     platform/mac/WebCoreNSURLExtras.mm
     platform/mac/WebCoreObjCExtras.mm
     platform/mac/WebGLBlacklist.mm
@@ -524,21 +429,12 @@ list(APPEND WebCore_SOURCES
 
     platform/mediastream/mac/MockRealtimeVideoSourceMac.mm
 
-    platform/network/cf/AuthenticationCF.cpp
-    platform/network/cf/CookieJarCFNet.cpp
-    platform/network/cf/CookieStorageCFNet.cpp
-    platform/network/cf/CredentialStorageCFNet.cpp
     platform/network/cf/DNSCFNet.cpp
     platform/network/cf/FormDataStreamCFNet.cpp
-    platform/network/cf/LoaderRunLoopCF.cpp
     platform/network/cf/NetworkStorageSessionCFNet.cpp
     platform/network/cf/ProxyServerCFNet.cpp
-    platform/network/cf/ResourceErrorCF.cpp
     platform/network/cf/ResourceRequestCFNet.cpp
-    platform/network/cf/ResourceResponseCFNet.cpp
     platform/network/cf/SocketStreamHandleImplCFNet.cpp
-    platform/network/cf/SynchronousLoaderClientCFNet.cpp
-    platform/network/cf/SynchronousResourceHandleCFURLConnectionDelegate.cpp
 
     platform/network/cocoa/CookieCocoa.mm
     platform/network/cocoa/CookieStorageObserver.mm
@@ -562,7 +458,6 @@ list(APPEND WebCore_SOURCES
     platform/network/mac/ResourceHandleMac.mm
     platform/network/mac/SynchronousLoaderClient.mm
     platform/network/mac/UTIUtilities.mm
-    platform/network/mac/WebCoreResourceHandleAsDelegate.mm
     platform/network/mac/WebCoreResourceHandleAsOperationQueueDelegate.mm
     platform/network/mac/WebCoreURLResponse.mm
 
@@ -572,12 +467,13 @@ list(APPEND WebCore_SOURCES
 
     platform/text/mac/LocaleMac.mm
     platform/text/mac/TextBoundaries.mm
-    platform/text/mac/TextCodecMac.cpp
     platform/text/mac/TextEncodingRegistryMac.mm
 
     rendering/RenderThemeCocoa.mm
     rendering/RenderThemeMac.mm
     rendering/TextAutoSizing.cpp
+
+    xml/SoftLinkLibxslt.cpp
 )
 
 # FIXME: We do not need everything from all of these directories.
@@ -605,7 +501,10 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     svg
     workers
 
+    workers/service/context
+
     Modules/applepay
+    Modules/applicationmanifest
     Modules/cache
     Modules/geolocation
     Modules/indexeddb
@@ -633,6 +532,8 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     html/forms
     html/parser
     html/shadow
+
+    inspector/agents
 
     loader/appcache
     loader/archive

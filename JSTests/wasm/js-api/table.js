@@ -166,8 +166,8 @@ function assertBadTableImport(tableDescription, message) {
          "WebAssembly.Module doesn't parse at byte 29 / 32: resizable limits has a initial page count of 4294967295 which is greater than its maximum 4294967294 (evaluating 'new WebAssembly.Module(builder.WebAssembly().get())')",
          "WebAssembly.Module doesn't parse at byte 37 / 43: resizable limits has a initial page count of 4294967295 which is greater than its maximum 4294967294 (evaluating 'new WebAssembly.Module(builder.WebAssembly().get())')"],
         [{initial: 2**31, element: "anyfunc"},
-         "WebAssembly.Module doesn't parse at byte 24 / 27: Table's initial page count of 2147483648 is invalid (evaluating 'new WebAssembly.Module(builder.WebAssembly().get())')",
-         "WebAssembly.Module doesn't parse at byte 32 / 38: Table's initial page count of 2147483648 is invalid (evaluating 'new WebAssembly.Module(builder.WebAssembly().get())')"],
+         "WebAssembly.Module doesn't parse at byte 24 / 27: Table's initial page count of 2147483648 is too big, maximum 10000000 (evaluating 'new WebAssembly.Module(builder.WebAssembly().get())')",
+         "WebAssembly.Module doesn't parse at byte 32 / 38: Table's initial page count of 2147483648 is too big, maximum 10000000 (evaluating 'new WebAssembly.Module(builder.WebAssembly().get())')"],
     ];
 
     for (const d of badDescriptions) {
@@ -243,14 +243,14 @@ assert.throws(() => WebAssembly.Table.prototype.grow(undefined), TypeError, `exp
 
     {
         const table = new WebAssembly.Table({element: "anyfunc", initial: 20});
-        assert.throws(() => table.get(20), RangeError, "WebAssembly.Table.prototype.get expects an integer less than the size of the table");
+        assert.throws(() => table.get(20), RangeError, "WebAssembly.Table.prototype.get expects an integer less than the length of the table");
         for (let i = 0; i < 20; i++)
             assert.eq(table.get(i), null);
     }
 
     {
         const table = new WebAssembly.Table({element: "anyfunc", initial: 20});
-        assert.throws(() => table.set(20, null), RangeError, "WebAssembly.Table.prototype.set expects an integer less than the size of the table");
+        assert.throws(() => table.set(20, null), RangeError, "WebAssembly.Table.prototype.set expects an integer less than the length of the table");
         for (let i = 0; i < 20; i++)
             table.set(i, null);
     }

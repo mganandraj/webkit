@@ -352,6 +352,13 @@ void RenderStyle::copyNonInheritedFrom(const RenderStyle& other)
     ASSERT(zoom() == initialZoom());
 }
 
+void RenderStyle::copyContentFrom(const RenderStyle& other)
+{
+    if (!other.m_rareNonInheritedData->content)
+        return;
+    m_rareNonInheritedData.access().content = other.m_rareNonInheritedData->content->clone();
+}
+
 bool RenderStyle::operator==(const RenderStyle& other) const
 {
     // compare everything except the pseudoStyle pointer
@@ -1347,13 +1354,6 @@ CounterDirectiveMap& RenderStyle::accessCounterDirectives()
     if (!map)
         map = std::make_unique<CounterDirectiveMap>();
     return *map;
-}
-
-const CounterDirectives RenderStyle::getCounterDirectives(const AtomicString& identifier) const
-{
-    if (const CounterDirectiveMap* directives = counterDirectives())
-        return directives->get(identifier);
-    return CounterDirectives();
 }
 
 const AtomicString& RenderStyle::hyphenString() const
@@ -2354,7 +2354,10 @@ Vector<PaintType, 3> RenderStyle::paintTypesForPaintOrder(PaintOrder order)
 
 float RenderStyle::computedStrokeWidth(const IntSize& viewportSize) const
 {
-    if (!hasExplicitlySetStrokeWidth())
+    // Use the stroke-width and stroke-color value combination only if stroke-color has been explicitly specified.
+    // Since there will be no visible stroke when stroke-color is not specified (transparent by default), we fall
+    // back to the legacy Webkit text stroke combination in that case.
+    if (!hasExplicitlySetStrokeColor())
         return textStrokeWidth();
     
     const Length& length = strokeWidth();
@@ -2380,6 +2383,14 @@ bool RenderStyle::hasPositiveStrokeWidth() const
         return textStrokeWidth() > 0;
 
     return strokeWidth().isPositive();
+}
+
+Color RenderStyle::computedStrokeColor() const
+{
+    CSSPropertyID propertyID = CSSPropertyStrokeColor;
+    if (!hasExplicitlySetStrokeColor())
+        propertyID = CSSPropertyWebkitTextStrokeColor;
+    return visitedDependentColor(propertyID);
 }
 
 } // namespace WebCore

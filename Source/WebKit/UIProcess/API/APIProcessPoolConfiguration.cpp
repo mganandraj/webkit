@@ -46,12 +46,10 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithLegacyOptions(
 
     configuration->m_applicationCacheDirectory = WebKit::WebProcessPool::legacyPlatformDefaultApplicationCacheDirectory();
     configuration->m_applicationCacheFlatFileSubdirectoryName = "ApplicationCache";
-#if PLATFORM(COCOA)
-    configuration->m_cacheStorageDirectory = WebKit::WebProcessPool::legacyPlatformDefaultCacheStorageDirectory();
-#endif
     configuration->m_diskCacheDirectory = WebKit::WebProcessPool::legacyPlatformDefaultNetworkCacheDirectory();
     configuration->m_mediaCacheDirectory = WebKit::WebProcessPool::legacyPlatformDefaultMediaCacheDirectory();
     configuration->m_indexedDBDatabaseDirectory = WebKit::WebProcessPool::legacyPlatformDefaultIndexedDBDatabaseDirectory();
+    configuration->m_serviceWorkerRegistrationDirectory = WebKit::WebProcessPool::legacyPlatformDefaultServiceWorkerRegistrationDirectory();
     configuration->m_localStorageDirectory = WebKit::WebProcessPool::legacyPlatformDefaultLocalStorageDirectory();
     configuration->m_mediaKeysStorageDirectory = WebKit::WebProcessPool::legacyPlatformDefaultMediaKeysStorageDirectory();
     configuration->m_webSQLDatabaseDirectory = WebKit::WebProcessPool::legacyPlatformDefaultWebSQLDatabaseDirectory();
@@ -66,10 +64,10 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithWebsiteDataSto
 
     configuration->m_applicationCacheDirectory = legacyConfiguration.applicationCacheDirectory;
     configuration->m_applicationCacheFlatFileSubdirectoryName = legacyConfiguration.applicationCacheFlatFileSubdirectoryName;
-    configuration->m_cacheStorageDirectory = legacyConfiguration.cacheStorageDirectory;
     configuration->m_diskCacheDirectory = legacyConfiguration.networkCacheDirectory;
     configuration->m_mediaCacheDirectory = legacyConfiguration.mediaCacheDirectory;
     configuration->m_indexedDBDatabaseDirectory = WebKit::WebProcessPool::legacyPlatformDefaultIndexedDBDatabaseDirectory();
+    configuration->m_serviceWorkerRegistrationDirectory = WebKit::WebProcessPool::legacyPlatformDefaultServiceWorkerRegistrationDirectory();
     configuration->m_localStorageDirectory = legacyConfiguration.localStorageDirectory;
     configuration->m_mediaKeysStorageDirectory = legacyConfiguration.mediaKeysStorageDirectory;
     configuration->m_resourceLoadStatisticsDirectory = legacyConfiguration.resourceLoadStatisticsDirectory;
@@ -81,12 +79,10 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithWebsiteDataSto
 ProcessPoolConfiguration::ProcessPoolConfiguration()
     : m_applicationCacheDirectory(WebsiteDataStore::defaultApplicationCacheDirectory())
     , m_applicationCacheFlatFileSubdirectoryName("Files")
-#if PLATFORM(COCOA)
-    , m_cacheStorageDirectory(WebsiteDataStore::defaultCacheStorageDirectory())
-#endif
     , m_diskCacheDirectory(WebsiteDataStore::defaultNetworkCacheDirectory())
     , m_mediaCacheDirectory(WebsiteDataStore::defaultMediaCacheDirectory())
     , m_indexedDBDatabaseDirectory(WebsiteDataStore::defaultIndexedDBDatabaseDirectory())
+    , m_serviceWorkerRegistrationDirectory(WebsiteDataStore::defaultServiceWorkerRegistrationDirectory())
     , m_localStorageDirectory(WebsiteDataStore::defaultLocalStorageDirectory())
     , m_webSQLDatabaseDirectory(WebsiteDataStore::defaultWebSQLDatabaseDirectory())
     , m_mediaKeysStorageDirectory(WebsiteDataStore::defaultMediaKeysStorageDirectory())
@@ -106,14 +102,14 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_shouldHaveLegacyDataStore = this->m_shouldHaveLegacyDataStore;
     copy->m_maximumProcessCount = this->m_maximumProcessCount;
     copy->m_cacheModel = this->m_cacheModel;
+    copy->m_diskCacheDirectory = this->m_diskCacheDirectory;
     copy->m_diskCacheSpeculativeValidationEnabled = this->m_diskCacheSpeculativeValidationEnabled;
     copy->m_diskCacheSizeOverride = this->m_diskCacheSizeOverride;
     copy->m_applicationCacheDirectory = this->m_applicationCacheDirectory;
     copy->m_applicationCacheFlatFileSubdirectoryName = this->m_applicationCacheFlatFileSubdirectoryName;
-    copy->m_cacheStorageDirectory = this->m_cacheStorageDirectory;
-    copy->m_diskCacheDirectory = this->m_diskCacheDirectory;
     copy->m_mediaCacheDirectory = this->m_mediaCacheDirectory;
     copy->m_indexedDBDatabaseDirectory = this->m_indexedDBDatabaseDirectory;
+    copy->m_serviceWorkerRegistrationDirectory = this->m_serviceWorkerRegistrationDirectory;
     copy->m_injectedBundlePath = this->m_injectedBundlePath;
     copy->m_localStorageDirectory = this->m_localStorageDirectory;
     copy->m_mediaKeysStorageDirectory = this->m_mediaKeysStorageDirectory;
@@ -126,7 +122,6 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_fullySynchronousModeIsAllowedForTesting = this->m_fullySynchronousModeIsAllowedForTesting;
     copy->m_ignoreSynchronousMessagingTimeoutsForTesting = this->m_ignoreSynchronousMessagingTimeoutsForTesting;
     copy->m_overrideLanguages = this->m_overrideLanguages;
-    copy->m_allowsCellularAccess = this->m_allowsCellularAccess;
     copy->m_sourceApplicationBundleIdentifier = this->m_sourceApplicationBundleIdentifier;
     copy->m_sourceApplicationSecondaryIdentifier = this->m_sourceApplicationSecondaryIdentifier;
     copy->m_alwaysRunsAtBackgroundPriority = this->m_alwaysRunsAtBackgroundPriority;
@@ -136,7 +131,7 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_ctDataConnectionServiceType = this->m_ctDataConnectionServiceType;
 #endif
     copy->m_presentingApplicationPID = this->m_presentingApplicationPID;
-    
+
     return copy;
 }
 

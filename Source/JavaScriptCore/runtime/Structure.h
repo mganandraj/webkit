@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2012-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2008-2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -134,13 +134,18 @@ public:
     static Structure* create(PolyProtoTag, VM&, JSGlobalObject*, JSObject* prototype, const TypeInfo&, const ClassInfo*, IndexingType = NonArray, unsigned inlineCapacity = 0);
 
     ~Structure();
+    
+    template<typename CellType>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return &vm.structureSpace;
+    }
 
 protected:
     void finishCreation(VM& vm)
     {
         Base::finishCreation(vm);
-        ASSERT(m_prototype);
-        ASSERT(m_prototype.isObject() || m_prototype.isNull() || m_prototype.isInt32());
+        ASSERT(m_prototype.get().isEmpty() || m_prototype.isObject() || m_prototype.isNull());
     }
 
     void finishCreation(VM& vm, const Structure* previous)
@@ -181,7 +186,7 @@ public:
     static Structure* addPropertyTransitionToExistingStructureConcurrently(Structure*, UniquedStringImpl* uid, unsigned attributes, PropertyOffset&);
     JS_EXPORT_PRIVATE static Structure* addPropertyTransitionToExistingStructure(Structure*, PropertyName, unsigned attributes, PropertyOffset&);
     static Structure* removePropertyTransition(VM&, Structure*, PropertyName, PropertyOffset&);
-    static Structure* changePrototypeTransition(VM&, Structure*, JSValue prototype);
+    static Structure* changePrototypeTransition(VM&, Structure*, JSValue prototype, DeferredStructureTransitionWatchpointFire&);
     JS_EXPORT_PRIVATE static Structure* attributeChangeTransition(VM&, Structure*, PropertyName, unsigned attributes);
     JS_EXPORT_PRIVATE static Structure* toCacheableDictionaryTransition(VM&, Structure*, DeferredStructureTransitionWatchpointFire* = nullptr);
     static Structure* toUncacheableDictionaryTransition(VM&, Structure*);
@@ -206,7 +211,7 @@ public:
     PropertyOffset addPropertyWithoutTransition(VM&, PropertyName, unsigned attributes, const Func&);
     template<typename Func>
     PropertyOffset removePropertyWithoutTransition(VM&, PropertyName, const Func&);
-    void setPrototypeWithoutTransition(VM& vm, JSValue prototype) { m_prototype.set(vm, this, prototype); }
+    void setPrototypeWithoutTransition(VM&, JSValue prototype);
         
     bool isDictionary() const { return dictionaryKind() != NoneDictionaryKind; }
     bool isUncacheableDictionary() const { return dictionaryKind() == UncachedDictionaryKind; }
@@ -260,25 +265,20 @@ public:
 
     // NOTE: This method should only be called during the creation of structures, since the global
     // object of a structure is presumed to be immutable in a bunch of places.
-    void setGlobalObject(VM& vm, JSGlobalObject* globalObject) { m_globalObject.set(vm, this, globalObject); }
+    void setGlobalObject(VM&, JSGlobalObject*);
 
-    bool hasMonoProto() const
+    ALWAYS_INLINE bool hasMonoProto() const
     {
-        return !m_prototype.get().isInt32();
+        return !m_prototype.get().isEmpty();
     }
-    bool hasPolyProto() const
+    ALWAYS_INLINE bool hasPolyProto() const
     {
         return !hasMonoProto();
     }
-    JSValue storedPrototype() const
+    ALWAYS_INLINE JSValue storedPrototype() const
     {
-        RELEASE_ASSERT(hasMonoProto());
+        ASSERT(hasMonoProto());
         return m_prototype.get();
-    }
-    PropertyOffset polyProtoOffset() const
-    {
-        RELEASE_ASSERT(hasPolyProto());
-        return m_prototype.get().asInt32();
     }
     JSValue storedPrototype(const JSObject*) const;
     JSObject* storedPrototypeObject(const JSObject*) const;
@@ -474,7 +474,7 @@ public:
 
     void setObjectToStringValue(ExecState*, VM&, JSString* value, PropertySlot toStringTagSymbolSlot);
 
-    const ClassInfo* classInfo() const { return m_classInfo; }
+    const ClassInfo* classInfo() const { return m_classInfo.unpoisoned(); }
 
     static ptrdiff_t structureIDOffset()
     {
@@ -738,13 +738,7 @@ private:
     PropertyTable* takePropertyTableOrCloneIfPinned(VM&);
     PropertyTable* copyPropertyTableForPinning(VM&);
 
-    void setPreviousID(VM& vm, Structure* structure)
-    {
-        if (hasRareData())
-            rareData()->setPreviousID(vm, structure);
-        else
-            m_previousOrRareData.set(vm, this, structure);
-    }
+    void setPreviousID(VM&, Structure*);
 
     void clearPreviousID()
     {
@@ -804,7 +798,7 @@ private:
 
     RefPtr<UniquedStringImpl> m_nameInPrevious;
 
-    const ClassInfo* m_classInfo;
+    PoisonedClassInfoPtr m_classInfo;
 
     StructureTransitionTable m_transitionTable;
 

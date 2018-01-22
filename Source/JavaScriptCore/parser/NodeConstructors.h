@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2009, 2013, 2015-2016 Apple Inc. All rights reserved.
+ *  Copyright (C) 2009-2018 Apple Inc. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Library General Public
@@ -92,6 +92,13 @@ namespace JSC {
     {
     }
 
+    inline BigIntNode::BigIntNode(const JSTokenLocation& location, const Identifier& value, uint8_t radix)
+        : ConstantNode(location, ResultType::bigIntType())
+        , m_value(value)
+        , m_radix(radix)
+    {
+    }
+
     inline StringNode::StringNode(const JSTokenLocation& location, const Identifier& value)
         : ConstantNode(location, ResultType::stringType())
         , m_value(value)
@@ -171,8 +178,19 @@ namespace JSC {
     {
     }
 
-    inline NewTargetNode::NewTargetNode(const JSTokenLocation& location)
+    inline MetaPropertyNode::MetaPropertyNode(const JSTokenLocation& location)
         : ExpressionNode(location)
+    {
+    }
+
+    inline NewTargetNode::NewTargetNode(const JSTokenLocation& location)
+        : MetaPropertyNode(location)
+    {
+    }
+
+    inline ImportMetaNode::ImportMetaNode(const JSTokenLocation& location, ExpressionNode* expr)
+        : MetaPropertyNode(location)
+        , m_expr(expr)
     {
     }
 
@@ -230,6 +248,7 @@ namespace JSC {
         , m_needsSuperBinding(superBinding == SuperBinding::Needed)
         , m_putType(putType)
         , m_isClassProperty(isClassProperty)
+        , m_isOverriddenByDuplicate(false)
     {
     }
     
@@ -240,6 +259,7 @@ namespace JSC {
         , m_needsSuperBinding(superBinding == SuperBinding::Needed)
         , m_putType(putType)
         , m_isClassProperty(isClassProperty)
+        , m_isOverriddenByDuplicate(false)
     {
     }
 
@@ -251,6 +271,7 @@ namespace JSC {
         , m_needsSuperBinding(superBinding == SuperBinding::Needed)
         , m_putType(putType)
         , m_isClassProperty(isClassProperty)
+        , m_isOverriddenByDuplicate(false)
     {
     }
 

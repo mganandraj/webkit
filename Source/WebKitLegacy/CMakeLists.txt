@@ -20,9 +20,8 @@ set(WebKitLegacy_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
     "${WEBKITLEGACY_DIR}/Storage"
     "${WEBKITLEGACY_DIR}/WebCoreSupport"
-    "${FORWARDING_HEADERS_DIR}/JavaScriptCore"
+    "${FORWARDING_HEADERS_DIR}"
     "${FORWARDING_HEADERS_DIR}/WebCore"
-    "${FORWARDING_HEADERS_DIR}/WebKitLegacy"
 )
 
 set(WebKitLegacy_SYSTEM_INCLUDE_DIRECTORIES
@@ -61,4 +60,8 @@ if (MSVC)
         POST_BUILD
         COMMAND ${PERL_EXECUTABLE} ${WEBKIT_LIBRARIES_DIR}/tools/scripts/version-stamp.pl ${DERIVED_SOURCES_WEBKITLEGACY_DIR} $<TARGET_FILE:WebKitLegacy>
         VERBATIM)
+
+     if (NOT WTF_PLATFORM_WIN_CAIRO)
+         add_subdirectory(win/WebKitQuartzCoreAdditions)
+     endif ()
 endif ()
