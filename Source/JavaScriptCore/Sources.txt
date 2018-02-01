@@ -797,6 +797,7 @@ runtime/JSDataViewPrototype.cpp
 runtime/JSDateMath.cpp
 runtime/JSDestructibleObjectHeapCellType.cpp
 runtime/JSFixedArray.cpp
+runtime/JSFixedArrayStore.cpp
 runtime/JSFunction.cpp
 runtime/JSGeneratorFunction.cpp
 runtime/JSGlobalLexicalEnvironment.cpp

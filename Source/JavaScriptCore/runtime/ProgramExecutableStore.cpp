@@ -31,6 +31,8 @@
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
 
+#include "ByteCodeStoreUtils.h"
+
 #include "UnlinkedProgramCodeBlockStore.h"
 
 #include "ByteCodeStoreMacros.h"
@@ -60,6 +62,9 @@ size_t ProgramExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
     // Start with a magic .. It serves some purpose !!
     const char* magic = "MSOJSC";
     WRITEVECTOR8(magic, 6);
+
+    uint32_t storeVersion = ByteCodeStoreUtils::STORE_VERSION;
+    WRITEFIELD(storeVersion);
  
     // Write functions.
     for(size_t i=0; i<m_programExecutable.m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {

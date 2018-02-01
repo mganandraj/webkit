@@ -150,6 +150,9 @@ public:
     static void dumpToStream(const JSCell*, PrintStream&);
 
 private:
+
+    friend class JSFixedArrayStore;
+
     JSFixedArray(VM& vm, Structure* structure, unsigned size)
         : Base(vm, structure)
         , m_size(size)

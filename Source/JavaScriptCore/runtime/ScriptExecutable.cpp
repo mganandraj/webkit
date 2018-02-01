@@ -40,6 +40,7 @@
 #include "VMInlines.h"
 #include <wtf/CommaPrinter.h>
 
+#include "ByteCodeStoreUtils.h"
 #include "ByteCodeStoreMacros.h"
 #include "ByteCodeWriteStore.h"
 #include "ByteCodeReadStore.h"
@@ -99,7 +100,8 @@ void ScriptExecutable::writeByteCodeCache(VM& vm)
     // We support writing only program executable at root as of now.
     ASSERT(classInfo(vm) == ProgramExecutable::info());
 
-	if(!this->hasByteCodeCache()) {
+	// Don't write if bytecode cache is already available.
+    if(!this->hasByteCodeCache()) {
         ProgramExecutable* program = jsCast<ProgramExecutable*>(this);
 
         RefPtr<ByteCodeWriteStore> currentWriteStore = ByteCodeWriteStore::createForProgram(*program);
@@ -108,7 +110,13 @@ void ScriptExecutable::writeByteCodeCache(VM& vm)
         ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
         Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*executable);
         size_t programOffset = programExecutableStore->save(vm, *currentWriteStore);
+        
         currentWriteStore->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
+        
+        // Write the version.
+        const uint32_t storeVersion = ByteCodeStoreUtils::STORE_VERSION;
+        currentWriteStore->writeBytes(reinterpret_cast<const char*>(&storeVersion), sizeof(storeVersion));
+
 #ifndef NDEBUG
         dataLogLn("Writing completed.");
 #endif

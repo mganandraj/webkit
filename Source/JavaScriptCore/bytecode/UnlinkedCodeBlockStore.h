@@ -33,7 +33,8 @@ enum class ConstantType {
     Empty = 0,
     String,
     SymbolTable,
-    NonCellValue
+    NonCellValue,
+    FixedArray
 };
 
 class UnlinkedCodeBlockStore  : public RefCounted<UnlinkedCodeBlockStore> {

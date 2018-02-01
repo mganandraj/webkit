@@ -30,6 +30,7 @@
 #include "SymbolTableStore.h"
 #include "IdentifierStore.h"
 #include "UnlinkedInstructionStreamStore.h"
+#include "JSFixedArrayStore.h"
 
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
@@ -65,7 +66,7 @@ void UnlinkedCodeBlockStore::load(ByteCodeReadStore& byteCodeCache) {
     loadStringSwitchJumpTables(byteCodeCache);
     loadExceptionHandlers(byteCodeCache);
     loadRegexps(byteCodeCache);
-    loadConstantBuffers(byteCodeCache);
+    //loadConstantBuffers(byteCodeCache);
     loadPropertyAccessInstructions(byteCodeCache);
     loadJumpTargets(byteCodeCache);
     loadExpressionRangeInfos(byteCodeCache);   
@@ -96,7 +97,7 @@ void UnlinkedCodeBlockStore::save(ByteCodeWriteStore& byteCodeCache) {
     saveStringSwitchJumpTables(byteCodeCache);
     saveExceptionHandlers(byteCodeCache);
     saveRegexps(byteCodeCache);
-    saveConstantBuffers(byteCodeCache);
+    //saveConstantBuffers(byteCodeCache);
     savePropertyAccessInstructions(byteCodeCache);
     saveJumpTargets(byteCodeCache);
     saveExpressionRangeInfos(byteCodeCache);
@@ -238,6 +239,18 @@ void UnlinkedCodeBlockStore::saveConstants(ByteCodeWriteStore& byteCodeCache) {
                     int32_t sourceCodeRepresentation = static_cast<int32_t>(m_unlinkedCodeBlock.constantsSourceCodeRepresentation()[i]);
                     WRITEFIELD(sourceCodeRepresentation);
                 }
+                else if (value.asCell()->classInfo(vm) == JSFixedArray::info()) {
+                    uint8_t constantType = static_cast<uint8_t>(ConstantType::FixedArray);
+                    WRITEFIELD(constantType);
+
+                    JSFixedArray* fixedArray = jsCast<JSFixedArray*>(value);
+                    ASSERT(fixedArray);
+
+                    JSFixedArrayStore::save(*m_unlinkedCodeBlock.vm(), *fixedArray, byteCodeCache);
+
+                    int32_t sourceCodeRepresentation = static_cast<int32_t>(m_unlinkedCodeBlock.constantsSourceCodeRepresentation()[i]);
+                    WRITEFIELD(sourceCodeRepresentation);
+                }
                 else {
                     // We don't support yet.
                     ASSERT(0);
@@ -324,6 +337,19 @@ void UnlinkedCodeBlockStore::loadConstants(ByteCodeReadStore& byteCodeCache) {
                 
 
                 JSValue jsValue(functionSymbolTable);
+                m_unlinkedCodeBlock.m_constantRegisters.last().set(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, jsValue);
+
+                uint32_t constRepresentation;
+                READFIELD(constRepresentation);
+                m_unlinkedCodeBlock.m_constantsSourceCodeRepresentation.append(static_cast<SourceCodeRepresentation>(constRepresentation));
+            }
+            break;
+
+            case ConstantType::FixedArray:
+            {
+                JSFixedArray* fixedArray = JSFixedArrayStore::load(*m_unlinkedCodeBlock.vm(), byteCodeCache);
+
+                JSValue jsValue(fixedArray);
                 m_unlinkedCodeBlock.m_constantRegisters.last().set(*m_unlinkedCodeBlock.vm(), &m_unlinkedCodeBlock, jsValue);
 
                 uint32_t constRepresentation;
@@ -691,7 +717,7 @@ void UnlinkedCodeBlockStore::saveRegexps(ByteCodeWriteStore& byteCodeCache) {
         WRITEFIELD(flags);
     }
 }
-
+/*
 void UnlinkedCodeBlockStore::loadConstantBuffers(ByteCodeReadStore& byteCodeCache) {
         
     VERIFYMAGIC(MAGIC_CODEBLOCK_CONSTANTBUFFERS);    
@@ -819,7 +845,7 @@ void UnlinkedCodeBlockStore::saveConstantBuffers(ByteCodeWriteStore& byteCodeCac
         }
     }
 }
-
+*/
 void UnlinkedCodeBlockStore::loadPropertyAccessInstructions(ByteCodeReadStore& byteCodeCache) {
     VERIFYMAGIC(MAGIC_CODEBLOCK_PROPACCESSINSTRUCTIONS);    
 

@@ -29,9 +29,13 @@
 #include <string>
 using namespace std;
 
+#include "parser/SourceCode.h"
+
 namespace JSC {
 
 struct ByteCodeStoreUtils {
+    static const uint32_t STORE_VERSION = 1;
+
     static std::string getJSCLocalStorePath();
     static std::string getJSCByteCodeCachePath();
 

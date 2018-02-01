@@ -30,20 +30,47 @@
 #include "ByteCodeReadStore.h"
 #include <wtf/ReadStoreImplementationMMap.h>
 
+#include "runtime/Options.h"
+
+#include "runtime/ProgramExecutable.h"
+#include "runtime/FunctionExecutable.h"
+
 #include <wtf/DataLog.h>
 
 namespace JSC {
 
-/*static */bool ByteCodeReadStore::validateStoreMagicBytes(ReadStoreImplementation&) {
-    // Verify "MSOJSC"
+/*static */bool ByteCodeReadStore::validateStoreMagicBytes(ReadStoreImplementation& readStoreImpl) {
+    
+    /*
+    char ch;
+    
+    readStoreImpl.readBytes(&ch, sizeof(char));
+    if(ch != 'M') return false;
+    if(ch != 'S') return false;
+    if(ch != 'O') return false;
+    if(ch != 'J') return false;
+    if(ch != 'S') return false;
+    if(ch != 'C') return false;
+    */
+
     return true;
 }
 
 /*static */bool ByteCodeReadStore::trySeekEntryPoint(ReadStoreImplementation& readStoreImpl) {
-    readStoreImpl.seekOffsetFromEnd(sizeof(size_t));
+    
+    // Read the store version and program offset.
+    readStoreImpl.seekOffsetFromEnd(sizeof(size_t) + sizeof(uint32_t));
+    
     size_t programOffset;
     readStoreImpl.readBytes(reinterpret_cast<char*>(&programOffset), sizeof(size_t));
     ASSERT(programOffset < readStoreImpl.getSize());
+
+    uint32_t storeVersion;
+    readStoreImpl.readBytes(reinterpret_cast<char*>(&storeVersion), sizeof(uint32_t));
+    if(ByteCodeStoreUtils::STORE_VERSION != storeVersion) {
+        dataLogLn("Bytecode store version mismatch !!");
+        return false;
+    }
 
     readStoreImpl.seekOffset(programOffset);
 

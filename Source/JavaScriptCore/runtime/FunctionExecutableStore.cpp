@@ -28,6 +28,8 @@
 #include "FunctionExecutableStore.h"
 #include "UnlinkedFunctionCodeBlockStore.h"
 
+#include "parser/ParserError.h"
+
 #include "ByteCodeReadStore.h"
 #include "ByteCodeWriteStore.h"
 #include "ByteCodeStoreMacros.h"

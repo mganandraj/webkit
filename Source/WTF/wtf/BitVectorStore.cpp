@@ -42,7 +42,7 @@ void BitVectorStore::save(WriteStoreImplementation& writeStore) {
 
 void BitVectorStore::load(ReadStoreImplementation& readStore) {
     uintptr_t bits = 0;
-    readStore.readBytes(reinterpret_cast<char*>(bits), sizeof(uintptr_t));
+    readStore.readBytes(reinterpret_cast<char*>(&bits), sizeof(uintptr_t));
     *(m_bitVector.bits()) = bits;
 }
 

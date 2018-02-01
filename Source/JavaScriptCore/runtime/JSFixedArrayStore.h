@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,40 +25,15 @@
 
 #pragma once
 
-#include <wtf/RefCounted.h>
-#include <wtf/RefPtr.h>
-#include <wtf/Ref.h>
-#include <wtf/WriteStoreImplementation.h>
-
-using namespace WTF;
+#include "JSFixedArray.h"
 
 namespace JSC {
 
-class ProgramExecutable;
-class VM;
-        
-class ByteCodeWriteStore : public RefCounted<ByteCodeWriteStore> {
+class JSFixedArrayStore  : public RefCounted<JSFixedArrayStore> {
 public:
-    static RefPtr<ByteCodeWriteStore> createForProgram(ProgramExecutable&);
+    static void save(VM&, JSFixedArray&, ByteCodeWriteStore&);
+    static JSFixedArray* load(VM&, ByteCodeReadStore&);
 
-    // void writeFunction(VM&v, FunctionExecutable*);
-    
-    size_t currentWritePosition();
-    void writeBytes(const char*, size_t);
-    
-    template <typename T>
-    void writePrimitive(T* buffer) {
-        static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");
-        m_storeImplementation->writeBytes(reinterpret_cast<const char*>(buffer), sizeof(T));
-    }
-
-    WriteStoreImplementation& storeImplementation() { return m_storeImplementation.get(); }
-
-private:
-    WTF_MAKE_NONCOPYABLE(ByteCodeWriteStore);
-
-    ByteCodeWriteStore(WriteStoreImplementation& storeImplementation);    
-    Ref<WriteStoreImplementation> m_storeImplementation;
 };
 
-} // namespace JSC
+}

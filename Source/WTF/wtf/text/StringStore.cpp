@@ -51,9 +51,6 @@ namespace WTF {
 
     RefPtr<StringImpl> ownerStringImpl;
 
-    StringImpl::StringKind ownerStringKind;
-    readStore.readBytes(reinterpret_cast<char*>(&ownerStringKind), sizeof(StringImpl::StringKind));
-
     unsigned length;
     readStore.readBytes(reinterpret_cast<char*>(&length), sizeof(unsigned));
 
@@ -65,26 +62,10 @@ namespace WTF {
         char* data;
         readStore.readVector(&data, is8bit ? length : 2 * length);
 
-        switch (ownerStringKind)
-        {
-            case StringImpl::StringKind::StringNormal :
-                if(is8bit)
-                    ownerStringImpl = adoptRef(&StringImpl::create(reinterpret_cast<const LChar *>(data) , length).leakRef());
-                else
-                    ownerStringImpl = adoptRef(&StringImpl::create(reinterpret_cast<const UChar *>(data) , length).leakRef());
-                
-                break;
-            case StringImpl::StringKind::StringAtomic :
-                if(is8bit)
-                    ownerStringImpl = AtomicStringImpl::add(reinterpret_cast<const LChar *>(data) , length);
-                else
-                    ownerStringImpl = AtomicStringImpl::add(reinterpret_cast<const UChar *>(data) , length);
-            
-                break;                
-            default:
-                dataLogLn("Trying to load unsupported string type.");
-                RELEASE_ASSERT(0); // Not implemented.
-        }
+        if(is8bit)
+            ownerStringImpl = AtomicStringImpl::add(reinterpret_cast<const LChar *>(data) , length);
+        else
+            ownerStringImpl = AtomicStringImpl::add(reinterpret_cast<const UChar *>(data) , length);
     }
 
     if(ownerStringImpl) {
@@ -129,14 +110,10 @@ namespace WTF {
     // AFAIK, this can be null only for static symbols which we don't support anyways.
     RELEASE_ASSERT(ownerStringImpl);
 
-    StringImpl::StringKind stringKind = ownerStringImpl->stringKind();
-    RELEASE_ASSERT(stringKind != StringImpl::StringKind::StringSymbol);
-
     // Note that we ideally want to assert that the owner is an atomic string..
     // using normal string as description will result in duplicated string when loading byte codes.
+    RELEASE_ASSERT(ownerStringImpl->isAtomic());
 
-    writeStore.writeBytes(reinterpret_cast<const char*>(&stringKind), sizeof(StringImpl::StringKind));
-    
     unsigned length = ownerStringImpl->length();
     writeStore.writeBytes(reinterpret_cast<const char*>(&length), sizeof(unsigned));
 
@@ -165,10 +142,13 @@ namespace WTF {
 
     */
 
-    StringImpl::StringKind stringKind = stringImpl.stringKind();
-    writeStore.writeBytes(reinterpret_cast<const char*>(&stringKind), sizeof(StringImpl::StringKind));
+    bool isAtomic = stringImpl.isAtomic();
+    bool isSymbol = stringImpl.isSymbol();
 
-    if(stringKind == StringImpl::StringKind::StringSymbol) {
+    writeStore.writeBytes(reinterpret_cast<const char*>(&isAtomic), sizeof(isAtomic));
+    writeStore.writeBytes(reinterpret_cast<const char*>(&isSymbol), sizeof(isSymbol));
+
+    if(isSymbol) {
         // We don't support persisting static symbols.
         RELEASE_ASSERT(stringImpl.bufferOwnership() == StringImpl::BufferOwnership::BufferSubstring);
 
@@ -193,10 +173,14 @@ namespace WTF {
 }
 
 /*static*/ Ref<StringImpl> StringStore::load(ReadStoreImplementation& readStore, SymbolRegistry& registry) {
-    StringImpl::StringKind stringKind;
-    readStore.readBytes(reinterpret_cast<char*>(&stringKind), sizeof(StringImpl::StringKind));
+    
+    bool isAtomic;
+    bool isSymbol;
+    
+    readStore.readBytes(reinterpret_cast<char*>(&isAtomic), sizeof(isAtomic));
+    readStore.readBytes(reinterpret_cast<char*>(&isSymbol), sizeof(isSymbol));
 
-    if(stringKind == StringImpl::StringKind::StringSymbol) {
+    if(isSymbol) {
         return adoptRef(loadSymbolImpl(readStore, registry).leakRef());
     }
 
@@ -211,92 +195,55 @@ namespace WTF {
         char* data;
         readStore.readVector(&data, is8bit ? length : 2 * length);
 
-        switch (stringKind)
-        {
-            case StringImpl::StringKind::StringNormal :
-                if(is8bit)
-                    return StringImpl::create(reinterpret_cast<const LChar *>(data) , length);
-                else
-                    return StringImpl::create(reinterpret_cast<const UChar *>(data) , length);
-                
-                break;
-            case StringImpl::StringKind::StringAtomic :
-                if(is8bit)
-                    return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const LChar *>(data) , length).leakRef());
-                else
-                    return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const UChar *>(data) , length).leakRef());
-            
-                break;                
-            default:
-                dataLogLn("Trying to load unsupported string type.");
-                RELEASE_ASSERT(0); // Not implemented.
+        if(isAtomic) {
+            if(is8bit)
+                return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const LChar *>(data) , length).leakRef());
+            else
+                return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const UChar *>(data) , length).leakRef());
+        } else {
+            if(is8bit)
+                return StringImpl::create(reinterpret_cast<const LChar *>(data) , length);
+            else
+                return StringImpl::create(reinterpret_cast<const UChar *>(data) , length);
         }
-
     } else { 
-        switch (stringKind)
-        {
-            case StringImpl::StringKind::StringNormal :
-                return adoptRef(*StringImpl::empty());
-	        case StringImpl::StringKind::StringAtomic:
-                return adoptRef(*StringImpl::empty());
-            default:
-                dataLogLn("Trying to load empty unsupported string type.");
-                RELEASE_ASSERT(0); // Not implemented.
-        }
+        return adoptRef(*StringImpl::empty());
     }
-
 }
 
-
 /*static*/ Ref<UniquedStringImpl> StringStore::loadUniqued(ReadStoreImplementation&readStore, SymbolRegistry& registry) {
-    StringImpl::StringKind stringKind;
-    readStore.readBytes(reinterpret_cast<char*>(&stringKind), sizeof(StringImpl::StringKind));
+    bool isAtomic;
+    bool isSymbol;
+    
+    readStore.readBytes(reinterpret_cast<char*>(&isAtomic), sizeof(isAtomic));
+    readStore.readBytes(reinterpret_cast<char*>(&isSymbol), sizeof(isSymbol));
 
-	 unsigned length;
-	 readStore.readBytes(reinterpret_cast<char*>(&length), sizeof(unsigned));
+    if(isSymbol) {
+        return adoptRef(loadSymbolImpl(readStore, registry).leakRef());
+    }
+
+    if(!isAtomic) {
+        dataLogLn("Trying to load normal string as uniqued");
+        RELEASE_ASSERT(0);
+    }
+
+	unsigned length;
+	readStore.readBytes(reinterpret_cast<char*>(&length), sizeof(unsigned));
 
     if(length > 0) {
-
         bool is8bit;
         readStore.readBytes(reinterpret_cast<char*>(&is8bit), sizeof(bool));
 
         char* data;
         readStore.readVector(&data, is8bit ? length : 2 * length);
 
-        switch (stringKind)
-        {
-            case StringImpl::StringKind::StringNormal :
-                dataLogLn("Normal strings are not uniqued.");
-                RELEASE_ASSERT(0); // Normal strings are not uniqued.
-                break;
-            case StringImpl::StringKind::StringAtomic :
-                if(is8bit)
-                    return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const LChar *>(data) , length).leakRef());
-                else
-                    return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const UChar *>(data) , length).leakRef());
-            
-                break;
-            case StringImpl::StringKind::StringSymbol :
-                return adoptRef(loadSymbolImpl(readStore, registry).leakRef());
-            
-            default:
-                RELEASE_ASSERT(0); // Not implemented.
-        }
-
+        if(is8bit)
+            return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const LChar *>(data) , length).leakRef());
+        else
+            return adoptRef(*AtomicStringImpl::add(reinterpret_cast<const UChar *>(data) , length).leakRef());
+        
     } else { 
-        switch (stringKind)
-        {
-            case StringImpl::StringKind::StringNormal :
-                RELEASE_ASSERT(0);
-	        case StringImpl::StringKind::StringAtomic:
-                return adoptRef(*AtomicStringImpl::add(StringImpl::empty()).leakRef());
-            case StringImpl::StringKind::StringSymbol:
-                dataLogLn("Trying to load empty symbol string type.");
-                RELEASE_ASSERT(0); // Not implemented.
-            default:
-                dataLogLn("Trying to load empty unsupported string type.");
-                RELEASE_ASSERT(0); // Not implemented.
-        }
+        return adoptRef(*reinterpret_cast<UniquedStringImpl*>(StringImpl::empty()));
     }
 }
 

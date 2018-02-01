@@ -175,7 +175,7 @@ if ("${PORT}" STREQUAL "GTK" OR "${PORT}" STREQUAL "WPE")
         add_subdirectory(PerformanceTests)
     endif ()
 else ()
-    add_subdirectory(PerformanceTests)
+#    add_subdirectory(PerformanceTests)
 endif ()
 
 # -----------------------------------------------------------------------------
