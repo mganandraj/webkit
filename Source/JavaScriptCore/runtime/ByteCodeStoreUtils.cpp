@@ -33,6 +33,7 @@
 #else
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #endif
 
 #include <algorithm>
@@ -40,140 +41,26 @@
 
 namespace JSC {
 
-// /*static */bool ByteCodeStoreUtils::getNextStoreIndex(const char* programId, uint16_t& storeIndex) {
-// 	std::string jscLocalStorePath = getJSCLocalStorePath();
-// 	std::string byteCodeHeaderFilePath(jscLocalStorePath.c_str());
-	
-// 	#if OS(WINDOWS)
-// 	byteCodeHeaderFilePath.append("\\");
-// 	#else
-// 	byteCodeHeaderFilePath.append("/");
-// 	#endif	
-
-// 	byteCodeHeaderFilePath.append(programId);
-// 	byteCodeHeaderFilePath.append(".idx");
-
-// 	std::ifstream indexStream(byteCodeHeaderFilePath, std::ios::in);
-	
-// 	if(!indexStream.fail()) {
-// 		indexStream >> storeIndex; 
-//         indexStream.close();
-
-// 		storeIndex++;
-		
-// 		dataLogLn("getNextStoreIndex1 : ", storeIndex);
-//         return true;
-//     }
-//     else {
-// 		storeIndex=1;
-// 		dataLogLn("getNextStoreIndex2 : ", storeIndex);
-//         return true;
-//     }
-// }
-
-// /*static */bool ByteCodeStoreUtils::getHeader(const char* programId, uint16_t& storeIndex, size_t& programOffset) {
-// 	std::string jscLocalStorePath = getJSCLocalStorePath();
-// 	std::string byteCodeHeaderFilePath(jscLocalStorePath.c_str());
-	
-// 	#if OS(WINDOWS)
-// 	byteCodeHeaderFilePath.append("\\");
-// 	#else
-// 	byteCodeHeaderFilePath.append("/");
-// 	#endif	
-
-// 	byteCodeHeaderFilePath.append(programId);
-// 	byteCodeHeaderFilePath.append(".idx");
-
-// 	std::ifstream indexStream(byteCodeHeaderFilePath, std::ios::in);
-	
-// 	if(!indexStream.fail()) {
-// 		indexStream >> storeIndex; 
-// 		indexStream >> programOffset;
-//         indexStream.close();
-        
-//         return true;
-//     }
-    
-//     return false;
-// }
-
-/*static */std::string ByteCodeStoreUtils::getJSCLocalStorePath() {
-	static std::string jscLocalStorePath;
-	if(jscLocalStorePath.length() > 0)
-		return jscLocalStorePath;
-
-	const char* pstrJSCStorePath = Options::jscLocalStore();
-	if(!pstrJSCStorePath) {
-		dataLogLn("JSC Store path is not available.");
-		return jscLocalStorePath;
+/*static */bool ByteCodeStoreUtils::shouldCacheByteCodes() {
+	if(!JSC::Options::enableBytecodeCaching()) {
+		dataLogLn("ByteCode caching not enabled.");
+		return false;
 	}
 
-	jscLocalStorePath.assign(pstrJSCStorePath);
-	return jscLocalStorePath;
+	const char* localStorePath = JSC::Options::localStore();
+	if (!localStorePath || !strlen(localStorePath)) {
+		dataLogLn("Local store not configured.");
+		return false;
+	}
+
+	return true;
 }
 
-/*static */std::string ByteCodeStoreUtils::getJSCByteCodeCachePath() {
-	static std::string jscByteCodeCachePath;
-	if(jscByteCodeCachePath.length() > 0)
-		return jscByteCodeCachePath;
-
-	jscByteCodeCachePath.assign(getJSCLocalStorePath());
-
-#if OS(WINDOWS)
-	jscByteCodeCachePath.append("\\");
-#else
-	jscByteCodeCachePath.append("/");
-#endif	
-
-	jscByteCodeCachePath.append("bytecodecache");
-
-// Ensure that this directory is created.
-#if OS(WINDOWS)
-	std::wstring dirPath(jscByteCodeCachePath.begin(), jscByteCodeCachePath.end());
-
-	if (!CreateDirectory(dirPath.c_str(), NULL) &&
-		ERROR_ALREADY_EXISTS != GetLastError())
-	{
-		dataLogLn("ByteCode store creation failed.");
-		ASSERT(0);
-	}
-#else
-	if (mkdir(jscByteCodeCachePath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
-		dataLogLn("ByteCode store creation failed.");
-		ASSERT(0);
-	}
-#endif
-
-	return jscByteCodeCachePath;
-}
-
-
-// /*static */bool ByteCodeStoreUtils::updateHeader(const char* programId, uint16_t storeIndex, size_t programOffset) {
-// 	std::string jscLocalStorePath = getJSCLocalStorePath();
-// 	std::string byteCodeHeaderFilePath(jscLocalStorePath.c_str());
-	
-// 	#if OS(WINDOWS)
-// 	byteCodeHeaderFilePath.append("\\");
-// 	#else
-// 	byteCodeHeaderFilePath.append("/");
-// 	#endif	
-
-// 	byteCodeHeaderFilePath.append(programId);
-// 	byteCodeHeaderFilePath.append(".idx");
-
-//     std::ofstream headerStream;
-//     headerStream.open(byteCodeHeaderFilePath, std::ios::out); // overwrite
-//     ASSERT(!headerStream.fail());
-//     headerStream << storeIndex << " " << programOffset;
-//     headerStream.close();
-
-//     return true;
-// }
-
+// Note :: Returning std::string instead of WTF::String as they are more convenient when dealing with null terminated strings ..
 /*static */std::string ByteCodeStoreUtils::getByteCodeStorePathForSourceCode(const SourceCode& sourceCode) {
-    std::string jscLocalStorePath = getJSCByteCodeCachePath();
-	std::string byteCodeStoreFilePath(jscLocalStorePath.c_str());
-	
+    std::string byteCodeStoreFilePath(JSC::Options::localStore());
+	ASSERT(byteCodeStoreFilePath.size() > 0);
+
 	#if OS(WINDOWS)
 	byteCodeStoreFilePath.append("\\");
 	#else
@@ -186,37 +73,29 @@ namespace JSC {
 	}
 
 	byteCodeStoreFilePath.append(storeFileName);
-   return byteCodeStoreFilePath;
+   	return byteCodeStoreFilePath;
 }
 
 /*static */std::string ByteCodeStoreUtils::getByteCodeStoreFileNameForSourceCode(const SourceCode& sourceCode) {
 	SourceProvider* programSourceProvider = sourceCode.provider();
 	String programSourceUrl = programSourceProvider->url();
-	
-	if (programSourceUrl.length() <= 0) {
+
+	// Some very basic checks to make sure that a unique source url is supplied.
+	// Check whether there is at least 10 characters in the url.
+	if (programSourceUrl.length() <= 10) {
 		return std::string();
 	}
 
-	// TODO :: Use a better mechanism (for e.g hash the url) at least in ship build.
-	std::string urlStr(reinterpret_cast<const char*>(programSourceUrl.characters8()), programSourceUrl.length());
-
-	// replace all filename separators.
-	std::replace( urlStr.begin(), urlStr.end(), '/', '_'); 
-	std::replace( urlStr.begin(), urlStr.end(), '\\', '_'); 
-	std::replace(urlStr.begin(), urlStr.end(), ':', '_');
-
-	ASSERT(urlStr.length() > 0);
+	// Check whether at least one path separator
+	if (programSourceUrl.find('\\') == notFound && programSourceUrl.find('/') == notFound) {
+		return std::string();
+	}
 	
-	urlStr.append("_");
-	stringstream ss;
-	ss << sourceCode.firstLine().oneBasedInt();
-	urlStr.append(ss.str());
+	String sourceUrlHash = stringToHash(programSourceUrl);
+	ASSERT(sourceUrlHash.is8Bit());
+	ASSERT(sourceUrlHash.length() > 0);
 
-	urlStr.append("_");
-	stringstream ss2;
-	ss2 << sourceCode.startColumn().oneBasedInt();
-	urlStr.append(ss2.str());
-
+	std::string urlStr(reinterpret_cast<const char*>(sourceUrlHash.characters8()), sourceUrlHash.length());
 	urlStr.append(".jsb");
 	
 	return urlStr;

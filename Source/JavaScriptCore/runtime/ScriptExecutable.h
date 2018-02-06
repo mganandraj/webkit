@@ -39,7 +39,7 @@ public:
 
     static void destroy(JSCell*);
 
-    void writeByteCodeCache(VM&);
+    void writeByteCodeCacheIfNeeded(VM&);
 
     bool hasByteCodeCache();
     ByteCodeReadStore& getByteCodeCache();

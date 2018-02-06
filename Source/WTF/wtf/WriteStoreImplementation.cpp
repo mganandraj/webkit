@@ -38,6 +38,9 @@ namespace WTF {
 
 void WriteStoreImplementationOnFileStream::finishCreation(const char* byteCodeStorePath) {
     stream.open(byteCodeStorePath, std::ios::binary | std::ios::out); // overwrite
+    if(stream.fail() || !stream.is_open()) {
+        dataLogLn("Stream creation failed ... ");
+    }
     ASSERT(!stream.fail() && stream.is_open());    
 }
 
@@ -46,6 +49,8 @@ WriteStoreImplementationOnFileStream::WriteStoreImplementationOnFileStream() {}
 void WriteStoreImplementationOnFileStream::writeBytes(const char* buffer, size_t size) {
     ASSERT(stream.is_open());
 	stream.write(buffer, size);
+    if(stream.fail())
+        dataLogLn("stream writing failed. ... ");
 }
 
 size_t WriteStoreImplementationOnFileStream::currentWritePosition() {

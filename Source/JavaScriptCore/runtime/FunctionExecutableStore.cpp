@@ -34,6 +34,8 @@
 #include "ByteCodeWriteStore.h"
 #include "ByteCodeStoreMacros.h"
 
+#include "Protect.h"
+
 namespace JSC {
 
 Ref<FunctionExecutableStore> FunctionExecutableStore::create(FunctionExecutable& functionExecutable) {
@@ -49,12 +51,14 @@ void FunctionExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
     ParserError error;
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockForCall = nullptr;
 
-    //dataLogLn("Saving function : ", this->unlinkedExecutable()->name().string(), " : ",
-    //  this->unlinkedExecutable()->ecmaName().string(),  " : ",
-    //    this->unlinkedExecutable()->inferredName().string(), " : ",
-    //    this->source().firstLine().oneBasedInt(),  " : ",
-    //    this->source().startColumn().oneBasedInt()
-    //);
+/*
+    dataLogLn("Saving function : ", m_functionExecutable.m_unlinkedExecutable->name().string(), " : ",
+        m_functionExecutable.m_unlinkedExecutable->ecmaName().string(),  " : ",
+        m_functionExecutable.m_unlinkedExecutable->inferredName().string(), " : ",
+        m_functionExecutable.source().provider() != nullptr,  " : ",
+        m_functionExecutable.source().firstLine().oneBasedInt(),  " : ",
+        m_functionExecutable.source().startColumn().oneBasedInt()
+    );*/
 
     unlinkedCodeBlockForCall = m_functionExecutable.m_unlinkedExecutable->m_unlinkedCodeBlockForCall.get();
     if(unlinkedCodeBlockForCall == nullptr && JSC::Options::enableBytecodeGenerationWhileCaching()) { // generate for calls if not avaiable and configured to generate ..
@@ -79,19 +83,29 @@ void FunctionExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
     // Write functions.
     for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionDecl(i);
+
         FunctionExecutable* func = ufunc->link(vm, m_functionExecutable.source());
+
+        gcProtect(func);
         
         Ref<FunctionExecutableStore> functionExecutableStore = FunctionExecutableStore::create(*func);
         functionExecutableStore->save(vm, byteCodeCache);
+
+        gcUnprotect(func);
     }
 
     // Write functions expressions.
     for(size_t i=0; i<unlinkedCodeBlockForCall->numberOfFunctionExprs(); i++) {
         UnlinkedFunctionExecutable* ufunc = unlinkedCodeBlockForCall->functionExpr(i);
+
         FunctionExecutable* func = ufunc->link(vm, m_functionExecutable.source());
         
+        gcProtect(func);
+
         Ref<FunctionExecutableStore> functionExecutableStore = FunctionExecutableStore::create(*func);
         functionExecutableStore->save(vm, byteCodeCache);
+
+        gcUnprotect(func);
     }
     
     const char* functionPrelogue = "FFF";

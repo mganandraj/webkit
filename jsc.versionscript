@@ -1,8 +1,10 @@
 {  
 global:
 
+JSSetOptions;
 JSEvaluateScriptFD;
 JSEvaluateScript;
+JSEvaluateScriptEx;
 
 JSValueToNumber;
 JSValueToStringCopy;

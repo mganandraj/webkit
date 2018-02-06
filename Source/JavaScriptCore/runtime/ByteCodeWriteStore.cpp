@@ -37,11 +37,25 @@ namespace JSC {
 /*static */RefPtr<ByteCodeWriteStore> ByteCodeWriteStore::createForProgram(ProgramExecutable& program) {
     const SourceCode& programSource = program.source();
     std::string writeStorePath = ByteCodeStoreUtils::getByteCodeStorePathForSourceCode(programSource) ;
+    dataLogLn("Creating new write store at ", writeStorePath.c_str());
 
     RefPtr<ByteCodeWriteStore> writeStore = nullptr;
     Ref<WriteStoreImplementationOnFileStream> writeStoreImplmentation = WriteStoreImplementationOnFileStream::create(writeStorePath.c_str());
     writeStore = WTF::adoptRef(new ByteCodeWriteStore(writeStoreImplmentation.leakRef()));
     return writeStore;
+}
+
+void ByteCodeWriteStore::writeEpilogue(ProgramExecutable& program, size_t programOffset) {
+    this->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
+    
+    // Write the JSC store version.
+    const uint32_t storeVersion = ByteCodeStoreUtils::STORE_VERSION;
+    this->writeBytes(reinterpret_cast<const char*>(&storeVersion), sizeof(storeVersion));
+
+    // Write the source code hash.
+    const SourceCode& programSource = program.source();
+    const unsigned currentSourceHash = programSource.provider()->hash();
+    this->writeBytes(reinterpret_cast<const char*>(&currentSourceHash), sizeof(currentSourceHash));    
 }
 
 ByteCodeWriteStore::ByteCodeWriteStore(WriteStoreImplementation& storeImplementation)

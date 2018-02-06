@@ -36,6 +36,7 @@ struct ReadStoreImplementation : public RefCounted<ReadStoreImplementation> {
     virtual void seekOffset(size_t offset) = 0;
     virtual void seekOffsetFromEnd(size_t offset) = 0;
     virtual size_t getSize() = 0;
+    virtual void destroy() = 0;
     virtual ~ReadStoreImplementation() {};
 };
 

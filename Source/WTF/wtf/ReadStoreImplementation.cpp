@@ -45,50 +45,71 @@ ReadStoreImplementationOnMemoryMappedFile::ReadStoreImplementationOnMemoryMapped
 }
 
 void ReadStoreImplementationOnMemoryMappedFile::finishCreation(const char* byteCodeStorePath) {
-    String pathString(byteCodeStorePath);
-    m_memMappingSucceeded = mapWholeFileForRead(byteCodeStorePath, &m_mappedBuffer, &m_mappedSize);
+    m_storeFilePath = byteCodeStorePath;
+    //m_memMappingSucceeded = mapWholeFileForRead(m_storeFilePath, &m_mappedBuffer, &m_mappedSize);
+    m_FileMapping = FileMapping::createForFile(m_storeFilePath);
 }
 
 ReadStoreImplementationOnMemoryMappedFile::~ReadStoreImplementationOnMemoryMappedFile() {
-    if(isAvailable() && m_mappedBuffer != nullptr) {
-        unmapFile(m_mappedBuffer, m_mappedSize);
-    }
+    //unmap();
+    if(isAvailable())
+        m_FileMapping->unmap();
 }
 
 bool ReadStoreImplementationOnMemoryMappedFile::isAvailable() {
-    return m_memMappingSucceeded && m_mappedBuffer != nullptr && m_mappedSize > 0;
+    // return m_memMappingSucceeded && m_mappedBuffer != nullptr && m_mappedSize > 0;
+    return m_FileMapping && m_FileMapping->getBuffer();
 }
 
 void ReadStoreImplementationOnMemoryMappedFile::readBytes(char* buffer, size_t size) {
-    ASSERT(m_mappedBuffer);
-    ASSERT(m_pointer + size <= m_mappedSize);
+    ASSERT(isAvailable());
+    //ASSERT(m_FileMapping->getBuffer() + size <= m_FileMapping->getSize());
 
-    std::memcpy(buffer, m_mappedBuffer + m_pointer, size);
+    std::memcpy(buffer, m_FileMapping->getBuffer() + m_pointer, size);
     m_pointer += size;
 }
 
 void ReadStoreImplementationOnMemoryMappedFile::readVector(char** buffer, size_t size) {
-    ASSERT(m_mappedBuffer);
-    ASSERT(m_pointer + size <= m_mappedSize);
+    ASSERT(isAvailable());
+    //ASSERT(m_FileMapping->getBuffer() + size <= m_FileMapping->getSize());
 
-    *buffer = reinterpret_cast<char*> (m_mappedBuffer + m_pointer);
+    *buffer = reinterpret_cast<char*> (m_FileMapping->getBuffer() + m_pointer);
     m_pointer += size;
 }
 
 void ReadStoreImplementationOnMemoryMappedFile::seekOffsetFromEnd(size_t offset) {
-    ASSERT(m_mappedBuffer);
-    m_pointer = getSize() - offset;
+    ASSERT(isAvailable());
+    m_pointer = m_FileMapping->getSize() - offset;
 }
 
 void ReadStoreImplementationOnMemoryMappedFile::seekOffset(size_t offset) {
-    ASSERT(m_mappedBuffer);
-    ASSERT(offset <= m_mappedSize);
+    ASSERT(isAvailable());
+    ASSERT(offset <= m_FileMapping->getSize());
 
     m_pointer = offset;
 }
 
 size_t ReadStoreImplementationOnMemoryMappedFile::getSize() {
-    return m_mappedSize;
+    return m_FileMapping->getSize();
 }
 
+void ReadStoreImplementationOnMemoryMappedFile::destroy() {
+    m_FileMapping->unmap();
+
+    // delete the store file.
+    //ASSERT(m_storeFilePath.is8Bit());
+    
+    //deleteFile(m_storeFilePath);
+}
+
+/*
+void ReadStoreImplementationOnMemoryMappedFile::unmap() {
+    if(isAvailable()) {
+        unmapFile(m_mappedBuffer, m_mappedSize);
+    }
+
+    m_mappedBuffer = 0;
+    m_mappedSize = 0;
+}
+*/
 }

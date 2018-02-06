@@ -55,8 +55,6 @@
 #include "ProxyObject.h"
 #include "RegExpConstructor.h"
 
-#include <wtf/DataLog.h>
-
 #if ENABLE(REMOTE_INSPECTOR)
 #include "JSGlobalObjectInspectorController.h"
 #endif

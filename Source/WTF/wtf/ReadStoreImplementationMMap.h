@@ -30,7 +30,10 @@
 #include <wtf/RefPtr.h>
 #include <wtf/Ref.h>
 
+#include <wtf/text/WTFString.h>
+
 #include <wtf/ReadStoreImplementation.h>
+#include <wtf/MemoryMappedFileUtils.h>
 
 using namespace WTF;
 
@@ -49,6 +52,7 @@ public:
     void seekOffset(size_t offset) override;
     void seekOffsetFromEnd(size_t offset) override;
     size_t getSize() override;
+    void destroy() override;
 
     WTF_EXPORT static Ref<ReadStoreImplementationOnMemoryMappedFile> create(const char* byteCodeStorePath);
 private:
@@ -57,10 +61,14 @@ private:
     ~ReadStoreImplementationOnMemoryMappedFile();
     ReadStoreImplementationOnMemoryMappedFile();
     void finishCreation(const char* byteCodeStorePath);
+    //void unmap();
 
-    uint8_t* m_mappedBuffer {nullptr};
-    size_t m_mappedSize {0} ;
-    bool m_memMappingSucceeded = false;
+    //uint8_t* m_mappedBuffer {nullptr};
+    //size_t m_mappedSize {0} ;
+    //bool m_memMappingSucceeded = false;
+    RefPtr<FileMapping> m_FileMapping;
+
+    String m_storeFilePath;
 
     size_t m_pointer = 0;
 };

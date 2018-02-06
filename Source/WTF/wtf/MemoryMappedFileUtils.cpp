@@ -7,51 +7,74 @@
 
 #include <wtf/dataLog.h>
 
-namespace WTF {
-
 #if OS(WINDOWS)
     
 #include "windows.h"
 
-bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_t** data) {
-    ASSERT(0);
-    return false;
+namespace WTF {
+
+void FileMapping::unmap() {
+    UnmapViewOfFile (m_mappedAddress);
+    CloseHandle(m_hMMFile);
+    CloseHandle(m_hFile);
+
+    m_mappedAddress = nullptr;
+    m_mappedSize = 0;
 }
 
-bool mapWholeFileForRead(const String& localPath, uint8_t** data, size_t* size) {
-	const char* localPathCStr= localPath.ascii().data();
+uint8_t* FileMapping::getBuffer() {
+    return reinterpret_cast<uint8_t*>(m_mappedAddress);
+}
+
+size_t FileMapping::getSize() {
+    return m_mappedSize;
+}
+
+FileMapping::~FileMapping() {
+    if(m_mappedAddress) {
+        unmap();
+    }
+}
+
+/*static */RefPtr<FileMapping> FileMapping::createForFile(const String& localPath) {
+    
+    const char* localPathCStr= localPath.ascii().data();
     OFSTRUCT of;
 	HANDLE hFile = (HANDLE)OpenFile(localPathCStr, &of, OF_READ);
     if(hFile == INVALID_HANDLE_VALUE) {
-        dataLogLn("mapWholeFileForRead : File can't be opened for mapping ...");
-        return false;
+        return nullptr;
     }
     
     LARGE_INTEGER fileSize;
     GetFileSizeEx(hFile, &fileSize);
-    *size = static_cast<size_t>(fileSize.QuadPart);
+    size_t size = static_cast<size_t>(fileSize.QuadPart);
         
     HANDLE hMMFile = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if(hMMFile == NULL) {
         dataLogLn("mapWholeFileForRead : File opened but failed to memory map ...");
-        return false;
+        return nullptr;
     }
             
     void* lpMMFile = MapViewOfFile(hMMFile, FILE_MAP_READ, 0, 0, 0);
     if(lpMMFile == nullptr) {
         dataLogLn("mapWholeFileForRead : mapped address is nullptr ...");
-        return false;
+        return nullptr;
     }
+    
+    FileMapping* fileMapping = new FileMapping();
+    fileMapping->m_hFile = hFile;
+    fileMapping->m_hMMFile = hMMFile;
+    fileMapping->m_mappedAddress = lpMMFile;
+    fileMapping->m_mappedSize = size;
 
-    *data = reinterpret_cast<uint8_t*>(lpMMFile);
-    dataLogLn("File mapping completed ...");
-    return true;
+    return WTF::adoptRef(fileMapping);
 }
 
-bool unmapFile(void* address, size_t length) {
-    UnmapViewOfFile (address);
-    return true;
-    // TODO :: close handle.    
+/*static */RefPtr<FileMapping> FileMapping::createForFileSegment(int fd, size_t offset, size_t size) {
+    ASSERT(0); // Not implemented for windows.
+    return nullptr;
+}
+
 }
 
 #else // Not windows.. must be POSIX
@@ -63,7 +86,71 @@ bool unmapFile(void* address, size_t length) {
 #include <errno.h>
 #include <sys/mman.h>
 
-WTF_EXPORT bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_t** data) {
+namespace WTF {
+
+void FileMapping::unmap() {
+    int ret = munmap(m_mappedAddress, m_mappedSize);
+    dataLogLnIf(ret < 0, "Failed unmap memory mapped region !!");
+    
+    
+    m_mappedAddress = nullptr;
+    m_mappedSize = 0;
+}
+
+uint8_t* FileMapping::getBuffer() {
+    return reinterpret_cast<uint8_t*>(m_mappedAddress);
+}
+
+size_t FileMapping::getSize() {
+    return m_mappedSize;
+}
+
+FileMapping::~FileMapping() {
+    if(m_mappedAddress) {
+        unmap();
+    }
+}
+
+/*static */RefPtr<FileMapping> FileMapping::createForFile(const String& localPath) {
+    const char* localPathCStr= localPath.ascii().data();
+    int fd = open(localPathCStr, O_RDONLY);
+    if (fd < 0) {
+        dataLogLn("ByteCode store doesn't exist : ", localPathCStr);
+        return nullptr;
+    }
+    
+    struct stat sb;    
+    int ret = fstat(fd, &sb);
+    if(ret < 0) {
+        int errnoval = errno;        
+        dataLogLn("Unable to stat byte code store file : ", ret, " : ", errnoval);
+        return nullptr;
+    }
+
+    dataLogLn("Mapped file Size: ", (uint64_t)sb.st_size);
+    size_t size = static_cast<size_t>(sb.st_size);
+    
+    void* mappedAddress = mmap(NULL, sb.st_size, PROT_WRITE, MAP_PRIVATE, fd, 0);
+    if (mappedAddress == MAP_FAILED) {
+        int errnoval = errno;        
+        dataLogLn("Unable to map bytecode store file : ", errnoval);
+        return nullptr;
+    }
+
+    //*data = reinterpret_cast<uint8_t*>(mappedAddr);
+    dataLogLn("File mapping completed : ", reinterpret_cast<uint32_t>(mappedAddress));
+
+    // fd can be closed now.
+    close(fd);
+
+    FileMapping* fileMapping = new FileMapping();
+    fileMapping->m_mappedAddress = mappedAddress;
+    fileMapping->m_mappedSize = size;
+
+    return WTF::adoptRef(fileMapping);
+}
+
+/*static */RefPtr<FileMapping> FileMapping::createForFileSegment(int fd, size_t offset, size_t size) {
     const static auto ps = getpagesize();
     dataLogLn("mapFileSegmentForRead : ", fd, " : ", offset, " : ", size, " : ", ps);
 
@@ -84,24 +171,28 @@ WTF_EXPORT bool mapFileSegmentForRead(int fd, size_t offset, size_t size, uint8_
     }
 
     dataLogLn("mapWholeFileForRead adjusted : ", fd, " : ", mapOff, " : ", pageOff, " : ", newsize);
-
     void* mapped = mmap(0, newsize, PROT_READ, MAP_SHARED, fd, mapOff * ps);
-
     dataLogLn("mapWholeFileForRead mapped address : ", reinterpret_cast<uint32_t>(mapped));
 
-    *data = reinterpret_cast<uint8_t*>(mapped) + pageOff;
+    // *data = reinterpret_cast<uint8_t*>(mapped) + pageOff;
+    // dataLogLn("mapWholeFileForRead 1 :", (*data)[0], (*data)[1]);
 
-    dataLogLn("mapWholeFileForRead 1 :", (*data)[0], (*data)[1]);
+    // fd can be closed now.
+    close(fd);
 
-    char buffer[20];
-    memcpy(buffer, *data, 10);
-    buffer[10]='\0';
+    //dataLogLn("mapWholeFileForRead mapped address : ", reinterpret_cast<uint32_t>(mapped), " : " , buffer);
+    // return true;
 
-    dataLogLn("mapWholeFileForRead mapped address : ", reinterpret_cast<uint32_t>(mapped), " : " , buffer);
+    FileMapping* fileMapping = new FileMapping();
+    fileMapping->m_mappedAddress = reinterpret_cast<uint8_t*>(mapped) + pageOff;
+    fileMapping->m_mappedSize = size;
 
-    return true;
+    return WTF::adoptRef(fileMapping);
+
+
 }
 
+/*
 WTF_EXPORT bool mapWholeFileForRead(const String& localPath, uint8_t** data, size_t* size) {
     const char* localPathCStr= localPath.ascii().data();
     int fd = open(localPathCStr, O_RDONLY);
@@ -131,6 +222,9 @@ WTF_EXPORT bool mapWholeFileForRead(const String& localPath, uint8_t** data, siz
     *data = reinterpret_cast<uint8_t*>(mappedAddr);
     dataLogLn("File mapping completed : ", reinterpret_cast<uint32_t>(*data));
 
+    // fd can be closed now.
+    close(fd);
+
     return true;
 }    
 
@@ -140,6 +234,11 @@ WTF_EXPORT bool unmapFile(void* address, size_t length) {
     return (ret == 0);
 }
 
-#endif
+bool deleteFile(const String& localPath){
+    return unlink(localPath.ascii().data()) == 0;
+}
+*/
 
-} // namespace WTF
+}
+
+#endif

@@ -86,6 +86,8 @@
 #include <wtf/Threading.h>
 #include <wtf/text/StringBuilder.h>
 
+#include "ByteCodeStoreUtils.h"
+
 #if ENABLE(JIT)
 #include "JIT.h"
 #endif
@@ -945,10 +947,8 @@ failedJSONP:
     throwScope.release();
     JSValue result = program->generatedJITCode()->execute(&vm, &protoCallFrame);
     
-    if(JSC::Options::enableBytecodeCaching()) {
-        program->writeByteCodeCache(vm);
-    }
-
+    program->writeByteCodeCacheIfNeeded(vm);
+    
     return checkedReturn(result);
 }
 

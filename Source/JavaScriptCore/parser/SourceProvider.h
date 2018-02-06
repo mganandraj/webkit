@@ -37,6 +37,8 @@
 
 #include <wtf/MemoryMappedFileUtils.h>
 
+using namespace WTF;
+
 namespace JSC {
 
     enum class SourceProviderSourceType {
@@ -60,7 +62,6 @@ namespace JSC {
             return source().substring(start, end - start);
         }
 		virtual int length() const = 0;
-
 
         const SourceOrigin& sourceOrigin() const { return m_sourceOrigin; }
         const String& url() const { return m_url; }
@@ -112,52 +113,55 @@ namespace JSC {
         {
             // We don't want anyone calling this ..
             // ASSERT(0);
-            return m_size;
+            return length(); // Need to do better here ..
         }
 
         StringView getRange(int start, int end) const override
         {
-            return StringView(m_mappedBuffer + start, end-start);
+            return StringView(m_FileMapping->getBuffer() + start, end-start);
         }
 
         StringView source() const override
         {
-            return StringView(m_mappedBuffer, m_size);
+            return StringView(m_FileMapping->getBuffer(), m_FileMapping->getSize());
         }
 
         int length() const override
         {
             // We don't want anyone calling this for now ..
             // ASSERT(0);
-            return m_size;
+            // return m_size;
+            return m_FileMapping->getSize();
         }
 
     private:
-    MemoryMappedFileSourceProvider(int fd , size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
-        : SourceProvider(sourceOrigin, url, startPosition, sourceType),
-        m_fd (fd),
-        m_size (size),
-        m_startOffset (offset)
+    MemoryMappedFileSourceProvider(int fd , size_t offset, size_t size, const SourceOrigin& sourceOrigin, const String& sourceUrl, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        : SourceProvider(sourceOrigin, sourceUrl, startPosition, sourceType)
         {
-            bool fileMapped = WTF::mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
-            dataLogLnIf(!fileMapped, "Memory mapping failed.");
+            // bool fileMapped = WTF::mapFileSegmentForRead(m_fd, m_startOffset, m_size, &m_mappedBuffer);
+            m_FileMapping = FileMapping::createForFileSegment(fd, offset, size);
+            dataLogLnIf(!m_FileMapping, "Memory mapping failed.");
+            RELEASE_ASSERT(m_FileMapping); // TODO :: Need to handle it better.
         }
 
     MemoryMappedFileSourceProvider(const String& localPath , const SourceOrigin& sourceOrigin, const String& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
-        : SourceProvider(sourceOrigin, url, startPosition, sourceType),
-        m_localPath(localPath) {
-            bool fileMapped = mapWholeFileForRead(m_localPath, &m_mappedBuffer, &m_size);
-            dataLogLnIf(!fileMapped, "Memory mapping failed.");
+        : SourceProvider(sourceOrigin, url, startPosition, sourceType)
+        {
+            //bool fileMapped = mapWholeFileForRead(m_localPath, &m_mappedBuffer, &m_size);
+            m_FileMapping = FileMapping::createForFile(localPath);
+            dataLogLnIf(!m_FileMapping, "Memory mapping failed.");
+            RELEASE_ASSERT(m_FileMapping);  // TODO :: Need to handle it better.
     }
 
-        int m_fd {-1};
+        //String m_localPath;
 
-        String m_localPath;
-        
         // TODO :: unmap when done.
-        uint8_t* m_mappedBuffer {nullptr};
-        size_t m_size;
-        size_t m_startOffset;
+        // uint8_t* m_mappedBuffer {nullptr};
+        // size_t m_size;
+        
+        RefPtr<FileMapping> m_FileMapping;
+
+        // size_t m_startOffset;
     };
 
 

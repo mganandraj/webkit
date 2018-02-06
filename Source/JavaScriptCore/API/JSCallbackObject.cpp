@@ -43,10 +43,8 @@ template<> const bool JSCallbackObject<JSGlobalObject>::needsDestruction = false
 template<>
 JSCallbackObject<JSGlobalObject>* JSCallbackObject<JSGlobalObject>::create(VM& vm, JSClassRef classRef, Structure* structure)
 {
-    double start = currentTime();
     JSCallbackObject<JSGlobalObject>* callbackObject = new (NotNull, allocateCell<JSCallbackObject<JSGlobalObject>>(vm.heap)) JSCallbackObject(vm, classRef, structure);
     callbackObject->finishCreation(vm);
-    dataLogLn("#APIGO:", currentTime() - start);
     return callbackObject;
 }
 

@@ -46,6 +46,8 @@ public:
     size_t currentWritePosition();
     void writeBytes(const char*, size_t);
     
+    void writeEpilogue(ProgramExecutable& program, size_t programOffset);
+
     template <typename T>
     void writePrimitive(T* buffer) {
         static_assert(std::is_fundamental<T>::value, "Not a primitive type!!");

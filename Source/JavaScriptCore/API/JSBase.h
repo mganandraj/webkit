@@ -97,6 +97,8 @@ typedef struct OpaqueJSValue* JSObjectRef;
 extern "C" {
 #endif
 
+JS_EXPORT void JSSetOptions(const char* optionString);
+
 /* Script Evaluation */
 
 JS_EXPORT JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef jsSourceURL, JSValueRef* exception);

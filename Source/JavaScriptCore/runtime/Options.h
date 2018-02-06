@@ -490,7 +490,7 @@ constexpr bool enableAsyncIteration = false;
     v(bool, enableMemoryMappedSource, false, Normal, "") \
     v(bool, enableBytecodeCaching, false, Normal, "") \
     v(bool, enableBytecodeGenerationWhileCaching, false, Normal, "") \
-    v(optionString, jscLocalStore, "c:\\tmp\\jsc\\script\\", Normal, "The path on local files sytem where JSC can store some stuff.") \
+    v(optionString, localStore, "", Normal, "The path on local files sytem where JSC can store some stuff.") \
 
 enum OptionEquivalence {
     SameOption,

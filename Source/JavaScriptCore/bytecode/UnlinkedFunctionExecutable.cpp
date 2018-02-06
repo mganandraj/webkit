@@ -40,6 +40,8 @@
 
 #include "UnlinkedFunctionExecutableStore.h"
 
+#include <wtf/DataLog.h>
+
 namespace JSC {
 
 class ByteCodeReadStore;
@@ -151,6 +153,8 @@ FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& p
 
     unsigned startColumn = linkedStartColumn(parentSource.startColumn().oneBasedInt());
     unsigned endColumn = linkedEndColumn(startColumn);
+
+    // dataLogLn("link : ", m_parentSourceOverride.isNull(), " : ", parentSource.provider() != nullptr, " : ", parentSource.isNull() );
 
     SourceCode source(parentSource.provider(), startOffset, startOffset + m_sourceLength, firstLine, startColumn);
     FunctionOverrides::OverrideInfo overrideInfo;

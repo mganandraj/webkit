@@ -83,8 +83,8 @@ void ScriptExecutable::finishCreation(VM& vm)
         sampler->notifyOfScope(vm, this);
 #endif
 
-    if(JSC::Options::enableBytecodeCaching()) {   
-        if (classInfo(vm) == ProgramExecutable::info()) {
+    if (classInfo(vm) == ProgramExecutable::info()) {
+        if(ByteCodeStoreUtils::shouldCacheByteCodes()) {   
             ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
             ByteCodeReadStore::tryCreateForProgram(*executable); // TODO :: Not a nice pattern .. Fix.
         }
@@ -95,8 +95,12 @@ bool ScriptExecutable::hasByteCodeCache() { return m_byteCodeCache!= nullptr; }
 ByteCodeReadStore& ScriptExecutable::getByteCodeCache() { ASSERT(m_byteCodeCache); return *m_byteCodeCache; };
 void ScriptExecutable::setByteCodeCache(ByteCodeReadStore& byteCodeCache) { m_byteCodeCache = &byteCodeCache; }
 
-void ScriptExecutable::writeByteCodeCache(VM& vm) 
+void ScriptExecutable::writeByteCodeCacheIfNeeded(VM& vm) 
 {
+    if(!ByteCodeStoreUtils::shouldCacheByteCodes()) { 
+        return;
+    }
+
     // We support writing only program executable at root as of now.
     ASSERT(classInfo(vm) == ProgramExecutable::info());
 
@@ -110,20 +114,11 @@ void ScriptExecutable::writeByteCodeCache(VM& vm)
         ProgramExecutable* executable = jsCast<ProgramExecutable*>(this);
         Ref<ProgramExecutableStore> programExecutableStore = ProgramExecutableStore::create(*executable);
         size_t programOffset = programExecutableStore->save(vm, *currentWriteStore);
-        
-        currentWriteStore->writeBytes(reinterpret_cast<const char*>(&programOffset), sizeof(programOffset));
-        
-        // Write the version.
-        const uint32_t storeVersion = ByteCodeStoreUtils::STORE_VERSION;
-        currentWriteStore->writeBytes(reinterpret_cast<const char*>(&storeVersion), sizeof(storeVersion));
 
-#ifndef NDEBUG
+        currentWriteStore->writeEpilogue(*executable, programOffset);
         dataLogLn("Writing completed.");
-#endif
     } else {
-#ifndef NDEBUG
         dataLogLn("Skip writing as byte codes are already cached.");
-#endif
     }
 }
 

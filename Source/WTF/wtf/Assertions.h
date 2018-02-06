@@ -67,7 +67,7 @@ extern "C" void _ReadWriteBarrier(void);
 /* Disable ASSERT* macros in release mode. */
 #define ASSERTIONS_DISABLED_DEFAULT 1
 #else
-#define ASSERTIONS_DISABLED_DEFAULT 0
+#define ASSERTIONS_DISABLED_DEFAULT 1
 #endif
 
 #ifndef BACKTRACE_DISABLED

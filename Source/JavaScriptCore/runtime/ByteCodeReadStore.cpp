@@ -56,10 +56,10 @@ namespace JSC {
     return true;
 }
 
-/*static */bool ByteCodeReadStore::trySeekEntryPoint(ReadStoreImplementation& readStoreImpl) {
+/*static */bool ByteCodeReadStore::trySeekEntryPoint(ReadStoreImplementation& readStoreImpl, ProgramExecutable& program) {
     
     // Read the store version and program offset.
-    readStoreImpl.seekOffsetFromEnd(sizeof(size_t) + sizeof(uint32_t));
+    readStoreImpl.seekOffsetFromEnd(sizeof(size_t) + sizeof(uint32_t) + sizeof(unsigned));
     
     size_t programOffset;
     readStoreImpl.readBytes(reinterpret_cast<char*>(&programOffset), sizeof(size_t));
@@ -69,6 +69,18 @@ namespace JSC {
     readStoreImpl.readBytes(reinterpret_cast<char*>(&storeVersion), sizeof(uint32_t));
     if(ByteCodeStoreUtils::STORE_VERSION != storeVersion) {
         dataLogLn("Bytecode store version mismatch !!");
+        return false;
+    }
+
+    unsigned sourceHashAtStoreCreation;
+    readStoreImpl.readBytes(reinterpret_cast<char*>(&sourceHashAtStoreCreation), sizeof(sourceHashAtStoreCreation));    
+
+    // TODO :: We should find a way to avoid hash based validation when memory mapping source code.
+    const SourceCode& programSource = program.source();
+    const unsigned currentSourceHash = programSource.provider()->hash();
+    
+    if(sourceHashAtStoreCreation != currentSourceHash) {
+        dataLogLn("Source code has changed !! : " , sourceHashAtStoreCreation, " : " , currentSourceHash);
         return false;
     }
 
@@ -96,24 +108,28 @@ namespace JSC {
     const SourceCode& programSource = program.source();
 	std::string byteCodeStoreFilePath = ByteCodeStoreUtils::getByteCodeStorePathForSourceCode(programSource) ;
 	if (byteCodeStoreFilePath.length() == 0) {
-		dataLogLn("No source url !!");
+		dataLogLn("Either too weak or no source url supplied !!");
 		return;
 	}
 
     Ref<ReadStoreImplementation> readStoreImpl = ReadStoreImplementationOnMemoryMappedFile::create(byteCodeStoreFilePath.c_str());
 
     if(!readStoreImpl->isAvailable()) {
-        dataLogLn("Bytecode store not available.");
+        dataLogLn("Bytecode store not available for reading.");
         return;
     }
 
     if(!validateStoreMagicBytes(readStoreImpl.get())) {
         dataLogLn("Failed to validate the store's magic header.");
+        
+        readStoreImpl->destroy();
         return;
     }
 
-    if(!trySeekEntryPoint(readStoreImpl.get())) {
+    if(!trySeekEntryPoint(readStoreImpl.get(), program)) {
         dataLogLn("Failed to seek to entry point code block in the store.");
+        
+        readStoreImpl->destroy();
         return;
     }
 

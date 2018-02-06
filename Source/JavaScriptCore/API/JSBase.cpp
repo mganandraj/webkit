@@ -47,7 +47,8 @@
 
 using namespace JSC;
 
-JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) {
+JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) 
+{
     if (!ctx) {
         ASSERT_NOT_REACHED();
         return 0;
@@ -87,8 +88,6 @@ JSValueRef JSEvaluateScriptFile(JSContextRef ctx, JSStringRef localPath, JSObjec
 }
 
 JSValueRef JSEvaluateScriptFD(JSContextRef ctx, int sourceFD, unsigned int offset, unsigned int size, JSObjectRef thisObject, JSStringRef sourceURL, JSValueRef* exception) {
-    dataLogLn("JSEvaluateScriptFD called ...");
-    
     if (!ctx) {
         dataLogLn("JSEvaluateScriptFD !ctx ...");
         ASSERT_NOT_REACHED();
@@ -128,7 +127,6 @@ JSValueRef JSEvaluateScriptFD(JSContextRef ctx, int sourceFD, unsigned int offse
     // happens, for example, when the only statement is an empty (';') statement
     return toRef(exec, jsUndefined());
 }
-
 
 JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef thisObject, JSStringRef sourceURL, int startingLineNumber, JSValueRef* exception)
 {

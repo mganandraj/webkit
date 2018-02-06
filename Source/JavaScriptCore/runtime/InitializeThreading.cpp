@@ -48,6 +48,7 @@
 #include <wtf/Threading.h>
 #include <wtf/dtoa.h>
 #include <wtf/dtoa/cached-powers.h>
+#include "ConfigFile.h"
 
 using namespace WTF;
 
@@ -60,6 +61,7 @@ void initializeThreading()
     std::call_once(initializeThreadingOnceFlag, []{
         WTF::initializeThreading();
         Options::initialize();
+        processConfigFile(Options::configFile(), "API");
         initializePoison();
 #if ENABLE(WRITE_BARRIER_PROFILING)
         WriteBarrierCounters::initialize();

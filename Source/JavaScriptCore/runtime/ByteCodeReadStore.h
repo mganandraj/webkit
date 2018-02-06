@@ -64,7 +64,7 @@ private:
     WTF_MAKE_NONCOPYABLE(ByteCodeReadStore);
 
     static bool validateStoreMagicBytes(ReadStoreImplementation&);
-    static bool trySeekEntryPoint(ReadStoreImplementation&);
+    static bool trySeekEntryPoint(ReadStoreImplementation&, ProgramExecutable& program);
     
     ByteCodeReadStore(ReadStoreImplementation& storeImplementation);
     Ref<ReadStoreImplementation> m_storeImplementation;

@@ -37,6 +37,8 @@
 
 #include "ByteCodeStoreMacros.h"
 
+#include "Protect.h"
+
 namespace JSC {
 
 Ref<ProgramExecutableStore> ProgramExecutableStore::create(ProgramExecutable& programExecutable) {
@@ -70,10 +72,13 @@ size_t ProgramExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
     for(size_t i=0; i<m_programExecutable.m_unlinkedProgramCodeBlock.get()->numberOfFunctionDecls(); i++) {
         UnlinkedFunctionExecutable* ufunc = m_programExecutable.m_unlinkedProgramCodeBlock.get()->functionDecl(i);
         FunctionExecutable* func = ufunc->link(vm, m_programExecutable.source());
-        
-        //func->save2(vm, byteCodeCache);
+
+        gcProtect(func);
+
         Ref<FunctionExecutableStore> functionExecutableStore = FunctionExecutableStore::create(*func);
         functionExecutableStore->save(vm, byteCodeCache);
+
+        gcUnprotect(func);
     }
 
     // Write function expressions.
@@ -81,9 +86,12 @@ size_t ProgramExecutableStore::save(VM& vm, ByteCodeWriteStore& byteCodeCache) {
         UnlinkedFunctionExecutable* ufunc = m_programExecutable.m_unlinkedProgramCodeBlock.get()->functionExpr(i);
         FunctionExecutable* func = ufunc->link(vm, m_programExecutable.source());
         
-        //func->save2(vm, byteCodeCache);
+        gcProtect(func);
+
         Ref<FunctionExecutableStore> functionExecutableStore = FunctionExecutableStore::create(*func);
         functionExecutableStore->save(vm, byteCodeCache);
+
+        gcUnprotect(func);
     }
 
 	size_t programIndex = byteCodeCache.currentWritePosition();

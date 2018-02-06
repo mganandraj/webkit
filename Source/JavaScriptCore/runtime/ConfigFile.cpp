@@ -283,7 +283,10 @@ void ConfigFile::parse()
             if (statementNesting != NestedStatementFailedCriteria) {
 
 #if OS(WINDOWS)
-    strncpy(logPathname, filename, s_maxPathLength);    
+    if(strchr(filename, ':') == nullptr) // if not absolute path.
+		 snprintf(logPathname, s_maxPathLength + 1, "%s\%s", m_configDirectory, filename);
+	 else
+		 strncpy(logPathname, filename, s_maxPathLength);    
 #else            
         if (filename[0] != '/') {
             int spaceRequired = snprintf(logPathname, s_maxPathLength + 1, "%s/%s", m_configDirectory, filename);
@@ -502,15 +505,40 @@ void ConfigFile::canonicalizePaths()
     }
 #endif
 
+#if OS(WINDOWS)
+    char* lastPathSeperator = strrchr(m_filename, '\\');
+#else
     char* lastPathSeperator = strrchr(m_filename, '/');
+#endif
 
     if (lastPathSeperator) {
         unsigned dirnameLength = lastPathSeperator - &m_filename[0];
         strncpy(m_configDirectory, m_filename, dirnameLength);
         m_configDirectory[dirnameLength] = '\0';
     } else {
+#if OS(WINDOWS)
+        m_configDirectory[0] = 'C';
+        m_configDirectory[1] = ':';
+        m_configDirectory[2] = '\\';
+        m_configDirectory[3] = 't';
+        m_configDirectory[4] = 'm';
+        m_configDirectory[5] = 'p';
+        m_configDirectory[6] = '\\';
+        m_configDirectory[7] = '\0';
+#elif OS(ANDROID)
+        m_configDirectory[0] = '/';
+        m_configDirectory[1] = 's';
+        m_configDirectory[2] = 'd';
+        m_configDirectory[3] = 'c';
+        m_configDirectory[4] = 'a';
+        m_configDirectory[5] = 'r';
+        m_configDirectory[6] = 'd';
+        m_configDirectory[6] = '/';
+        m_configDirectory[1] = '\0';
+#else
         m_configDirectory[0] = '/';
         m_configDirectory[1] = '\0';
+#endif
     }
 }
 
